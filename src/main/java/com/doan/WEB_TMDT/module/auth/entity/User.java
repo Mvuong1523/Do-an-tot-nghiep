@@ -5,8 +5,13 @@ import lombok.*;
 
 @Entity
 @Table(name = "users")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class User {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -22,6 +27,7 @@ public class User {
     private Role role;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private Status status = Status.ACTIVE;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)

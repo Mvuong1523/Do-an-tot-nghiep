@@ -16,8 +16,11 @@ public class OtpVerification {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private String encodedPassword;
     private Long id;
-
+    private String fullName;
+    private String phone;
+    private String address;
     private String email;
     private String otpCode;
     private LocalDateTime createdAt;

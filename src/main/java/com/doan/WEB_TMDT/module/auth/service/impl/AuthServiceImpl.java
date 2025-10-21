@@ -6,12 +6,14 @@ import com.doan.WEB_TMDT.common.dto.auth.RegisterRequest;
 import com.doan.WEB_TMDT.module.auth.entity.*;
 import com.doan.WEB_TMDT.module.auth.repository.*;
 import com.doan.WEB_TMDT.module.auth.service.AuthService;
+import com.doan.WEB_TMDT.module.auth.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Random;
 
@@ -19,25 +21,37 @@ import java.util.Random;
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
-    private final AuthRepository authRepository;
+    private final UserRepository userRepository;
+    private final CustomerRepository customerRepository;
     private final OtpRepository otpRepository;
     private final PasswordEncoder passwordEncoder;
     private final JavaMailSender mailSender;
+    private final UserService userService; // Gọi khi OTP hợp lệ để tạo user thực tế
 
+    // -----------------------------------------------------------
+    // 1. Gửi mã OTP xác minh khi đăng ký
+    // -----------------------------------------------------------
     @Override
     public ApiResponse sendOtp(RegisterRequest request) {
-        // Kiểm tra email hoặc SĐT tồn tại
-        if (authRepository.existsByEmail(request.getEmail())) {
+        // Kiểm tra trùng email hoặc SĐT
+        if (userRepository.existsByEmail(request.getEmail())) {
             return ApiResponse.error("Email đã được sử dụng!");
         }
-        if (authRepository.existsByPhone(request.getPhone())) {
+        if (customerRepository.existsByPhone(request.getPhone())) {
             return ApiResponse.error("Số điện thoại đã tồn tại!");
         }
 
         // Tạo mã OTP ngẫu nhiên 6 chữ số
         String otp = String.format("%06d", new Random().nextInt(999999));
 
+        // Mã hóa mật khẩu tạm (sẽ dùng khi tạo tài khoản)
+        String encodedPassword = passwordEncoder.encode(request.getPassword());
+
+        // Lưu OTP kèm toàn bộ thông tin đăng ký
         OtpVerification otpVerification = OtpVerification.builder()
+                .fullName(request.getFullName())
+                .phone(request.getPhone())
+                .address(request.getAddress())
                 .email(request.getEmail())
                 .otpCode(otp)
                 .createdAt(LocalDateTime.now())
@@ -46,18 +60,21 @@ public class AuthServiceImpl implements AuthService {
                 .build();
         otpRepository.save(otpVerification);
 
-        // Gửi email
+        // Gửi OTP qua email
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(request.getEmail());
         message.setSubject("Mã xác minh đăng ký tài khoản");
         message.setText("Xin chào " + request.getFullName() +
                 ",\n\nMã OTP của bạn là: " + otp +
-                "\nMã có hiệu lực trong 2 phút.\n\nTrân trọng.");
+                "\nMã có hiệu lực trong 2 phút.\n\nTrân trọng,\nĐội ngũ hỗ trợ WEB_TMDT.");
         mailSender.send(message);
 
         return ApiResponse.success("Mã OTP đã được gửi đến email của bạn!");
     }
 
+    // -----------------------------------------------------------
+    // 2. Xác minh OTP và tạo tài khoản mới
+    // -----------------------------------------------------------
     @Override
     public ApiResponse verifyOtpAndRegister(OtpVerifyRequest request) {
         var otpRecord = otpRepository.findByEmailAndOtpCode(request.getEmail(), request.getOtpCode())
@@ -75,19 +92,19 @@ public class AuthServiceImpl implements AuthService {
             return ApiResponse.error("Mã OTP đã hết hạn!");
         }
 
+        // Đánh dấu OTP đã xác minh
         otpRecord.setVerified(true);
         otpRepository.save(otpRecord);
 
-        // Lấy lại thông tin đăng ký ban đầu từ form (ở thực tế bạn nên lưu tạm hoặc dùng Redis)
-        User user = User.builder()
-                .username(request.getEmail()) // hoặc tự sinh
-                .email(request.getEmail())
-                .password(passwordEncoder.encode("123456")) // hoặc lấy từ RegisterRequest
-                .role(Role.CUSTOMER)
-                .build();
+        // Tạo tài khoản mới từ thông tin OTP
+        ApiResponse response = userService.registerCustomer(
+                otpRecord.getEmail(),
+                otpRecord.getEncodedPassword(),
+                otpRecord.getFullName(),
+                otpRecord.getPhone(),
+                otpRecord.getAddress()
+        );
 
-        authRepository.save(user);
-
-        return ApiResponse.success("Xác minh thành công! Tài khoản đã được tạo.");
+        return ApiResponse.success("Xác minh OTP thành công, tài khoản đã được tạo!", response.getData());
     }
 }

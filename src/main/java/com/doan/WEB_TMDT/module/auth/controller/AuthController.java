@@ -8,18 +8,18 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/auth/register")
+@RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
     private final AuthService authService;
 
-    @PostMapping("/send-otp")
+    @PostMapping("/register/send-otp")
     public ApiResponse sendOtp(@RequestBody RegisterRequest request) {
         return authService.sendOtp(request);
     }
 
-    @PostMapping("/verify")
+    @PostMapping("/register/verify")
     public ApiResponse verifyOtp(@RequestBody OtpVerifyRequest request) {
         return authService.verifyOtpAndRegister(request);
     }
