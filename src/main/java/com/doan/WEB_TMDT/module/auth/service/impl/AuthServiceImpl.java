@@ -27,7 +27,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JavaMailSender mailSender;
     private final UserService userService; // Gọi khi OTP hợp lệ để tạo user thực tế
-
+    private final com.doan.WEB_TMDT.security.JwtService jwtService;
     // -----------------------------------------------------------
     // 1. Gửi mã OTP xác minh khi đăng ký
     // -----------------------------------------------------------
