@@ -53,9 +53,10 @@ public class AuthServiceImpl implements AuthService {
                 .phone(request.getPhone())
                 .address(request.getAddress())
                 .email(request.getEmail())
+                .encodedPassword(encodedPassword)
                 .otpCode(otp)
                 .createdAt(LocalDateTime.now())
-                .expiresAt(LocalDateTime.now().plusMinutes(2))
+                .expiresAt(LocalDateTime.now().plusMinutes(5))
                 .verified(false)
                 .build();
         otpRepository.save(otpVerification);

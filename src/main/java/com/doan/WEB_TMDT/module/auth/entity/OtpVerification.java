@@ -2,7 +2,6 @@ package com.doan.WEB_TMDT.module.auth.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.time.LocalDateTime;
 
 @Entity
@@ -16,12 +15,13 @@ public class OtpVerification {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private String encodedPassword;
     private Long id;
+
+    private String email;
+    private String encodedPassword;
     private String fullName;
     private String phone;
     private String address;
-    private String email;
     private String otpCode;
     private LocalDateTime createdAt;
     private LocalDateTime expiresAt;
