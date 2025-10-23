@@ -16,20 +16,19 @@ import java.util.function.Function;
 public class JwtService {
 
     @Value("${app.jwt.secret}")
-    private String secret; // chuỗi dài (>=32 bytes)
+    private String secret; // ít nhất 32 bytes
 
     @Value("${app.jwt.expiration-ms:86400000}")
-    private long expirationMs; // 24h mặc định
+    private long expirationMs; // 1 ngày mặc định
 
     private Key getSigningKey() {
-        // secret có thể là plain text → encode base64 để đảm bảo đủ bytes cho HMAC-SHA
         byte[] keyBytes = Decoders.BASE64.decode(
                 java.util.Base64.getEncoder().encodeToString(secret.getBytes())
         );
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    // ====== Generate ======
+    // ===== Generate token =====
     public String generateToken(String subjectEmail, Map<String, Object> claims) {
         Date now = new Date();
         Date exp = new Date(now.getTime() + expirationMs);
@@ -42,7 +41,7 @@ public class JwtService {
                 .compact();
     }
 
-    // ====== Extract ======
+    // ===== Extract =====
     public String extractEmail(String token) {
         return extractClaim(token, Claims::getSubject);
     }
@@ -59,17 +58,7 @@ public class JwtService {
         return resolver.apply(extractAllClaims(token));
     }
 
-    // ====== Validate ======
-    public boolean isTokenStructurallyValid(String token) {
-        try {
-            extractAllClaims(token);
-            return true;
-        } catch (JwtException e) {
-            return false;
-        }
-    }
-
-    // overload KHÁC với hàm trên: vừa đúng user vừa không hết hạn
+    // ===== Validate =====
     public boolean isTokenValid(String token, UserDetails userDetails) {
         try {
             String email = extractEmail(token);

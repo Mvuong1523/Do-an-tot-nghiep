@@ -29,19 +29,20 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // public
                         .requestMatchers("/api/auth/**").permitAll()
 
-                        // quyền cấp 1 theo Role (users.role)
-                        .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
-                        .requestMatchers("/api/employee/**").hasAuthority("EMPLOYEE")
-                        .requestMatchers("/api/customer/**").hasAuthority("CUSTOMER")
+                        // Role-based (User.role)
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/employee/**").hasRole("EMPLOYEE")
+                        .requestMatchers("/api/customer/**").hasRole("CUSTOMER")
 
-                        // quyền cấp 2 theo Position (employees.position)
-                        .requestMatchers("/api/sale/**").hasAuthority("SALE")
-                        .requestMatchers("/api/cskh/**").hasAuthority("CSKH")
-                        .requestMatchers("/api/product-manager/**").hasAuthority("PRODUCT_MANAGER")
-                        .requestMatchers("/api/warehouse/**").hasAuthority("WAREHOUSE",)
-                        .requestMatchers("/api/accountant/**").hasAuthority("ACCOUNTANT")
+                        // Position-based (Employee.position)
+                        .requestMatchers("/api/sale/**").hasAnyAuthority("SALE", "ADMIN")
+                        .requestMatchers("/api/cskh/**").hasAnyAuthority("CSKH", "ADMIN")
+                        .requestMatchers("/api/product-manager/**").hasAnyAuthority("PRODUCT_MANAGER", "ADMIN")
+                        .requestMatchers("/api/warehouse/**").hasAnyAuthority("WAREHOUSE", "ADMIN")
+                        .requestMatchers("/api/accountant/**").hasAnyAuthority("ACCOUNTANT", "ADMIN")
 
                         .anyRequest().authenticated()
                 )
@@ -51,7 +52,9 @@ public class SecurityConfig {
     }
 
     @Bean
-    public PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
