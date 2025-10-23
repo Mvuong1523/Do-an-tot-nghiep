@@ -44,6 +44,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/warehouse/**").hasAnyAuthority("WAREHOUSE", "ADMIN")
                         .requestMatchers("/api/accountant/**").hasAnyAuthority("ACCOUNTANT", "ADMIN")
 
+                        .requestMatchers("/api/employee-registration/apply").permitAll()
+                        .requestMatchers("/api/employee-registration/approve/**").hasAuthority("ADMIN")
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
