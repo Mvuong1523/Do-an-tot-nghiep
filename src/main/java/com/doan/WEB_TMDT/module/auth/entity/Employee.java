@@ -1,5 +1,6 @@
 package com.doan.WEB_TMDT.module.auth.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -17,6 +18,7 @@ public class Employee {
 
     @OneToOne
     @JoinColumn(name = "user_id")
+    @JsonIgnore
     private User user;
 
     @Enumerated(EnumType.STRING)
@@ -25,4 +27,6 @@ public class Employee {
     private String fullName;
     private String phone;
     private String address;
+    @Column(name = "first_login", nullable = false)
+    private boolean firstLogin = true;
 }

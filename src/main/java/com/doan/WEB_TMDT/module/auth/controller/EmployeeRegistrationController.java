@@ -1,6 +1,7 @@
 package com.doan.WEB_TMDT.module.auth.controller;
 
 import com.doan.WEB_TMDT.common.dto.ApiResponse;
+import com.doan.WEB_TMDT.module.auth.dto.EmployeeRegistrationRequest;
 import com.doan.WEB_TMDT.module.auth.entity.Position;
 import com.doan.WEB_TMDT.module.auth.service.EmployeeRegistrationService;
 import lombok.RequiredArgsConstructor;
@@ -15,13 +16,15 @@ public class EmployeeRegistrationController {
 
     // 🟡 Nhân viên gửi yêu cầu đăng ký
     @PostMapping("/apply")
-    public ApiResponse applyEmployee(@RequestParam String fullName,
-                                     @RequestParam String email,
-                                     @RequestParam String phone,
-                                     @RequestParam String address,
-                                     @RequestParam Position position,
-                                     @RequestParam(required = false) String note) {
-        return registrationService.registerEmployee(fullName, email, phone, address, position, note);
+    public ApiResponse registerEmployee(@RequestBody EmployeeRegistrationRequest req) {
+        return registrationService.registerEmployee(
+                req.getFullName(),
+                req.getEmail(),
+                req.getPhone(),
+                req.getAddress(),
+                req.getPosition(),
+                req.getNote()
+        );
     }
 
     // 🟢 Admin duyệt yêu cầu

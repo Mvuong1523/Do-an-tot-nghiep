@@ -1,5 +1,5 @@
-// com.doan.WEB_TMDT.common.dto.auth.LoginResponse
-package com.doan.WEB_TMDT.common.dto.auth;
+// com.doan.WEB_TMDT.module.auth.dto.LoginResponse
+package com.doan.WEB_TMDT.module.auth.dto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 @Data

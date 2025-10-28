@@ -76,6 +76,7 @@ public class EmployeeRegistrationServiceImpl implements EmployeeRegistrationServ
                 .phone(reg.getPhone())
                 .address(reg.getAddress())
                 .position(reg.getPosition())
+                .firstLogin(true)
                 .build();
         user.setEmployee(emp);
 

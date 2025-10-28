@@ -1,8 +1,8 @@
 package com.doan.WEB_TMDT.module.auth.service.impl;
 
 import com.doan.WEB_TMDT.common.dto.ApiResponse;
-import com.doan.WEB_TMDT.common.dto.auth.OtpVerifyRequest;
-import com.doan.WEB_TMDT.common.dto.auth.RegisterRequest;
+import com.doan.WEB_TMDT.module.auth.dto.OtpVerifyRequest;
+import com.doan.WEB_TMDT.module.auth.dto.RegisterRequest;
 import com.doan.WEB_TMDT.module.auth.entity.*;
 import com.doan.WEB_TMDT.module.auth.repository.*;
 import com.doan.WEB_TMDT.module.auth.service.AuthService;
@@ -13,7 +13,6 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Random;
 

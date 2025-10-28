@@ -1,9 +1,9 @@
 package com.doan.WEB_TMDT.module.auth.controller;
 
+import org.springframework.security.core.Authentication;
+
 import com.doan.WEB_TMDT.common.dto.ApiResponse;
-import com.doan.WEB_TMDT.common.dto.auth.LoginRequest;
-import com.doan.WEB_TMDT.common.dto.auth.OtpVerifyRequest;
-import com.doan.WEB_TMDT.common.dto.auth.RegisterRequest;
+import com.doan.WEB_TMDT.module.auth.dto.*;
 import com.doan.WEB_TMDT.module.auth.service.AuthService;
 import com.doan.WEB_TMDT.module.auth.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +30,18 @@ public class AuthController {
     @PostMapping("/login")
     public ApiResponse login(@RequestBody LoginRequest request) {
         return userService.login(request);
+    }
+    @PostMapping("/first-change-password")
+    public ApiResponse firstChangePassword(@RequestBody FirstChangePasswordRequest request){
+        return userService.firstChangePassword(request);
+    }
+    @PostMapping("/change-password")
+    public ApiResponse changePassword(
+            @RequestBody ChangePasswordRequest req,
+            Authentication authentication
+    ) {
+        String email = authentication.getName();
+        return userService.changePassword(email, req);
     }
 
 }
