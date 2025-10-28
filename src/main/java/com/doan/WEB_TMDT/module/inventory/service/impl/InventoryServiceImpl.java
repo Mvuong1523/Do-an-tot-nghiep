@@ -25,36 +25,11 @@ public class InventoryServiceImpl implements com.doan.WEB_TMDT.module.inventory.
     // ===========================================================
     // 🧩 TẠO SẢN PHẨM
     // ===========================================================
-    @Override
-    public ApiResponse createProduct(CreateProductRequest req) {
-        if (productRepo.existsBySku(req.getSku())) {
-            return ApiResponse.error("SKU đã tồn tại!");
-        }
-        Product p = Product.builder()
-                .sku(req.getSku())
-                .name(req.getName())
-                .brand(req.getBrand())
-                .category(req.getCategory())
-                .unit(req.getUnit())
-                .price(req.getPrice() == null ? 0L : req.getPrice())
-                .active(true)
-                .build();
-        productRepo.save(p);
-
-        // tạo bản ghi tồn kho = 0
-        InventoryStock stock = InventoryStock.builder()
-                .product(p)
-                .onHand(0L)
-                .reserved(0L)
-                .build();
-        stockRepo.save(stock);
-
-        return ApiResponse.success("Tạo sản phẩm thành công!", p);
-    }
 
     // ===========================================================
     // 🧾 TẠO NHÀ CUNG CẤP
     // ===========================================================
+    @Transactional
     @Override
     public ApiResponse createSupplier(CreateSupplierRequest req) {
         if (supplierRepo.existsByName(req.getName())) {
@@ -79,8 +54,8 @@ public class InventoryServiceImpl implements com.doan.WEB_TMDT.module.inventory.
     @Override
     public ApiResponse importStock(ImportStockRequest req, String actorEmail) {
         Supplier supplier = null;
-        if (req.getSupplierName() != null) {
-            supplier = supplierRepo.findByName(req.getSupplierName()).orElse(null);
+        if (req.getSupplierId() != null) {
+            supplier = supplierRepo.findByName(req.getSupplierId()).orElse(null);
         }
 
         String code = genCode("IM");

@@ -17,7 +17,9 @@ public class Supplier {
     private String phone;
     private String email;
     private String address;
-
+    private String taxCode;
+    private String bankAccount;
+    private String paymentTerm; // điều khoản thanh toán
     @Column(nullable = false)
     private Boolean active = true;
 }

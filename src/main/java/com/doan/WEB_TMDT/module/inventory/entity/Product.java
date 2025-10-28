@@ -24,5 +24,8 @@ public class Product {
     private Long price;      // giá bán niêm yết (đồng)
 
     @Column(nullable = false)
+    private Long importPrice ; // giá nhập gần nhất (nội bộ)
+
+    @Column(nullable = false)
     private Boolean active = true;
 }

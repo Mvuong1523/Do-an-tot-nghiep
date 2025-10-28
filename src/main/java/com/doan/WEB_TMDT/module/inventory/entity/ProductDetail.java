@@ -3,6 +3,8 @@ package com.doan.WEB_TMDT.module.inventory.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "product_details",
         uniqueConstraints = @UniqueConstraint(columnNames = "serial_number"))
@@ -28,6 +30,8 @@ public class ProductDetail {
     @ManyToOne
     @JoinColumn(name = "transaction_item_id")
     private InventoryTransactionItem transactionItem; // phiếu nhập tương ứng
+
+    private LocalDateTime warrantyUntil;
 
     private String note;
 }

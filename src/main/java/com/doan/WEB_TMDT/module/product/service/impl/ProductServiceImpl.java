@@ -1,6 +1,7 @@
 package com.doan.WEB_TMDT.module.product.service.impl;
 
 import com.doan.WEB_TMDT.common.dto.ApiResponse;
+import com.doan.WEB_TMDT.module.inventory.repository.ProductRepository;
 import com.doan.WEB_TMDT.module.product.entity.*;
 import com.doan.WEB_TMDT.module.product.repository.*;
 import com.doan.WEB_TMDT.module.product.service.ProductService;

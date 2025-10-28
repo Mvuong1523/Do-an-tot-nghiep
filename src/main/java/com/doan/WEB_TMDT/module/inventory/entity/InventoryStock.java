@@ -21,6 +21,10 @@ public class InventoryStock {
     @Column(nullable = false)
     private Long reserved = 0L;   // đã giữ chỗ cho đơn
 
+    @Column(nullable = false)
+    private Long damaged = 0L; // sản phẩm lỗi
+
+
     @Transient
     public Long getAvailable() {
         long a = onHand - reserved;

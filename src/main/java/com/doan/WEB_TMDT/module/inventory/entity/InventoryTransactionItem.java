@@ -24,6 +24,10 @@ public class InventoryTransactionItem {
     private Product product;
 
     @Column(nullable = false)
+    private String sku;
+
+
+    @Column(nullable = false)
     private Long quantity;   // số lượng nhập/xuất
 
     private Long unitCost;   // giá vốn (khi nhập); có thể null khi xuất
