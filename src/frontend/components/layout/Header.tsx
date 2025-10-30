@@ -40,7 +40,7 @@ export default function Header() {
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-3">
             <div className="w-12 h-12 bg-navy-600 rounded-lg flex items-center justify-center">
-              <img src="/logo.png" alt="Tech World Logo" className="w-10 h-10 object-contain" />
+              <Image src="/logo.png" alt="Tech World Logo" width={40} height={40} className="w-10 h-10 object-contain" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900">TECH WORLD</h1>
