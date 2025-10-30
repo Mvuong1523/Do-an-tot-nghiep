@@ -1,8 +1,15 @@
 package com.project.ecommerce.catalog.service;
-// ... imports ...
+
+import com.project.ecommerce.catalog.dto.product.ProductCreateRequest;
+import com.project.ecommerce.catalog.entity.Product;
+import com.project.ecommerce.catalog.entity.Variant; // Cần import Variant
+
 public interface ProductService {
-    Product createProduct(ProductCreateRequest request); // CREATE
-    // Có thể thêm Product getProductById(Long id); // READ
-    Product updateProduct(Long id, ProductCreateRequest request); // UPDATE
-    void deleteProduct(Long id); // DELETE (Soft-delete)
+    // CRUD đã có...
+    Product createProduct(ProductCreateRequest request);
+    Product updateProduct(Long id, ProductCreateRequest request);
+    void deleteProduct(Long id);
+
+    // PHƯƠNG THỨC BỔ SUNG: Đọc Variant theo SKU
+    Variant getVariantBySku(String sku); // READ
 }
