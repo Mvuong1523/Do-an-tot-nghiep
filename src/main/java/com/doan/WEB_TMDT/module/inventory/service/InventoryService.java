@@ -9,5 +9,4 @@ public interface InventoryService {
     ApiResponse createPurchaseOrder(CreatePORequest req, String actor);
     ApiResponse addSerialToPO(Long poId, String serial, String productSku);
     ApiResponse completePO(Long poId, LocalDateTime receivedDate);
-    ApiResponse performStockAudit(StockAuditRequest req, String actor);
 }
