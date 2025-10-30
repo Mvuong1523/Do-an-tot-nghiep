@@ -19,8 +19,8 @@ import java.util.*;
 @RequiredArgsConstructor
 public class InventoryServiceImpl implements InventoryService {
 
-    private final PurchaseOrderRepository poRepo;
-    private final PurchaseOrderItemRepository poItemRepo;
+//    private final PurchaseOrderRepository poRepo;
+//    private final PurchaseOrderItemRepository poItemRepo;
     private final ProductRepository productRepo;
     private final ProductDetailRepository detailRepo;
     private final InventoryStockRepository stockRepo;
@@ -28,94 +28,62 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     public ApiResponse createPurchaseOrder(CreatePORequest req, String actor) {
-        Supplier s = supplierRepo.findByName(req.getSupplierName())
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy NCC!"));
-        String code = "PO-" + System.currentTimeMillis();
-
         PurchaseOrder po = PurchaseOrder.builder()
-                .poCode(code)
-                .supplier(s)
-                .orderDate(LocalDateTime.now())
-                .status(PurchaseStatus.CREATED)
-                .createdBy(actor)
+                .supplier(Supplier.builder().id(req.getSupplierId()).build())
+                .status(POStatus.PENDING)
                 .note(req.getNote())
+                .createdDate(LocalDateTime.now())
                 .build();
 
-        List<PurchaseOrderItem> items = new ArrayList<>();
-        for (POItemDTO dto : req.getItems()) {
-            Product p = productRepo.findBySku(dto.getSku())
-                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm SKU=" + dto.getSku()));
-            items.add(PurchaseOrderItem.builder()
-                    .purchaseOrder(po)
-                    .product(p)
-                    .quantity(dto.getQuantity())
-                    .unitCost(dto.getUnitCost())
-                    .build());
-        }
-        po.setItems(items);
-        poRepo.save(po);
+        List<PurchaseOrderItem> items = req.getItems().stream().map(itemReq -> {
+            Product product = productRepository.findBySku(itemReq.getProductSku())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm: " + itemReq.getProductSku()));
 
-        return ApiResponse.success("Tạo đơn nhập hàng thành công!", po);
+            return PurchaseOrderItem.builder()
+                    .purchaseOrder(po)
+                    .product(product)
+                    .quantity(itemReq.getQuantity())
+                    .unitPrice(itemReq.getUnitPrice())
+                    .build();
+        }).toList();
+
+        po.setItems(items);
+        purchaseOrderRepository.save(po);
+        return ApiResponse.success("Tạo phiếu nhập thành công, trạng thái PENDING");
     }
 
     @Override
-    public ApiResponse addSerialToPO(Long poId, String serial, String sku) {
-        PurchaseOrder po = poRepo.findById(poId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy PO!"));
-        if (po.getStatus() == PurchaseStatus.COMPLETED)
-            return ApiResponse.error("PO đã hoàn tất!");
+    public ApiResponse addSerialToPO(Long poId, String serial, String productSku) {
+        PurchaseOrder po = purchaseOrderRepository.findById(poId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy phiếu nhập"));
+        if (po.getStatus() == POStatus.COMPLETED) {
+            return ApiResponse.error("Phiếu đã hoàn tất, không thể thêm serial mới");
+        }
 
-        PurchaseOrderItem item = po.getItems().stream()
-                .filter(i -> i.getProduct().getSku().equals(sku))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Không có sản phẩm này trong PO!"));
+        Product product = productRepository.findBySku(productSku)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
 
         ProductDetail detail = ProductDetail.builder()
                 .serialNumber(serial)
-                .product(item.getProduct())
-                .poItem(item)
+                .product(product)
+                .poItem(po.getItems().stream()
+                        .filter(i -> i.getProduct().getId().equals(product.getId()))
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException("Sản phẩm không có trong PO")))
                 .status(ProductStatus.IN_STOCK)
                 .build();
 
-        detailRepo.save(detail);
-        return ApiResponse.success("Đã thêm serial vào PO!", detail);
+        productDetailRepository.save(detail);
+        return ApiResponse.success("Thêm serial " + serial + " vào PO thành công");
     }
 
     @Override
     public ApiResponse completePO(Long poId, LocalDateTime receivedDate) {
-        PurchaseOrder po = poRepo.findById(poId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy PO!"));
-
-        po.setStatus(PurchaseStatus.COMPLETED);
-        po.setReceivedDate(receivedDate);
-
-        for (PurchaseOrderItem item : po.getItems()) {
-            InventoryStock stock = stockRepo.findByProduct(item.getProduct())
-                    .orElseGet(() -> stockRepo.save(
-                            InventoryStock.builder().product(item.getProduct()).onHand(0L).reserved(0L).build()
-                    ));
-            long added = item.getProductDetails().size();
-            stock.setOnHand(stock.getOnHand() + added);
-            stockRepo.save(stock);
-        }
-
-        poRepo.save(po);
-        return ApiResponse.success("Hoàn tất đơn nhập kho!", po);
-    }
-
-    @Override
-    public ApiResponse performStockAudit(StockAuditRequest req, String actor) {
-        StringBuilder log = new StringBuilder();
-        for (StockAuditItemDTO dto : req.getItems()) {
-            Product p = productRepo.findBySku(dto.getSku())
-                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy SKU=" + dto.getSku()));
-            InventoryStock stock = stockRepo.findByProduct(p)
-                    .orElseThrow(() -> new IllegalStateException("Không có tồn kho!"));
-
-            stock.setOnHand(dto.getActualCount());
-            stockRepo.save(stock);
-            log.append("✔ ").append(p.getName()).append(" -> ").append(dto.getActualCount()).append("\n");
-        }
-        return ApiResponse.success("Đã cập nhật kiểm kê tồn kho", log.toString());
+        PurchaseOrder po = purchaseOrderRepository.findById(poId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy phiếu nhập"));
+        po.setStatus(POStatus.COMPLETED);
+        po.setCompletedDate(receivedDate);
+        purchaseOrderRepository.save(po);
+        return ApiResponse.success("Phiếu nhập #" + po.getId() + " đã hoàn tất");
     }
 }
