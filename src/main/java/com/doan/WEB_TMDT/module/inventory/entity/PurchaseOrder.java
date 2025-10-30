@@ -24,7 +24,7 @@ public class PurchaseOrder {
     private LocalDateTime receivedDate; // Ngày nhập thực tế (nếu có)
 
     @Enumerated(EnumType.STRING)
-    private PurchaseStatus status; // CREATED, RECEIVED, CANCELED
+    private POStatus status; // CREATED, RECEIVED, CANCELED
 
     private String createdBy;  // email quản lý kho
     private String note;
