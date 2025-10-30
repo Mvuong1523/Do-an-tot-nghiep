@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { FiUser, FiMail, FiPhone, FiMapPin, FiCreditCard, FiTruck } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { useTranslation } from '@/hooks/useTranslation'
+import Image from 'next/image'
 
 export default function CheckoutPage() {
   const { t } = useTranslation()
@@ -388,9 +389,11 @@ export default function CheckoutPage() {
                   {orderItems.map((item) => (
                     <div key={item.id} className="flex items-center space-x-3">
                       <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                        <img
+                        <Image
                           src={item.image}
                           alt={item.name}
+                          width={64}
+                          height={64}
                           className="w-full h-full object-cover"
                         />
                       </div>

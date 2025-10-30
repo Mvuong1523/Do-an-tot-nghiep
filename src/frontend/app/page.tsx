@@ -30,7 +30,7 @@ const featuredProducts: Product[] = [
     id: 2,
     name: 'Điện thoại Xiaomi POCO C71 4GB/128GB',
     price: 2490000,
-    originalPrice: null,
+    originalPrice: undefined,
     discount: 0,
     image: '/images/xiaomi-poco-c71.jpg',
     rating: 4.5,
@@ -52,7 +52,7 @@ const featuredProducts: Product[] = [
     id: 4,
     name: 'Điện thoại Xiaomi 15T 12GB/512GB',
     price: 14990000,
-    originalPrice: null,
+    originalPrice: undefined,
     discount: 0,
     image: '/images/xiaomi-15t.jpg',
     rating: 4.7,
@@ -267,7 +267,7 @@ export default function HomePage() {
                     <p className="text-sm text-gray-600">{review.role}</p>
                   </div>
                 </div>
-                <p className="text-gray-700">"{review.content}"</p>
+                <p className="text-gray-700">&quot;{review.content}&quot;</p>
               </div>
             ))}
           </div>
