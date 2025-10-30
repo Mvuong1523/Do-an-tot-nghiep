@@ -1,31 +1,36 @@
-package com.doan.WEB_TMDT.module.product.entity;
-
-import jakarta.persistence.*;
-import lombok.*;
+package com.project.ecommerce.catalog.entity;
+// ... imports ...
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
-@Table(name = "products")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Table(name = "product")
+@Data
 public class Product {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @Column(unique = true, nullable = false, length = 64)
-    private String sku;
-
-    @Column(nullable = false, length = 255)
+    @Column(name = "name", nullable = false)
     private String name;
+    @Column(name = "slug", unique = true)
+    private String slug;
+    @Lob private String description;
+    @Column(name = "list_price", precision = 18, scale = 0)
+    private BigDecimal listPrice;
+    @Column(name = "is_selling", nullable = false)
+    private Boolean isSelling = true;
 
-    private String brand;
-    private String category;
-    private String unit;     // vd: cái, hộp
+    // Quan hệ Many-to-One với Category
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id", nullable = false)
+    private Category category;
 
-    @Column(nullable = false)
-    private Long price;      // giá bán niêm yết (đồng)
+    // Quan hệ One-to-Many với Variant
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<Variant> variants = new HashSet<>();
 
-    @Column(nullable = false)
-    private Long importPrice ; // giá nhập gần nhất (nội bộ)
-
-    @Column(nullable = false)
-    private Boolean active = true;
+    private LocalDateTime createdAt = LocalDateTime.now();
+    private LocalDateTime updatedAt;
 }

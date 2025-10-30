@@ -1,9 +1,8 @@
-package com.doan.WEB_TMDT.module.product.service;
-
-import com.doan.WEB_TMDT.common.dto.ApiResponse;
-import com.doan.WEB_TMDT.module.product.dto.CreateCategoryRequest;
-
+package com.project.ecommerce.catalog.service;
+// ... imports ...
 public interface CategoryService {
-    ApiResponse createCategory(CreateCategoryRequest req);
-    ApiResponse getAllCategories();
+    Category createCategory(CategoryCreateRequest request); // CREATE
+    List<Category> getAllCategories(); // READ
+    Category updateCategory(Long id, CategoryCreateRequest request); // UPDATE
+    void deleteCategory(Long id); // DELETE (Soft-delete)
 }
