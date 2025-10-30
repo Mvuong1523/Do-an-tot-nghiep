@@ -7,7 +7,8 @@ export const useTranslation = () => {
   const { currentLanguage } = useLanguageStore()
   
   const t = (key: TranslationKey): string => {
-    return translations[currentLanguage][key] || translations.vi[key] || key
+    const currentTranslations = translations[currentLanguage] as typeof translations.vi;
+    return currentTranslations[key] || translations.vi[key] || key;
   }
   
   return { t, currentLanguage }
