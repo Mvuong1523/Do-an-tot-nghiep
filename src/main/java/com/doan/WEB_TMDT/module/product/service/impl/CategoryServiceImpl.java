@@ -1,42 +1,17 @@
-package com.doan.WEB_TMDT.module.product.service.impl;
-
-import com.doan.WEB_TMDT.common.dto.ApiResponse;
-import com.doan.WEB_TMDT.module.product.dto.CreateCategoryRequest;
-import com.doan.WEB_TMDT.module.product.entity.Category;
-import com.doan.WEB_TMDT.module.product.repository.CategoryRepository;
-import com.doan.WEB_TMDT.module.product.service.CategoryService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-
+package com.project.ecommerce.catalog.service.impl;
+// ... imports ...
 @Service
-@RequiredArgsConstructor
 public class CategoryServiceImpl implements CategoryService {
+    @Autowired private CategoryRepository categoryRepository;
 
-    private final CategoryRepository categoryRepo;
+    @Override @Transactional
+    public Category createCategory(CategoryCreateRequest request) { /* Logic CREATE */ }
 
-    @Override
-    public ApiResponse createCategory(CreateCategoryRequest req) {
-        if (categoryRepo.existsByName(req.getName())) {
-            return ApiResponse.error("Danh mục đã tồn tại!");
-        }
+    @Override public List<Category> getAllCategories() { /* Logic READ */ }
 
-        Category parent = null;
-        if (req.getParentId() != null) {
-            parent = categoryRepo.findById(req.getParentId()).orElse(null);
-        }
+    @Override @Transactional
+    public Category updateCategory(Long id, CategoryCreateRequest request) { /* Logic UPDATE */ }
 
-        Category category = Category.builder()
-                .name(req.getName())
-                .description(req.getDescription())
-                .parent(parent)
-                .build();
-
-        categoryRepo.save(category);
-        return ApiResponse.success("Tạo danh mục thành công!", category);
-    }
-
-    @Override
-    public ApiResponse getAllCategories() {
-        return ApiResponse.success("Danh sách danh mục", categoryRepo.findAll());
-    }
+    @Override @Transactional
+    public void deleteCategory(Long id) { /* Logic DELETE (Soft-delete) */ }
 }
