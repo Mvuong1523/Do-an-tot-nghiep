@@ -1,0 +1,12 @@
+{
+  "/_not-found": "app/_not-found.js",
+  "/cart/page": "app/cart/page.js",
+  "/contact/page": "app/contact/page.js",
+  "/checkout/page": "app/checkout/page.js",
+  "/login/page": "app/login/page.js",
+  "/page": "app/page.js",
+  "/products/[id]/page": "app/products/[id]/page.js",
+  "/products/page": "app/products/page.js",
+  "/register/page": "app/register/page.js",
+  "/wishlist/page": "app/wishlist/page.js"
+}
