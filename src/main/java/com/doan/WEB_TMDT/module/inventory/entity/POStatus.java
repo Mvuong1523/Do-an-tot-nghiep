@@ -5,5 +5,6 @@ public enum POStatus {
     RECEIVING,   // đang nhập hàng (quét serial)
     PENDING,
     COMPLETED,   // nhập xong
-    CANCELED     // hủy
+    CANCELED,// hủy
+    RECEIVED
 }

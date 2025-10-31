@@ -11,9 +11,8 @@ public class Supplier {
     private Long id;
 
     @Column(nullable = false, unique = true, length = 255)
-    private String name;
 
-    private String contactName;
+    private String name;
     private String phone;
     private String email;
     private String address;

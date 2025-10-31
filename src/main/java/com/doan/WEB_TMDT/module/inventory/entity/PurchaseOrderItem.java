@@ -5,7 +5,7 @@ import com.doan.WEB_TMDT.module.product.entity.Product;
 import com.doan.WEB_TMDT.module.product.entity.ProductDetail;
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.Id;
+import jakarta.persistence.Id;
 
 import java.util.List;
 
@@ -30,7 +30,7 @@ public class PurchaseOrderItem {
     private Product product;
 
     private Long quantity;   // số lượng đặt
-    private Long unitCost;   // giá nhập
+    private Double unitCost;   // giá nhập
     private String note;
 
     @OneToMany(mappedBy = "poItem", cascade = CascadeType.ALL)

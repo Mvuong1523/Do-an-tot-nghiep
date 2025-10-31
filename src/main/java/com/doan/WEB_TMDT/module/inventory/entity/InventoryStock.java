@@ -26,9 +26,16 @@ public class InventoryStock {
     private Long damaged = 0L; // sản phẩm lỗi
 
 
+    // 🔹 Tính tự động số lượng có thể bán
+    @Transient
+    public Long getSellable() {
+        long sellable = onHand - reserved - damaged;
+        return Math.max(sellable, 0L);
+    }
+
+    // 🔹 Tính tổng còn trong kho (không trừ reserved)
     @Transient
     public Long getAvailable() {
-        long a = onHand - reserved;
-        return a < 0 ? 0 : a;
+        return onHand - reserved;
     }
 }

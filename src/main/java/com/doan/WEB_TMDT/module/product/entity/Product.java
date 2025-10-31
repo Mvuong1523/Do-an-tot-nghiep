@@ -1,5 +1,6 @@
 package com.doan.WEB_TMDT.module.product.entity;
 
+import com.doan.WEB_TMDT.module.inventory.entity.Supplier;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -28,4 +29,8 @@ public class Product {
 
     @Column(nullable = false)
     private Boolean active = true;
+
+    @ManyToOne
+    @JoinColumn(name = "supplier_id", nullable = false)
+    private Supplier supplier;
 }

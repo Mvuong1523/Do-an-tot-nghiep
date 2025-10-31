@@ -6,7 +6,8 @@ import com.doan.WEB_TMDT.module.inventory.dto.*;
 import java.time.LocalDateTime;
 
 public interface InventoryService {
-    ApiResponse createPurchaseOrder(CreatePORequest req, String actor);
-    ApiResponse addSerialToPO(Long poId, String serial, String productSku);
-    ApiResponse completePO(Long poId, LocalDateTime receivedDate);
+    ApiResponse createSupplier(CreateSupplierRequest req);
+    ApiResponse createPurchaseOrder(CreatePORequest req);
+    ApiResponse completePurchaseOrder(CompletePORequest req);
+    ApiResponse exportInventory(ExportInventoryRequest req);
 }
