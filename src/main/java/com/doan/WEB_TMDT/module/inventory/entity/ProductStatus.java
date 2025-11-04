@@ -1,4 +1,4 @@
-package com.doan.WEB_TMDT.module.product.entity;
+package com.doan.WEB_TMDT.module.inventory.entity;
 
 public enum ProductStatus {
     IN_STOCK,       // đang trong kho

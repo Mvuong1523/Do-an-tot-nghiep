@@ -12,4 +12,7 @@ public interface SupplierRepository extends JpaRepository<Supplier, Long> {
     boolean existsByEmail(String email);
     boolean existsByTaxCode(String taxCode);
     boolean existsByBankAccount(String bankAcount);
+    Optional<Supplier> findByTaxCode(String taxCode);
+    Optional<Supplier> findByEmail(String email);
+    Optional<Supplier> findByPhone(String phone);
 }

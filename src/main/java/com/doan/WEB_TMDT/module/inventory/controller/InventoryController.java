@@ -4,8 +4,9 @@ import com.doan.WEB_TMDT.common.dto.ApiResponse;
 import com.doan.WEB_TMDT.module.inventory.dto.*;
 import com.doan.WEB_TMDT.module.inventory.entity.PurchaseOrder;
 import com.doan.WEB_TMDT.module.inventory.service.InventoryService;
-import com.doan.WEB_TMDT.module.product.entity.Product;
+import com.doan.WEB_TMDT.module.inventory.entity.WarehouseProduct;
 import com.doan.WEB_TMDT.module.product.repository.ProductRepository;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -27,12 +28,12 @@ public class InventoryController {
     // ===== Suppliers =====
     @PostMapping("/suppliers")
     public ApiResponse createSupplier(@RequestBody CreateSupplierRequest req) {
-        return inventoryService.createSupplier(req);
+        return inventoryService.getOrCreateSupplier(req);
     }
 
     @GetMapping("/supplier/{supplierId}/products")
     public ApiResponse getProductsBySupplier(@PathVariable Long supplierId) {
-        List<Product> products = productRepository.findAllBySupplier_Id(supplierId);
+        List<WarehouseProduct> products = productRepository.findAllBySupplier_Id(supplierId);
         return ApiResponse.success("Danh sách sản phẩm", products);
     }
     // ===== Import / Export =====
@@ -46,6 +47,11 @@ public class InventoryController {
     public ApiResponse exportStock(@RequestBody ExportInventoryRequest req, Authentication auth) {
         String actor = auth != null ? auth.getName() : "system";
         return inventoryService.exportInventory(req);
+    }
+
+    @PostMapping("/create")
+    public ApiResponse export(@RequestBody CreateExportOrderRequest req) {
+        return inventoryService.createExportOrder(req); // ✅ gọi đúng
     }
 
     // ===== Stock View =====

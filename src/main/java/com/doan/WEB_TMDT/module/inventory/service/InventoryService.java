@@ -6,8 +6,10 @@ import com.doan.WEB_TMDT.module.inventory.dto.*;
 import java.time.LocalDateTime;
 
 public interface InventoryService {
-    ApiResponse createSupplier(CreateSupplierRequest req);
+    ApiResponse getOrCreateSupplier(CreateSupplierRequest req);
     ApiResponse createPurchaseOrder(CreatePORequest req);
     ApiResponse completePurchaseOrder(CompletePORequest req);
     ApiResponse exportInventory(ExportInventoryRequest req);
+    ApiResponse createExportOrder(CreateExportOrderRequest req);
+
 }

@@ -3,21 +3,20 @@ package com.doan.WEB_TMDT.module.inventory.dto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.List;
 
-@Data
-public class CreatePORequest {
+@Getter
+@Setter
+public class CreateExportOrderRequest {
     @NotBlank
     private String createdBy;
+    @NotBlank private String reason;
+    private String note;
 
-    @Valid
-    private CreateSupplierRequest supplier; // nếu muốn tạo NCC mới ngay
-
-
-    private String supplierId;
     @NotEmpty
     @Valid
-    private List<POItemRequest> items;
-    private String note;
+    private List<ExportItemRequest> items;
 }

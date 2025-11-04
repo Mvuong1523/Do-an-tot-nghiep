@@ -1,8 +1,5 @@
 package com.doan.WEB_TMDT.module.inventory.entity;
 
-import com.doan.WEB_TMDT.module.inventory.entity.PurchaseOrder;
-import com.doan.WEB_TMDT.module.product.entity.Product;
-import com.doan.WEB_TMDT.module.product.entity.ProductDetail;
 import jakarta.persistence.*;
 import lombok.*;
 import jakarta.persistence.Id;
@@ -26,12 +23,14 @@ public class PurchaseOrderItem {
     private PurchaseOrder purchaseOrder;
 
     @ManyToOne(optional = false)
-    @JoinColumn(name = "product_id")
-    private Product product;
+    @JoinColumn(name = "warehouse_product_id")
+    private WarehouseProduct warehouseProduct;
 
     private Long quantity;   // số lượng đặt
     private Double unitCost;   // giá nhập
+    private Integer warrantyMonths;      // thời hạn bảo hành (tháng)
     private String note;
+
 
     @OneToMany(mappedBy = "poItem", cascade = CascadeType.ALL)
     private List<ProductDetail> productDetails; // chứa các serial thực tế sau khi nhập

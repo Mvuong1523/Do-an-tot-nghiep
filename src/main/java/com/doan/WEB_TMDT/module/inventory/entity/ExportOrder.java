@@ -3,6 +3,7 @@ package com.doan.WEB_TMDT.module.inventory.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -22,6 +23,13 @@ public class ExportOrder {
     private String reason;                   // Lý do xuất: bán hàng / hủy hàng / đổi trả / bảo hành
     private String note;                     // Ghi chú thêm
 
+    @Enumerated(EnumType.STRING)
+    private ExportStatus status;
+
+//    @ManyToOne
+//    @JoinColumn(name = "order_id")
+//    private Order order;
+
     @OneToMany(mappedBy = "exportOrder", cascade = CascadeType.ALL)
-    private List<ExportOrderItem> items;     // Danh sách sản phẩm xuất
+    private List<ExportOrderItem> items = new ArrayList<>();     // Danh sách sản phẩm xuất
 }

@@ -1,6 +1,6 @@
 package com.doan.WEB_TMDT.module.inventory.entity;
 
-import com.doan.WEB_TMDT.module.product.entity.Product;
+import com.doan.WEB_TMDT.module.product.entity.CatalogProduct;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -17,9 +17,9 @@ public class ExportOrderItem {
     @JoinColumn(name = "export_order_id")
     private ExportOrder exportOrder;  // Phiếu xuất chứa dòng này
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "product_id")
-    private Product product;          // Sản phẩm xuất
+    @ManyToOne
+    @JoinColumn(name = "warehouse_product_id")
+    private WarehouseProduct warehouseProduct;
 
     @Column(nullable = false)
     private String sku;               // Mã sản phẩm
@@ -30,6 +30,7 @@ public class ExportOrderItem {
     @Lob
     @Column(name = "serial_numbers")
     private String serialNumbers;     // Danh sách serial xuất, ví dụ "SN001,SN002,SN003"
+    private Double totalCost;
 
-    private Long unitCost;            // Giá vốn (tuỳ chọn)
+
 }
