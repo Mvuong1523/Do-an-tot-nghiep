@@ -29,29 +29,34 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // public
                         .requestMatchers("/api/auth/**").permitAll()
-
-                        // Role-based (User.role)
+                        .requestMatchers("/api/employee-registration/apply").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/employee/**").hasRole("EMPLOYEE")
                         .requestMatchers("/api/customer/**").hasRole("CUSTOMER")
-
-                        // Position-based (Employee.position)
                         .requestMatchers("/api/sale/**").hasAnyAuthority("SALE", "ADMIN")
                         .requestMatchers("/api/cskh/**").hasAnyAuthority("CSKH", "ADMIN")
                         .requestMatchers("/api/product-manager/**").hasAnyAuthority("PRODUCT_MANAGER", "ADMIN")
                         .requestMatchers("/api/warehouse/**").hasAnyAuthority("WAREHOUSE", "ADMIN")
                         .requestMatchers("/api/accountant/**").hasAnyAuthority("ACCOUNTANT", "ADMIN")
-
-                        .requestMatchers("/api/employee-registration/apply").permitAll()
                         .requestMatchers("/api/employee-registration/approve/**").hasAuthority("ADMIN")
-
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    // ✅ Swagger bypass hoàn toàn
+    @Bean
+    public org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer webSecurityCustomizer() {
+        return (web) -> web.ignoring().requestMatchers(
+                "/v3/api-docs/**",
+                "/swagger-ui/**",
+                "/swagger-ui.html",
+                "/swagger-resources/**",
+                "/webjars/**"
+        );
     }
 
     @Bean

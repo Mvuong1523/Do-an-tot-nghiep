@@ -9,16 +9,18 @@ import com.doan.WEB_TMDT.module.inventory.entity.ProductDetail;
 import com.doan.WEB_TMDT.module.inventory.entity.ProductStatus;
 import com.doan.WEB_TMDT.module.product.repository.ProductDetailRepository;
 import com.doan.WEB_TMDT.module.product.repository.ProductRepository;
+import lombok.extern.slf4j.Slf4j;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-import static jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle.detail;
-
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class InventoryServiceImpl implements InventoryService {
@@ -93,6 +95,7 @@ public class InventoryServiceImpl implements InventoryService {
                     .orElseGet(() -> supplierRepository.save(
                             Supplier.builder()
                                     .name(sreq.getName())
+                                    .contactName(sreq.getContactName())
                                     .taxCode(sreq.getTaxCode())
                                     .email(sreq.getEmail())
                                     .phone(sreq.getPhone())
@@ -110,6 +113,7 @@ public class InventoryServiceImpl implements InventoryService {
 
         // 3️⃣ Tạo phiếu nhập hàng
         PurchaseOrder po = PurchaseOrder.builder()
+                .poCode(req.getPoCode())
                 .supplier(supplier)
                 .status(POStatus.CREATED)
                 .orderDate(LocalDateTime.now())
@@ -119,8 +123,23 @@ public class InventoryServiceImpl implements InventoryService {
 
         // 4️⃣ Gắn sản phẩm
         List<PurchaseOrderItem> items = req.getItems().stream().map(i -> {
+            // Tìm SKU trong kho, nếu chưa có thì tự tạo WarehouseProduct mới
             WarehouseProduct wp = warehouseProductRepository.findBySku(i.getSku())
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy SKU: " + i.getSku()));
+                    .orElseGet(() -> {
+                        log.info("⚙️ Tự động tạo WarehouseProduct mới cho SKU: {}", i.getSku());
+
+                        // ✅ Tạo mới WarehouseProduct (chưa gắn catalog)
+                        WarehouseProduct newWp = WarehouseProduct.builder()
+                                .sku(i.getSku())
+                                .internalName(i.getInternalName() != null ? i.getInternalName() : "Sản phẩm mới - " + i.getSku())
+                                .techSpecsJson(i.getTechSpecsJson() != null ? i.getTechSpecsJson() : "{}")
+                                .description(i.getNote())
+                                .supplier(supplier)
+                                .lastImportDate(LocalDateTime.now())
+                                .build();
+
+                        return warehouseProductRepository.save(newWp);
+                    });
 
             return PurchaseOrderItem.builder()
                     .purchaseOrder(po)
@@ -211,8 +230,10 @@ public class InventoryServiceImpl implements InventoryService {
         return ApiResponse.success("Hoàn tất nhập hàng thành công!", po.getId());
     }
 
+    @Transactional
     @Override
     public ApiResponse createExportOrder(CreateExportOrderRequest req) {
+
         // 1️⃣ Tạo phiếu xuất
         ExportOrder exportOrder = ExportOrder.builder()
                 .exportCode(generateExportCode())
@@ -225,15 +246,14 @@ public class InventoryServiceImpl implements InventoryService {
 
         List<ExportOrderItem> exportItems = new ArrayList<>();
 
-        // 2️⃣ Duyệt từng sản phẩm cần xuất
-        WarehouseProduct product = null;
-        int exportCount = 0;
-        double totalCost = 0;
+        // 2️⃣ Duyệt từng sản phẩm trong danh sách xuất
         for (ExportItemRequest itemReq : req.getItems()) {
-            product = warehouseProductRepository.findBySku(itemReq.getProductSku())
+
+            WarehouseProduct product = warehouseProductRepository.findBySku(itemReq.getProductSku())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm SKU: " + itemReq.getProductSku()));
 
-            exportCount = itemReq.getSerialNumbers().size();
+            int exportCount = itemReq.getSerialNumbers().size();
+            double totalCost = 0;
 
             // 3️⃣ Kiểm tra tồn kho
             InventoryStock stock = inventoryStockRepository.findByWarehouseProduct_Id(product.getId())
@@ -244,9 +264,7 @@ public class InventoryServiceImpl implements InventoryService {
                         ", yêu cầu xuất: " + exportCount + " (" + product.getSku() + ")");
             }
 
-            totalCost = 0;
-
-            // 4️⃣ Xử lý từng serial
+            // 4️⃣ Xử lý từng serial: cập nhật trạng thái & tính giá vốn
             for (String serial : itemReq.getSerialNumbers()) {
                 ProductDetail detail = productDetailRepository.findBySerialNumber(serial)
                         .orElseThrow(() -> new RuntimeException("Không tìm thấy serial: " + serial));
@@ -255,29 +273,31 @@ public class InventoryServiceImpl implements InventoryService {
                     throw new RuntimeException("Serial " + serial + " không ở trạng thái IN_STOCK, không thể xuất kho!");
                 }
 
+                // cập nhật trạng thái serial
                 detail.setStatus(ProductStatus.SOLD);
                 detail.setSoldDate(LocalDateTime.now());
                 productDetailRepository.save(detail);
-                totalCost += detail.getImportPrice();
 
+                // cộng dồn giá nhập thật
+                totalCost += detail.getImportPrice();
             }
 
             // 5️⃣ Cập nhật tồn kho
             stock.setOnHand(stock.getOnHand() - exportCount);
             inventoryStockRepository.save(stock);
 
+            // 6️⃣ Ghi dòng chi tiết phiếu xuất
+            ExportOrderItem item = ExportOrderItem.builder()
+                    .exportOrder(exportOrder)
+                    .warehouseProduct(product)
+                    .sku(product.getSku())
+                    .quantity((long) exportCount)
+                    .serialNumbers(String.join(",", itemReq.getSerialNumbers()))
+                    .totalCost(totalCost)
+                    .build();
+
+            exportItems.add(item);
         }
-
-        // 6️⃣ Ghi chi tiết phiếu xuất
-        ExportOrderItem item = ExportOrderItem.builder()
-                .exportOrder(exportOrder)
-                .warehouseProduct(product)
-                .quantity((long) exportCount)
-                .serialNumbers(String.join(",", itemReq.getSerialNumbers()))
-                .totalCost(totalCost)
-                .build();
-        exportItems.add(item);
-
 
         // 7️⃣ Lưu phiếu xuất
         exportOrder.setItems(exportItems);
@@ -287,73 +307,8 @@ public class InventoryServiceImpl implements InventoryService {
         return ApiResponse.success("Xuất kho thành công!", exportOrder.getExportCode());
     }
 
-    @Override
-    public ApiResponse exportInventory(ExportInventoryRequest req) {
 
-        //  Tạo phiếu xuất kho mới
-        ExportOrder exportOrder = ExportOrder.builder()
-                .exportCode("PX" + LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE)
-                        + "-" + String.format("%03d", new Random().nextInt(999)))
-                .exportDate(LocalDateTime.now())
-                .createdBy(req.getCreatedBy())     // nếu có
-                .reason(req.getReason())
-                .note(req.getNote())
-                .build();
 
-        List<ExportOrderItem> exportItems = new ArrayList<>();
-
-        //  Duyệt từng sản phẩm cần xuất
-        for (ExportItemRequest itemReq : req.getItems()) {
-
-            Product product = productRepository.findBySku(itemReq.getProductSku())
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm SKU: " + itemReq.getProductSku()));
-
-            // Kiểm tra tồn kho
-            InventoryStock stock = inventoryStockRepository.findByProductId(product.getId())
-                    .orElseThrow(() -> new RuntimeException("Không có dữ liệu tồn kho cho sản phẩm: " + product.getName()));
-
-            int exportCount = itemReq.getSerialNumbers().size();
-            if (stock.getOnHand() < exportCount) {
-                throw new RuntimeException("Không đủ hàng trong kho. Sẵn có: " + stock.getOnHand() +
-                        ", yêu cầu xuất: " + exportCount + " (" + product.getName() + ")");
-            }
-
-            //  Kiểm tra và cập nhật serial của từng sản phẩm
-            for (String serial : itemReq.getSerialNumbers()) {
-                ProductDetail detail = productDetailRepository.findBySerialNumber(serial)
-                        .orElseThrow(() -> new RuntimeException("Không tìm thấy serial: " + serial));
-
-                if (!detail.getStatus().equals(ProductStatus.IN_STOCK)) {
-                    throw new RuntimeException("Serial " + serial + " không ở trạng thái IN_STOCK, không thể xuất kho!");
-                }
-
-                // Cập nhật trạng thái serial
-                detail.setStatus(ProductStatus.SOLD);
-                productDetailRepository.save(detail);
-            }
-
-            //  Cập nhật tồn kho
-            stock.setOnHand(stock.getOnHand() - exportCount);
-            inventoryStockRepository.save(stock);
-
-            // 5️⃣ Ghi chi tiết phiếu xuất
-            ExportOrderItem item = ExportOrderItem.builder()
-                    .exportOrder(exportOrder)
-                    .product(product)
-                    .sku(product.getSku())
-                    .quantity((long) exportCount)
-                    .serialNumbers(String.join(",", itemReq.getSerialNumbers()))
-                    .build();
-
-            exportItems.add(item);
-        }
-
-        // 6️⃣ Lưu phiếu xuất và các dòng chi tiết
-        exportOrder.setItems(exportItems);
-        exportOrderRepository.save(exportOrder);
-
-        return ApiResponse.success("Xuất kho thành công!", exportOrder.getExportCode());
-    }
 
 
 

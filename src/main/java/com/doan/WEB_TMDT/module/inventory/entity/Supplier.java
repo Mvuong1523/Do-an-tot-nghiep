@@ -16,6 +16,7 @@ public class Supplier {
 
     @Column(nullable = false, unique = true, length = 255)
     private String name;
+    private  String contactName;
     private String phone;
     private String email;
     private String address;
