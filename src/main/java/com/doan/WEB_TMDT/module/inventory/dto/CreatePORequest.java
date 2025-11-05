@@ -11,6 +11,9 @@ public class CreatePORequest {
     @NotBlank
     private String createdBy;
 
+    @NotBlank
+    private String poCode;
+
     @Valid
     private CreateSupplierRequest supplier; // nếu muốn tạo NCC mới ngay
 

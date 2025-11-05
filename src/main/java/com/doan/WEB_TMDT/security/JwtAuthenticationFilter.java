@@ -27,9 +27,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
-        // bỏ qua auth endpoints
         String path = request.getServletPath();
-        if (path.startsWith("/api/auth/")) {
+
+        // ✅ chỉ bỏ qua các endpoint public thật sự
+        if (path.equals("/api/auth/login") ||
+                path.equals("/api/auth/register") ||
+                path.equals("/api/auth/verify-otp")) {
             chain.doFilter(request, response);
             return;
         }
@@ -53,7 +56,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             UserDetails userDetails = userDetailsService.loadUserByUsername(email);
             if (jwtService.isTokenValid(token, userDetails)) {
 
-                // lấy authorities từ claims: role + position (nếu có)
                 Claims claims = jwtService.extractAllClaims(token);
                 List<SimpleGrantedAuthority> authorities = new ArrayList<>();
 
@@ -63,7 +65,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 Object position = claims.get("position");
                 if (position != null) authorities.add(new SimpleGrantedAuthority(position.toString()));
 
-                // kết hợp với authorities mặc định của userDetails (nếu muốn)
                 userDetails.getAuthorities().forEach(a -> {
                     if (authorities.stream().noneMatch(x -> x.getAuthority().equals(a.getAuthority()))) {
                         authorities.add(new SimpleGrantedAuthority(a.getAuthority()));
@@ -80,4 +81,5 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         chain.doFilter(request, response);
     }
+
 }

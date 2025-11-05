@@ -1,5 +1,6 @@
 package com.doan.WEB_TMDT.module.inventory.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.*;
 import jakarta.persistence.Id;
@@ -20,7 +21,11 @@ public class PurchaseOrderItem {
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "purchase_order_id")
+    @JsonBackReference
     private PurchaseOrder purchaseOrder;
+
+    @Column(unique = true, nullable = false, length = 64)
+    private String sku;
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "warehouse_product_id")
@@ -32,6 +37,6 @@ public class PurchaseOrderItem {
     private String note;
 
 
-    @OneToMany(mappedBy = "poItem", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "purchaseOrderItem", cascade = CascadeType.ALL)
     private List<ProductDetail> productDetails; // chứa các serial thực tế sau khi nhập
 }

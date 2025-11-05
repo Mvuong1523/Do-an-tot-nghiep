@@ -9,7 +9,6 @@ public interface InventoryService {
     ApiResponse getOrCreateSupplier(CreateSupplierRequest req);
     ApiResponse createPurchaseOrder(CreatePORequest req);
     ApiResponse completePurchaseOrder(CompletePORequest req);
-    ApiResponse exportInventory(ExportInventoryRequest req);
     ApiResponse createExportOrder(CreateExportOrderRequest req);
 
 }

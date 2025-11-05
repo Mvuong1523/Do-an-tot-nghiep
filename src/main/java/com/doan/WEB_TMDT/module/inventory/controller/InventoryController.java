@@ -5,6 +5,7 @@ import com.doan.WEB_TMDT.module.inventory.dto.*;
 import com.doan.WEB_TMDT.module.inventory.entity.PurchaseOrder;
 import com.doan.WEB_TMDT.module.inventory.service.InventoryService;
 import com.doan.WEB_TMDT.module.inventory.entity.WarehouseProduct;
+import com.doan.WEB_TMDT.module.product.entity.CatalogProduct;
 import com.doan.WEB_TMDT.module.product.repository.ProductRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +34,7 @@ public class InventoryController {
 
     @GetMapping("/supplier/{supplierId}/products")
     public ApiResponse getProductsBySupplier(@PathVariable Long supplierId) {
-        List<WarehouseProduct> products = productRepository.findAllBySupplier_Id(supplierId);
+        List<CatalogProduct> products = productRepository.findAllByWarehouseProduct_Supplier_Id(supplierId);
         return ApiResponse.success("Danh sách sản phẩm", products);
     }
     // ===== Import / Export =====
@@ -43,11 +44,7 @@ public class InventoryController {
         return inventoryService.completePurchaseOrder(req);
     }
 
-    @PostMapping("/export")
-    public ApiResponse exportStock(@RequestBody ExportInventoryRequest req, Authentication auth) {
-        String actor = auth != null ? auth.getName() : "system";
-        return inventoryService.exportInventory(req);
-    }
+
 
     @PostMapping("/create")
     public ApiResponse export(@RequestBody CreateExportOrderRequest req) {

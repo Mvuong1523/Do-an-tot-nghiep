@@ -16,6 +16,8 @@ public class POItemRequest {
     @NotNull
     @Positive
     private Long quantity;
+    private String internalName;
+    private String techSpecsJson;
     @NotNull @Positive private Double unitCost;
     @PositiveOrZero
     private Integer warrantyMonths;

@@ -7,9 +7,9 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<CatalogProduct, Long> {
-    boolean existsBySku(String sku);
+    boolean existsByWarehouseProduct_Sku(String sku);
     Optional<CatalogProduct> findById(Long aLong);
-    Optional<CatalogProduct> findBySku(String sku);
-    List<CatalogProduct> findAllBySupplier_Id(Long supplierId);
+    Optional<CatalogProduct> findByWarehouseProduct_Sku(String sku);
+    List<CatalogProduct> findAllByWarehouseProduct_Supplier_Id(Long supplierId);
 
 }
