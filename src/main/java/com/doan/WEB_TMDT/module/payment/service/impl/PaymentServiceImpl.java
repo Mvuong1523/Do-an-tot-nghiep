@@ -21,24 +21,24 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @SuppressWarnings("unchecked")
     public void handleWebhook(Map<String, Object> payload) {
-        System.out.println("📩 Nhận IPN từ SePay: " + payload);
+        System.out.println(" Nhận IPN từ SePay: " + payload);
 
-        // --- 1️⃣ Lấy các object con ---
+        // ---  Lấy các object con ---
         Map<String, Object> order = (Map<String, Object>) payload.get("order");
         Map<String, Object> transaction = (Map<String, Object>) payload.get("transaction");
 
         if (order == null || transaction == null) {
-            System.err.println("⚠️ Webhook thiếu order hoặc transaction!");
+            System.err.println("⚠ Webhook thiếu order hoặc transaction!");
             return;
         }
 
-        // --- 2️⃣ Lấy dữ liệu thật từ JSON ---
+        // ---  Lấy dữ liệu thật từ JSON ---
         String paymentCode = (String) order.get("order_id"); // mã đơn hàng từ SePay
         String statusStr = (String) order.get("order_status"); // CAPTURED, FAILED, ...
         String bankRef = (String) transaction.get("transaction_id"); // mã giao dịch
         BigDecimal amount = new BigDecimal(order.get("order_amount").toString());
 
-        // --- 3️⃣ Mapping sang enum ---
+        // ---  Mapping sang enum ---
         PaymentStatus status;
         switch (statusStr.toUpperCase()) {
             case "CAPTURED" -> status = PaymentStatus.PAID;
@@ -46,7 +46,7 @@ public class PaymentServiceImpl implements PaymentService {
             default -> status = PaymentStatus.PENDING;
         }
 
-        // --- 4️⃣ Tìm hoặc tạo PaymentTransaction ---
+        // ---  Tìm hoặc tạo PaymentTransaction ---
         PaymentTransaction transactionEntity = paymentRepository.findByPaymentCode(paymentCode)
                 .orElseGet(() -> PaymentTransaction.builder()
                         .paymentCode(paymentCode)
@@ -54,7 +54,7 @@ public class PaymentServiceImpl implements PaymentService {
                         .createdAt(LocalDateTime.now())
                         .build());
 
-        // --- 5️⃣ Cập nhật thông tin mới ---
+        // ---  Cập nhật thông tin mới ---
         transactionEntity.setStatus(status);
         transactionEntity.setBankReference(bankRef);
         transactionEntity.setPaidAt(LocalDateTime.now());
@@ -62,7 +62,7 @@ public class PaymentServiceImpl implements PaymentService {
 
         paymentRepository.save(transactionEntity);
 
-        System.out.printf("✅ IPN OK | Mã: %s | Trạng thái: %s | Số tiền: %s%n",
+        System.out.printf("IPN OK | Mã: %s | Trạng thái: %s | Số tiền: %s%n",
                 paymentCode, status, amount);
     }
 
