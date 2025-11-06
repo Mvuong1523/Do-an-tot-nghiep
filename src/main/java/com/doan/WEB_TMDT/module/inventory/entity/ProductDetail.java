@@ -25,9 +25,6 @@ public class ProductDetail {
     @Column(nullable = false)
     private ProductStatus status = ProductStatus.IN_STOCK;
 
-    @ManyToOne
-    @JoinColumn(name = "transaction_item_id")
-    private InventoryTransactionItem transactionItem; // phiếu nhập tương ứng
 
     private String note;
 }
