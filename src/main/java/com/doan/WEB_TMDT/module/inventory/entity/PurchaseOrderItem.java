@@ -1,11 +1,9 @@
 package com.doan.WEB_TMDT.module.inventory.entity;
 
-import com.doan.WEB_TMDT.module.inventory.entity.PurchaseOrder;
-import com.doan.WEB_TMDT.module.product.entity.Product;
-import com.doan.WEB_TMDT.module.product.entity.ProductDetail;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.Id;
+import jakarta.persistence.Id;
 
 import java.util.List;
 
@@ -23,16 +21,22 @@ public class PurchaseOrderItem {
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "purchase_order_id")
+    @JsonBackReference
     private PurchaseOrder purchaseOrder;
 
+    @Column(unique = true, nullable = false, length = 64)
+    private String sku;
+
     @ManyToOne(optional = false)
-    @JoinColumn(name = "product_id")
-    private Product product;
+    @JoinColumn(name = "warehouse_product_id")
+    private WarehouseProduct warehouseProduct;
 
     private Long quantity;   // số lượng đặt
-    private Long unitCost;   // giá nhập
+    private Double unitCost;   // giá nhập
+    private Integer warrantyMonths;      // thời hạn bảo hành (tháng)
     private String note;
 
-    @OneToMany(mappedBy = "poItem", cascade = CascadeType.ALL)
+
+    @OneToMany(mappedBy = "purchaseOrderItem", cascade = CascadeType.ALL)
     private List<ProductDetail> productDetails; // chứa các serial thực tế sau khi nhập
 }

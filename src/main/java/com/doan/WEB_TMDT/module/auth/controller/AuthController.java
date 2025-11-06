@@ -31,6 +31,7 @@ public class AuthController {
     public ApiResponse login(@RequestBody LoginRequest request) {
         return userService.login(request);
     }
+
     @PostMapping("/first-change-password")
     public ApiResponse firstChangePassword(@RequestBody FirstChangePasswordRequest request){
         return userService.firstChangePassword(request);

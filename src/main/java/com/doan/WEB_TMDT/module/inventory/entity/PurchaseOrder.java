@@ -1,5 +1,6 @@
 package com.doan.WEB_TMDT.module.inventory.entity;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -30,5 +31,6 @@ public class PurchaseOrder {
     private String note;
 
     @OneToMany(mappedBy = "purchaseOrder", cascade = CascadeType.ALL)
+    @JsonManagedReference
     private List<PurchaseOrderItem> items;
 }
