@@ -30,9 +30,6 @@ public class ProductDetail {
     private LocalDateTime importDate;
 
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "product_id")
-    private Product product;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

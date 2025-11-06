@@ -32,7 +32,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // ✅ chỉ bỏ qua các endpoint public thật sự
         if (path.equals("/api/auth/login") ||
                 path.equals("/api/auth/register") ||
-                path.equals("/api/auth/verify-otp")) {
+                path.equals("/api/auth/verify-otp")||
+                path.equals("/api/payment/ipn")) {
             chain.doFilter(request, response);
             return;
         }

@@ -18,7 +18,7 @@ public class CreatePORequest {
     private CreateSupplierRequest supplier; // nếu muốn tạo NCC mới ngay
 
 
-    private String supplierId;
+
     @NotEmpty
     @Valid
     private List<POItemRequest> items;

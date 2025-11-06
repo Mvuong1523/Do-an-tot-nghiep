@@ -28,7 +28,7 @@ public class PurchaseOrderItem {
     private String sku;
 
     @ManyToOne(optional = false)
-    @JoinColumn(name = "warehouse_product_id")
+    @JoinColumn(name = "warehouse_product_id", nullable = true)
     private WarehouseProduct warehouseProduct;
 
     private Long quantity;   // số lượng đặt
