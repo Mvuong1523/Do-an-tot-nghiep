@@ -12,10 +12,6 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 
-@Entity
-@Table(name = "product_details",
-        uniqueConstraints = @UniqueConstraint(columnNames = "serial_number"))
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class ProductDetail {
 
     @Id
@@ -32,9 +28,7 @@ public class ProductDetail {
 
     // ngày nhập kho
     private LocalDateTime importDate;
-    // Mã serial / IMEI duy nhất
-    @Column(name = "serial_number", nullable = false, unique = true, length = 64)
-    private String serialNumber;
+
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "product_id")
@@ -58,9 +52,7 @@ public class ProductDetail {
     // đơn hàng đã bán serial này (nếu có)
     private Long soldOrderId;
     private LocalDateTime soldDate;
-    @ManyToOne
-    @JoinColumn(name = "transaction_item_id")
-    private InventoryTransactionItem transactionItem; // phiếu nhập tương ứng
+
 
     private String note;
 }
