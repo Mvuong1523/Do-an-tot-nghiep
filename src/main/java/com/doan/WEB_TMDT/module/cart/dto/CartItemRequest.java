@@ -1,4 +1,4 @@
-package com.project.ecommerce.cart.dto;
+package com.doan.WEB_TMDT.module.cart.dto;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
