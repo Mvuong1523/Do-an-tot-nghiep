@@ -103,6 +103,19 @@ public class EmployeeRegistrationServiceImpl implements EmployeeRegistrationServ
         return sb.toString();
     }
 
+    @Override
+    public ApiResponse getAllRegistrations() {
+        return ApiResponse.success("Danh sách đăng ký nhân viên", registrationRepo.findAll());
+    }
+
+    @Override
+    public ApiResponse getPendingRegistrations() {
+        return ApiResponse.success("Danh sách đăng ký chờ duyệt", 
+                registrationRepo.findAll().stream()
+                        .filter(reg -> !reg.isApproved())
+                        .toList());
+    }
+
     private void sendEmailAccount(String email, String password) {
         try {
             SimpleMailMessage msg = new SimpleMailMessage();

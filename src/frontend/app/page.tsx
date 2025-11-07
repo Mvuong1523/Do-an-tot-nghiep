@@ -12,8 +12,9 @@ import ProductCard from '@/components/product/ProductCard'
 import CategoryCard from '@/components/category/CategoryCard'
 import { Product } from '@/store/cartStore'
 import { useTranslation } from '@/hooks/useTranslation'
+import { categoryApi } from '@/lib/api'
 
-// Mock data - sẽ được thay thế bằng API calls
+// Mock data - sẽ được thay thế bằng API calls khi backend có đầy đủ
 const featuredProducts: Product[] = [
   {
     id: 1,
@@ -61,7 +62,7 @@ const featuredProducts: Product[] = [
   },
 ]
 
-const categories = [
+const defaultCategories = [
   { name: 'Điện thoại', icon: '📱', href: '/products?category=phone', count: 1250 },
   { name: 'Laptop', icon: '💻', href: '/products?category=laptop', count: 450 },
   { name: 'Tablet', icon: '📱', href: '/products?category=tablet', count: 200 },
@@ -99,6 +100,8 @@ const banners = [
 export default function HomePage() {
   const { t } = useTranslation()
   const [currentTime, setCurrentTime] = useState(new Date())
+  const [categories, setCategories] = useState(defaultCategories)
+  const [loadingCategories, setLoadingCategories] = useState(false)
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -106,6 +109,35 @@ export default function HomePage() {
     }, 1000)
 
     return () => clearInterval(timer)
+  }, [])
+
+  // Load categories from API
+  useEffect(() => {
+    const loadCategories = async () => {
+      setLoadingCategories(true)
+      try {
+        const response = await categoryApi.getAll()
+        if (response.success && response.data && Array.isArray(response.data)) {
+          // Map API categories to frontend format
+          const mappedCategories = response.data.map((cat: any) => ({
+            name: cat.name,
+            icon: '📦', // Default icon
+            href: `/products?category=${cat.id}`,
+            count: cat.productCount || 0,
+          }))
+          if (mappedCategories.length > 0) {
+            setCategories(mappedCategories)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load categories:', error)
+        // Keep default categories on error
+      } finally {
+        setLoadingCategories(false)
+      }
+    }
+
+    loadCategories()
   }, [])
 
   return (
