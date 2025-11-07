@@ -5,17 +5,26 @@ import Link from 'next/link'
 import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { useTranslation } from '@/hooks/useTranslation'
+import { useRouter } from 'next/navigation'
+import Logo from '@/components/layout/Logo'
+import { authApi } from '@/lib/api'
+import { useAuthStore } from '@/store/authStore'
 
 export default function RegisterPage() {
   const { t } = useTranslation()
+  const router = useRouter()
+  const setAuth = useAuthStore((state) => state.setAuth)
+  const [step, setStep] = useState<'register' | 'otp'>('register')
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     phone: '',
+    address: '',
     password: '',
     confirmPassword: '',
     agreeTerms: false
   })
+  const [otpCode, setOtpCode] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -28,7 +37,7 @@ export default function RegisterPage() {
     }))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (formData.password !== formData.confirmPassword) {
@@ -43,12 +52,75 @@ export default function RegisterPage() {
 
     setIsLoading(true)
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    
-    toast.success('Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.')
-    setIsLoading(false)
+    try {
+      const response = await authApi.sendOtp({
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address || '',
+        password: formData.password,
+      })
+      
+      if (response.success) {
+        toast.success('Mã OTP đã được gửi đến email của bạn!')
+        setStep('otp')
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Gửi OTP thất bại!')
+    } finally {
+      setIsLoading(false)
+    }
   }
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+
+    try {
+      const response = await authApi.verifyOtp({
+        email: formData.email,
+        otpCode: otpCode,
+      })
+      
+      if (response.success && response.data) {
+        // Backend trả về User object, cần login lại để lấy token
+        const userData = response.data
+        if (userData) {
+          // Tự động đăng nhập sau khi đăng ký thành công
+          try {
+            const loginResponse = await authApi.login({
+              email: formData.email,
+              password: formData.password,
+            })
+
+            if (loginResponse.success && loginResponse.data) {
+              setAuth(
+                {
+                  id: loginResponse.data.userId,
+                  email: loginResponse.data.email,
+                  role: loginResponse.data.role,
+                  status: loginResponse.data.status,
+                },
+                loginResponse.data.token
+              )
+              toast.success('Đăng ký và đăng nhập thành công!')
+              router.push('/')
+            }
+          } catch (loginError: any) {
+            // Nếu login thất bại, vẫn cho phép đăng ký thành công nhưng cần đăng nhập thủ công
+            toast.success('Đăng ký thành công! Vui lòng đăng nhập.')
+            router.push('/login')
+          }
+        }
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Xác minh OTP thất bại!')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleSubmit = step === 'register' ? handleSendOtp : handleVerifyOtp
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -56,9 +128,7 @@ export default function RegisterPage() {
         {/* Header */}
         <div className="text-center">
           <div className="flex justify-center">
-            <div className="w-16 h-16 bg-red-500 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-2xl">H</span>
-            </div>
+            <Logo />
           </div>
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
             {t('createAccount')}
@@ -68,12 +138,26 @@ export default function RegisterPage() {
             <Link href="/login" className="font-medium text-red-500 hover:text-red-600">
               {t('login')}
             </Link>
+            {' | '}
+            <Link href="/employee-register" className="font-medium text-blue-500 hover:text-blue-600">
+              Đăng ký nhân viên
+            </Link>
           </p>
         </div>
 
         {/* Register Form */}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="bg-white rounded-lg shadow-sm p-8 space-y-6">
+            {step === 'otp' && (
+              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  Vui lòng nhập mã OTP đã được gửi đến email <strong>{formData.email}</strong>
+                </p>
+              </div>
+            )}
+
+            {step === 'register' && (
+              <>
             {/* Full Name Field */}
             <div>
               <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">
@@ -141,6 +225,22 @@ export default function RegisterPage() {
                   placeholder="Nhập số điện thoại"
                 />
               </div>
+            </div>
+
+            {/* Address Field */}
+            <div>
+              <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
+                Địa chỉ
+              </label>
+              <input
+                id="address"
+                name="address"
+                type="text"
+                value={formData.address}
+                onChange={handleInputChange}
+                className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-red-500 focus:border-red-500 focus:z-10 sm:text-sm"
+                placeholder="Nhập địa chỉ"
+              />
             </div>
 
             {/* Password Field */}
@@ -241,9 +341,60 @@ export default function RegisterPage() {
                 disabled={isLoading}
                 className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {isLoading ? 'Đang tạo tài khoản...' : 'Tạo tài khoản'}
+                {isLoading ? 'Đang gửi OTP...' : 'Gửi mã OTP'}
               </button>
             </div>
+              </>
+            )}
+
+            {step === 'otp' && (
+              <>
+            {/* OTP Field */}
+            <div>
+              <label htmlFor="otpCode" className="block text-sm font-medium text-gray-700 mb-2">
+                Mã OTP *
+              </label>
+              <input
+                id="otpCode"
+                type="text"
+                maxLength={6}
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-red-500 focus:border-red-500 focus:z-10 sm:text-sm text-center text-2xl tracking-widest"
+                placeholder="000000"
+                required
+              />
+              <p className="mt-2 text-sm text-gray-500">
+                Chưa nhận được mã?{' '}
+                <button
+                  type="button"
+                  onClick={handleSendOtp}
+                  className="text-red-500 hover:text-red-600 font-medium"
+                >
+                  Gửi lại
+                </button>
+              </p>
+            </div>
+
+            {/* Submit Button */}
+            <div>
+              <button
+                type="submit"
+                disabled={isLoading || otpCode.length !== 6}
+                className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {isLoading ? 'Đang xác minh...' : 'Xác minh OTP'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep('register')}
+                className="mt-3 w-full text-sm text-gray-600 hover:text-gray-800"
+              >
+                Quay lại
+              </button>
+            </div>
+              </>
+            )}
 
             {/* Divider */}
             <div className="relative">

@@ -1,14 +1,22 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { FiUser, FiMail, FiPhone, FiMapPin, FiCreditCard, FiTruck } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { useTranslation } from '@/hooks/useTranslation'
+import { useCartStore } from '@/store/cartStore'
+import { useAuthStore } from '@/store/authStore'
+import { orderApi } from '@/lib/api'
 import Image from 'next/image'
 
 export default function CheckoutPage() {
+  const router = useRouter()
   const { t } = useTranslation()
+  const { items, clearCart, getCartTotal } = useCartStore()
+  const { user, isAuthenticated } = useAuthStore()
+  
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -23,6 +31,29 @@ export default function CheckoutPage() {
 
   const [isProcessing, setIsProcessing] = useState(false)
   const [errors, setErrors] = useState<{[key: string]: string}>({})
+
+  // Load user info if authenticated
+  useEffect(() => {
+    if (!isAuthenticated) {
+      toast.error('Vui lòng đăng nhập để đặt hàng!')
+      router.push('/login')
+      return
+    }
+
+    if (items.length === 0) {
+      toast.error('Giỏ hàng trống!')
+      router.push('/cart')
+      return
+    }
+
+    // Pre-fill form with user data if available
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        email: user.email,
+      }))
+    }
+  }, [isAuthenticated, items.length, user, router])
 
   const validateForm = () => {
     const newErrors: {[key: string]: string} = {}
@@ -83,6 +114,17 @@ export default function CheckoutPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    if (!isAuthenticated || !user) {
+      toast.error('Vui lòng đăng nhập để đặt hàng!')
+      router.push('/login')
+      return
+    }
+
+    if (items.length === 0) {
+      toast.error('Giỏ hàng trống!')
+      return
+    }
+    
     // Validate form before submitting
     if (!validateForm()) {
       toast.error(t('formValidationError'))
@@ -92,11 +134,34 @@ export default function CheckoutPage() {
     
     setIsProcessing(true)
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    
-    toast.success(t('orderSuccess'))
-    setIsProcessing(false)
+    try {
+      // TODO: Cần cập nhật khi có Product API để lấy serial number
+      // Hiện tại tạm thời dùng product ID
+      const orderItems = items.map(item => ({
+        productId: item.id,
+        serialNumber: `SN-${item.id}-${Date.now()}`, // Temporary
+        price: item.price,
+      }))
+
+      const shippingAddress = `${formData.address}, ${formData.ward}, ${formData.district}, ${formData.city}`
+      
+      const response = await orderApi.create({
+        customerId: user.id,
+        items: orderItems,
+        shippingAddress: shippingAddress,
+        note: formData.notes || undefined,
+      })
+
+      if (response.success) {
+        toast.success('Đặt hàng thành công!')
+        clearCart()
+        router.push('/orders')
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Đặt hàng thất bại!')
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   const formatPrice = (price: number) => {
@@ -106,27 +171,13 @@ export default function CheckoutPage() {
     }).format(price)
   }
 
-  // Mock order data
-  const orderItems = [
-    {
-      id: 1,
-      name: 'iPhone 16 Pro Max 256GB - Chính hãng VN/A',
-      price: 29990000,
-      quantity: 1,
-      image: '/images/iphone-16-pro-max.jpg'
-    },
-    {
-      id: 2,
-      name: 'Điện thoại Xiaomi POCO C71 4GB/128GB',
-      price: 2490000,
-      quantity: 2,
-      image: '/images/xiaomi-poco-c71.jpg'
-    }
-  ]
-
-  const subtotal = orderItems.reduce((total, item) => total + (item.price * item.quantity), 0)
+  const subtotal = items.reduce((total, item) => total + (item.price * item.quantity), 0)
   const shipping = 0 // Free shipping
   const total = subtotal + shipping
+
+  if (!isAuthenticated || items.length === 0) {
+    return null // Will redirect in useEffect
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -145,7 +196,7 @@ export default function CheckoutPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Checkout Form */}
           <div className="lg:col-span-2">
-            <form onSubmit={handleSubmit} className="space-y-8">
+            <form id="checkout-form" onSubmit={handleSubmit} className="space-y-8">
               {/* Contact Information */}
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
@@ -386,11 +437,11 @@ export default function CheckoutPage() {
                 
                 {/* Order Items */}
                 <div className="space-y-4 mb-6">
-                  {orderItems.map((item) => (
+                  {items.map((item) => (
                     <div key={item.id} className="flex items-center space-x-3">
                       <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
                         <Image
-                          src={item.image}
+                          src={item.image || '/images/placeholder.jpg'}
                           alt={item.name}
                           width={64}
                           height={64}
@@ -434,6 +485,7 @@ export default function CheckoutPage() {
 
                 {/* Place Order Button */}
                 <button
+                  type="button"
                   onClick={handleSubmit}
                   disabled={isProcessing}
                   className="w-full mt-6 bg-red-500 text-white py-3 px-6 rounded-lg font-semibold hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

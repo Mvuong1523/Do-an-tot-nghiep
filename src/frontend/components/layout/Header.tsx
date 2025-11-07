@@ -3,19 +3,33 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { FiSearch, FiShoppingCart, FiUser, FiHeart, FiX, FiChevronDown } from 'react-icons/fi'
+import { useRouter } from 'next/navigation'
+import { FiSearch, FiShoppingCart, FiUser, FiHeart, FiX, FiChevronDown, FiLogOut } from 'react-icons/fi'
 import { useCartStore } from '@/store/cartStore'
 import { useLanguageStore } from '@/store/languageStore'
+import { useAuthStore } from '@/store/authStore'
 import { useTranslation } from '@/hooks/useTranslation'
+import toast from 'react-hot-toast'
+import Logo from './Logo'
 
 export default function Header() {
+  const router = useRouter()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [isLanguageOpen, setIsLanguageOpen] = useState(false)
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   
   const { getCartCount } = useCartStore()
   const { currentLanguage, setLanguage } = useLanguageStore()
+  const { user, isAuthenticated, logout } = useAuthStore()
   const { t } = useTranslation()
+
+  const handleLogout = () => {
+    logout()
+    toast.success('Đăng xuất thành công!')
+    router.push('/')
+    setIsUserMenuOpen(false)
+  }
 
   const navigationLinks = [
     { name: t('home'), href: '/' },
@@ -39,9 +53,7 @@ export default function Header() {
         <div className="flex items-center justify-between py-4">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-navy-600 rounded-lg flex items-center justify-center">
-              <Image src="/logo.png" alt="Tech World Logo" width={40} height={40} className="w-10 h-10 object-contain" />
-            </div>
+            <Logo />
             <div>
               <h1 className="text-xl font-bold text-gray-900">TECH WORLD</h1>
             </div>
@@ -103,10 +115,84 @@ export default function Header() {
               )}
             </Link>
 
-            {/* Login Button */}
-            <Link href="/login" className="bg-navy-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-navy-600 transition-colors">
-              {t('login')}
-            </Link>
+            {/* User Menu */}
+            {isAuthenticated && user ? (
+              <div className="relative">
+                <button
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className="flex items-center space-x-2 bg-navy-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-navy-600 transition-colors"
+                >
+                  <FiUser size={18} />
+                  <span>{user.email.split('@')[0]}</span>
+                  <FiChevronDown size={16} />
+                </button>
+                
+                {isUserMenuOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                    <div className="p-3 border-b border-gray-200">
+                      <p className="text-sm font-semibold text-gray-900">{user.email}</p>
+                      <p className="text-xs text-gray-500">{user.role}</p>
+                    </div>
+                    <div className="py-1">
+                      <Link
+                        href="/profile"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        Thông tin tài khoản
+                      </Link>
+                      {user.role === 'CUSTOMER' && (
+                        <Link
+                          href="/orders"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          Đơn hàng của tôi
+                        </Link>
+                      )}
+                      {user.role === 'ADMIN' && (
+                        <>
+                          <Link
+                            href="/admin/employee-approval"
+                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                            onClick={() => setIsUserMenuOpen(false)}
+                          >
+                            Duyệt đăng ký nhân viên
+                          </Link>
+                          <Link
+                            href="/admin/inventory"
+                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                            onClick={() => setIsUserMenuOpen(false)}
+                          >
+                            Quản lý kho
+                          </Link>
+                        </>
+                      )}
+                      {(user.role === 'WAREHOUSE' || user.role === 'EMPLOYEE') && (
+                        <Link
+                          href="/admin/inventory"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          Quản lý kho
+                        </Link>
+                      )}
+                      <button
+                        onClick={handleLogout}
+                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
+                      >
+                        <FiLogOut size={16} />
+                        <span>Đăng xuất</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link href="/login" className="bg-navy-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-navy-600 transition-colors">
+                {t('login')}
+              </Link>
+            )}
 
             {/* Language Dropdown */}
             <div className="relative">

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { FaPhone, FaEnvelope, FaMapMarkerAlt, FaFacebook, FaYoutube, FaInstagram } from 'react-icons/fa'
 import { useTranslation } from '@/hooks/useTranslation'
 import Image from 'next/image'
+import Logo from './Logo'
 
 export default function Footer() {
   const { t } = useTranslation()
@@ -53,9 +54,7 @@ export default function Footer() {
           {/* Company info */}
           <div>
             <div className="flex items-center space-x-2 mb-4">
-              <div className="w-8 h-8 bg-navy-600 rounded-lg flex items-center justify-center">
-                <Image src="/logo.png" alt="Tech World Logo" width={24} height={24} className="w-6 h-6 object-contain" />
-              </div>
+              <Logo size="sm" />
               <h3 className="text-lg font-bold">{t('techWorld')}</h3>
             </div>
             <p className="text-gray-300 mb-4">
