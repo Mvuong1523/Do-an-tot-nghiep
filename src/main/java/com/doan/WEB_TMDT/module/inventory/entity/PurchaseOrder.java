@@ -18,7 +18,7 @@ public class PurchaseOrder {
     private String poCode; // Mã PO duy nhất
 
     @ManyToOne
-    @JoinColumn(name = "supplier_tax_code", referencedColumnName = "tax_code")
+    @JoinColumn(name = "supplier_tax_code", referencedColumnName = "tax_code", nullable = false)
     private Supplier supplier;
 
     private LocalDateTime orderDate;    // Ngày đặt hàng

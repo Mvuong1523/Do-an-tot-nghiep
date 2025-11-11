@@ -20,7 +20,7 @@ public class Supplier {
     private String phone;
     private String email;
     private String address;
-    @Column(name = "tax_code", nullable = false, unique = true, length = 20)
+    @Column(name = "tax_code", nullable = false, unique = true)
     private String taxCode;
     private String bankAccount;
     private String paymentTerm; // điều khoản thanh toán
