@@ -83,6 +83,31 @@ export const authApi = {
       throw new Error('Không thể lấy thông tin người dùng')
     }
   },
+
+  approveEmployee: async (data: { userId: string; status: 'APPROVED' | 'REJECTED'; reason?: string }): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.post('/auth/employee/approve', data)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi duyệt nhân viên')
+    }
+  },
+
+  getPendingEmployees: async (): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await apiClient.get('/auth/employee/pending')
+      return {
+        success: true,
+        data: response.data || [],
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: [],
+        error: error.message,
+      }
+    }
+  },
 }
 
 // Category API
