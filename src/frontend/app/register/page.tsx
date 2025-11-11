@@ -79,7 +79,7 @@ export default function RegisterPage() {
     try {
       const response = await authApi.verifyOtp({
         email: formData.email,
-        otpCode: otpCode,
+        otp: otpCode,
       })
       
       if (response.success && response.data) {
