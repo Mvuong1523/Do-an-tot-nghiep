@@ -32,4 +32,16 @@ public class EmployeeRegistrationController {
     public ApiResponse approveEmployee(@PathVariable Long id) {
         return registrationService.approveEmployee(id);
     }
+
+    // 📋 Admin xem danh sách đăng ký
+    @GetMapping("/list")
+    public ApiResponse getAllRegistrations() {
+        return registrationService.getAllRegistrations();
+    }
+
+    // 📋 Admin xem danh sách chờ duyệt
+    @GetMapping("/pending")
+    public ApiResponse getPendingRegistrations() {
+        return registrationService.getPendingRegistrations();
+    }
 }

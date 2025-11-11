@@ -7,4 +7,5 @@ public enum ProductStatus {
     RETURNED,       // đã trả lại kho
     WARRANTY,       // đang gửi bảo hành
     DAMAGED        // hư, không dùng được
+
 }
