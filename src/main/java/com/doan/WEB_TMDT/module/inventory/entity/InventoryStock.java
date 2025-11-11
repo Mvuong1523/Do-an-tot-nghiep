@@ -14,8 +14,8 @@ public class InventoryStock {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(optional = false)
-    @JoinColumn(name = "product_id")
+    @ManyToOne
+    @JoinColumn(name = "warehouse_product_id", nullable = false)
     private WarehouseProduct warehouseProduct;
 
     @Column(nullable = false)
