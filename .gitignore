@@ -33,9 +33,3 @@ build/
 ### VS Code ###
 .vscode/
 
-<<<<<<< HEAD
- ### fe ###
- /src/frontend/
-=======
-frontend/
->>>>>>> 01f2138d271c32ff6a3a47bc769f5dc7fc5fa154

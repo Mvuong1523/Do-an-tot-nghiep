@@ -1,0 +1,28 @@
+import { create } from 'zustand'
+
+export interface User {
+  id?: string
+  email: string
+  role: 'CUSTOMER' | 'ADMIN' | 'WAREHOUSE' | 'EMPLOYEE'
+  status?: string
+}
+
+interface AuthStore {
+  user: User | null
+  token: string | null
+  isAuthenticated: boolean
+  login: (user: User) => void
+  logout: () => void
+  setUser: (user: User | null) => void
+  setAuth: (user: User, token: string) => void
+}
+
+export const useAuthStore = create<AuthStore>((set: any) => ({
+  user: null,
+  token: null,
+  isAuthenticated: false,
+  login: (user: User) => set({ user, isAuthenticated: true }),
+  logout: () => set({ user: null, isAuthenticated: false, token: null }),
+  setUser: (user: User | null) => set({ user, isAuthenticated: !!user }),
+  setAuth: (user: User, token: string) => set({ user, token, isAuthenticated: true }),
+}))
