@@ -52,7 +52,7 @@ export const authApi = {
 
   sendOtp: async (data: any): Promise<ApiResponse<any>> => {
     try {
-      const response = await apiClient.post('/auth/send-otp', data)
+      const response = await apiClient.post('/auth/register/send-otp', data)
       return response.data
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Gửi OTP thất bại')
@@ -114,7 +114,7 @@ export const authApi = {
 export const categoryApi = {
   getAll: async (): Promise<ApiResponse<any[]>> => {
     try {
-      const response = await apiClient.get('/categories')
+      const response = await apiClient.get('/category')
       return {
         success: true,
         data: response.data || [],
@@ -130,7 +130,7 @@ export const categoryApi = {
 
   getById: async (id: string | number): Promise<ApiResponse<any>> => {
     try {
-      const response = await apiClient.get(`/categories/${id}`)
+      const response = await apiClient.get(`/category/${id}`)
       return response.data
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Lỗi khi lấy thông tin danh mục')
@@ -142,7 +142,7 @@ export const categoryApi = {
 export const productApi = {
   getAll: async (params?: any): Promise<ApiResponse<any[]>> => {
     try {
-      const response = await apiClient.get('/products', { params })
+      const response = await apiClient.get('/product', { params })
       return {
         success: true,
         data: response.data || [],
@@ -158,7 +158,7 @@ export const productApi = {
 
   getById: async (id: string | number): Promise<ApiResponse<any>> => {
     try {
-      const response = await apiClient.get(`/products/${id}`)
+      const response = await apiClient.get(`/product/${id}`)
       return {
         success: true,
         data: response.data,
@@ -170,7 +170,7 @@ export const productApi = {
 
   search: async (query: string): Promise<ApiResponse<any[]>> => {
     try {
-      const response = await apiClient.get('/products/search', { params: { q: query } })
+      const response = await apiClient.get('/product/search', { params: { q: query } })
       return {
         success: true,
         data: response.data || [],
