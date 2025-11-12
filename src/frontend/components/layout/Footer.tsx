@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { FaPhone, FaEnvelope, FaMapMarkerAlt, FaFacebook, FaYoutube, FaInstagram } from 'react-icons/fa'
 import { useTranslation } from '@/hooks/useTranslation'
-import Image from 'next/image'
 import Logo from './Logo'
 
 export default function Footer() {

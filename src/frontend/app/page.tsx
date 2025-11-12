@@ -120,10 +120,10 @@ export default function HomePage() {
         if (response.success && response.data && Array.isArray(response.data)) {
           // Map API categories to frontend format
           const mappedCategories = response.data.map((cat: any) => ({
-            name: cat.name,
+            name: cat.name || cat.categoryName || 'Danh mục',
             icon: '📦', // Default icon
-            href: `/products?category=${cat.id}`,
-            count: cat.productCount || 0,
+            href: `/products?category=${cat.id || cat.categoryId}`,
+            count: cat.productCount || cat.count || 0,
           }))
           if (mappedCategories.length > 0) {
             setCategories(mappedCategories)
