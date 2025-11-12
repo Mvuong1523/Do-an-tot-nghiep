@@ -23,7 +23,7 @@ public class AuthController {
         return authService.sendOtp(request);
     }
 
-    @PostMapping("/register/verify")
+    @PostMapping("/register/verify-otp")
     public ApiResponse verifyOtp(@RequestBody OtpVerifyRequest request) {
         return authService.verifyOtpAndRegister(request);
     }

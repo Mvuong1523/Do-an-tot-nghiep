@@ -23,23 +23,23 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public ApiResponse getProductQuantity(Long productId) {
-        // 1️⃣ Lấy thông tin sản phẩm hiển thị
+        //  Lấy thông tin sản phẩm hiển thị
         CatalogProduct product = productRepo.findById(productId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm!"));
 
-        // 2️⃣ Lấy bản ghi sản phẩm thực trong kho
+        //  Lấy bản ghi sản phẩm thực trong kho
         WarehouseProduct warehouseProduct = product.getWarehouseProduct();
         if (warehouseProduct == null) {
             throw new IllegalStateException("Sản phẩm chưa liên kết với kho!");
         }
 
-        // 3️⃣ Đếm serial theo trạng thái thực tế trong kho
+        //  Đếm serial theo trạng thái thực tế trong kho
         long available = serialRepo.countByWarehouseProductAndStatus(warehouseProduct, ProductStatus.IN_STOCK);
         long sold = serialRepo.countByWarehouseProductAndStatus(warehouseProduct, ProductStatus.SOLD);
         long returned = serialRepo.countByWarehouseProductAndStatus(warehouseProduct, ProductStatus.RETURNED);
         long damaged = serialRepo.countByWarehouseProductAndStatus(warehouseProduct, ProductStatus.DAMAGED);
 
-        // 4️⃣ Trả về kết quả
+        //  Trả về kết quả
         return ApiResponse.success("Số lượng sản phẩm trong kho", Map.of(
                 "productId", product.getId(),
                 "name", product.getDisplayName(),

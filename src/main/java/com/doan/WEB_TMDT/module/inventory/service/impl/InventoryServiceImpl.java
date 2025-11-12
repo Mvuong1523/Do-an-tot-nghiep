@@ -26,7 +26,7 @@ import java.util.*;
 public class InventoryServiceImpl implements InventoryService {
     private final ExportOrderRepository exportOrderRepository;
     private final PurchaseOrderRepository purchaseOrderRepository;
-    private final PurchaseOrderItemRepository poItemRepo;
+    private final PurchaseOrderItemRepository purchaseOrderItemRepository;
     private final WarehouseProductRepository warehouseProductRepository;
     private final ProductDetailRepository productDetailRepository;
     private final InventoryStockRepository inventoryStockRepository;
@@ -78,21 +78,18 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     public ApiResponse createPurchaseOrder(CreatePORequest req) {
-        Supplier supplier;
-
-        // 1️⃣ Nếu có supplierId → lấy NCC có sẵn
-        if (req.getSupplierId() != null) {
-            supplier = supplierRepository.findById(Long.valueOf(req.getSupplierId()))
-                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy nhà cung cấp ID: " + req.getSupplierId()));
+        // 1️⃣ Kiểm tra dữ liệu đầu vào
+        if (req.getSupplier() == null || req.getSupplier().getTaxCode() == null) {
+            throw new IllegalArgumentException("Thiếu thông tin nhà cung cấp hoặc mã số thuế.");
         }
-        // 2️⃣ Nếu không có supplierId → kiểm tra / tạo mới NCC
-        else if (req.getSupplier() != null) {
-            CreateSupplierRequest sreq = req.getSupplier();
 
-            supplier = supplierRepository.findByTaxCode(sreq.getTaxCode())
-                    .or(() -> supplierRepository.findByEmail(sreq.getEmail()))
-                    .or(() -> supplierRepository.findByPhone(sreq.getPhone()))
-                    .orElseGet(() -> supplierRepository.save(
+        CreateSupplierRequest sreq = req.getSupplier();
+
+        // 2️⃣ Tìm NCC theo mã số thuế
+        Supplier supplier = supplierRepository.findByTaxCode(sreq.getTaxCode())
+                .orElseGet(() -> {
+                    log.info("🆕 Tạo nhà cung cấp mới với mã số thuế: {}", sreq.getTaxCode());
+                    return supplierRepository.save(
                             Supplier.builder()
                                     .name(sreq.getName())
                                     .contactName(sreq.getContactName())
@@ -105,45 +102,27 @@ public class InventoryServiceImpl implements InventoryService {
                                     .active(true)
                                     .autoCreated(true)
                                     .build()
-                    ));
-        }
-        else {
-            throw new IllegalArgumentException("Cần chọn nhà cung cấp hoặc nhập thông tin nhà cung cấp mới.");
-        }
+                    );
+                });
 
-        // 3️⃣ Tạo phiếu nhập hàng
+        // 3️⃣ Tạo phiếu nhập hàng (chỉ gắn theo taxCode)
         PurchaseOrder po = PurchaseOrder.builder()
                 .poCode(req.getPoCode())
-                .supplier(supplier)
+                .supplier(supplier) // join qua tax_code
                 .status(POStatus.CREATED)
                 .orderDate(LocalDateTime.now())
                 .createdBy(req.getCreatedBy())
                 .note(req.getNote())
                 .build();
 
-        // 4️⃣ Gắn sản phẩm
+        // 4️⃣ Gắn sản phẩm — không tự tạo WarehouseProduct mới
         List<PurchaseOrderItem> items = req.getItems().stream().map(i -> {
-            // Tìm SKU trong kho, nếu chưa có thì tự tạo WarehouseProduct mới
-            WarehouseProduct wp = warehouseProductRepository.findBySku(i.getSku())
-                    .orElseGet(() -> {
-                        log.info("⚙️ Tự động tạo WarehouseProduct mới cho SKU: {}", i.getSku());
-
-                        // ✅ Tạo mới WarehouseProduct (chưa gắn catalog)
-                        WarehouseProduct newWp = WarehouseProduct.builder()
-                                .sku(i.getSku())
-                                .internalName(i.getInternalName() != null ? i.getInternalName() : "Sản phẩm mới - " + i.getSku())
-                                .techSpecsJson(i.getTechSpecsJson() != null ? i.getTechSpecsJson() : "{}")
-                                .description(i.getNote())
-                                .supplier(supplier)
-                                .lastImportDate(LocalDateTime.now())
-                                .build();
-
-                        return warehouseProductRepository.save(newWp);
-                    });
+            WarehouseProduct wp = warehouseProductRepository.findBySku(i.getSku()).orElse(null);
 
             return PurchaseOrderItem.builder()
                     .purchaseOrder(po)
-                    .warehouseProduct(wp)
+                    .sku(i.getSku()) // ✅ luôn lưu SKU
+                    .warehouseProduct(wp) // có thể null (SKU mới)
                     .quantity(i.getQuantity())
                     .unitCost(i.getUnitCost())
                     .warrantyMonths(i.getWarrantyMonths())
@@ -156,6 +135,7 @@ public class InventoryServiceImpl implements InventoryService {
 
         return ApiResponse.success("Tạo phiếu nhập hàng thành công", po);
     }
+
 
     @Override
     public ApiResponse completePurchaseOrder(CompletePORequest req) {
@@ -173,25 +153,49 @@ public class InventoryServiceImpl implements InventoryService {
 
             // Tìm dòng item trong PO tương ứng với SKU
             PurchaseOrderItem item = po.getItems().stream()
-                    .filter(i -> i.getWarehouseProduct().getSku().equals(sku))
+                    .filter(i -> i.getSku().equals(sku))
                     .findFirst()
                     .orElseThrow(() -> new IllegalArgumentException(
                             "Sản phẩm SKU " + sku + " không thuộc phiếu nhập #" + po.getId()));
 
-            // Kiểm tra số lượng serial có khớp số lượng đặt
+            // 🆕 Nếu chưa có WarehouseProduct (SKU mới) → tạo mới và gán lại
+            WarehouseProduct wp = item.getWarehouseProduct();
+            if (wp == null) {
+                wp = warehouseProductRepository.findBySku(sku)
+                        .orElseGet(() -> {
+                            log.info("🆕 Tạo WarehouseProduct mới khi nhập hàng SKU: {}", sku);
+                            WarehouseProduct newWp = WarehouseProduct.builder()
+                                    .sku(sku)
+                                    .internalName("Sản phẩm mới - " + sku)
+                                    .supplier(po.getSupplier())
+                                    .lastImportDate(LocalDateTime.now())
+                                    .description(item.getNote())
+                                    .techSpecsJson("{}")
+                                    .build();
+                            return warehouseProductRepository.save(newWp);
+                        });
+
+                // Gắn lại WarehouseProduct vừa tạo vào POItem (update cột warehouse_product_id)
+                item.setWarehouseProduct(wp);
+                purchaseOrderItemRepository.save(item);
+            }
+
+            // 3️⃣ Kiểm tra số lượng serial có khớp số lượng đặt
             if (serialReq.getSerialNumbers().size() != item.getQuantity()) {
                 throw new RuntimeException("Số serial (" + serialReq.getSerialNumbers().size() +
                         ") không khớp với số lượng nhập (" + item.getQuantity() + ") cho SKU: " + sku);
             }
 
-            // 3️⃣ Kiểm tra trùng serial
+            // 4️⃣ Kiểm tra trùng serial
             for (String sn : serialReq.getSerialNumbers()) {
                 if (productDetailRepository.existsBySerialNumber(sn)) {
                     throw new RuntimeException("Serial " + sn + " đã tồn tại trong hệ thống!");
                 }
             }
+            final WarehouseProduct finalWp = wp;
 
-            // 4️⃣ Tạo danh sách ProductDetail (serial cụ thể)
+
+            // 5️⃣ Tạo danh sách ProductDetail (serial cụ thể)
             List<ProductDetail> details = serialReq.getSerialNumbers().stream()
                     .map(sn -> ProductDetail.builder()
                             .serialNumber(sn)
@@ -199,17 +203,17 @@ public class InventoryServiceImpl implements InventoryService {
                             .importDate(LocalDateTime.now())
                             .warrantyMonths(item.getWarrantyMonths())
                             .status(ProductStatus.IN_STOCK)
-                            .warehouseProduct(item.getWarehouseProduct())
+                            .warehouseProduct(finalWp )
                             .purchaseOrderItem(item)
                             .build())
                     .toList();
 
             // Gắn vào item và lưu
+            if (item.getProductDetails() == null)
+                item.setProductDetails(new ArrayList<>());
             item.getProductDetails().addAll(details);
 
-            // 5️⃣ Cập nhật tồn kho
-            WarehouseProduct wp = item.getWarehouseProduct();
-
+            // 6️⃣ Cập nhật tồn kho
             InventoryStock stock = inventoryStockRepository.findByWarehouseProduct_Id(wp.getId())
                     .orElse(InventoryStock.builder()
                             .warehouseProduct(wp)
@@ -222,13 +226,14 @@ public class InventoryServiceImpl implements InventoryService {
             inventoryStockRepository.save(stock);
         }
 
-        // 6️⃣ Cập nhật phiếu nhập
+        // 7️⃣ Cập nhật phiếu nhập
         po.setReceivedDate(req.getReceivedDate());
         po.setStatus(POStatus.RECEIVED);
         purchaseOrderRepository.save(po);
 
         return ApiResponse.success("Hoàn tất nhập hàng thành công!", po.getId());
     }
+
 
     @Transactional
     @Override
