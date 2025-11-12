@@ -86,7 +86,7 @@ export const authApi = {
 
   approveEmployee: async (data: { userId: string; status: 'APPROVED' | 'REJECTED'; reason?: string }): Promise<ApiResponse<any>> => {
     try {
-      const response = await apiClient.post('/auth/employee/approve', data)
+      const response = await apiClient.post('/employee-registration/approve/{id}', data)
       return response.data
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Lỗi khi duyệt nhân viên')
@@ -95,7 +95,7 @@ export const authApi = {
 
   getPendingEmployees: async (): Promise<ApiResponse<any[]>> => {
     try {
-      const response = await apiClient.get('/auth/employee/pending')
+      const response = await apiClient.get('/employee-registration/list')
       return {
         success: true,
         data: response.data || [],
