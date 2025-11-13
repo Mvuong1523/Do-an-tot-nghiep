@@ -1,6 +1,6 @@
 package com.doan.WEB_TMDT.module.inventory.entity;
 
-import com.doan.WEB_TMDT.module.product.entity.Product;
+import com.doan.WEB_TMDT.module.product.entity.Product1;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -42,7 +42,7 @@ public class WarehouseProduct {
 
     // Liên kết sang sản phẩm hiển thị
     @OneToOne(mappedBy = "warehouseProduct", cascade = CascadeType.ALL)
-    private Product product;
+    private Product1 product1;
 
     // Danh sách serial chi tiết
     @OneToMany(mappedBy = "warehouseProduct", cascade = CascadeType.ALL, orphanRemoval = true)

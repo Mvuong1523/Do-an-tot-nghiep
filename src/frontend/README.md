@@ -30,14 +30,14 @@ src/frontend/
 ├── app/                    # Next.js App Router
 │   ├── layout.tsx         # Root layout
 │   ├── page.tsx           # Trang chủ
-│   ├── products/          # Trang sản phẩm
+│   ├── product1s/          # Trang sản phẩm
 │   ├── cart/              # Giỏ hàng
 │   ├── checkout/          # Thanh toán
 │   ├── login/             # Đăng nhập
 │   └── register/          # Đăng ký
 ├── components/            # React components
 │   ├── layout/            # Header, Footer
-│   ├── product/           # ProductCard, ProductList
+│   ├── product1/           # ProductCard, ProductList
 │   └── category/          # CategoryCard
 ├── styles/                # CSS files
 │   └── globals.css        # Global styles

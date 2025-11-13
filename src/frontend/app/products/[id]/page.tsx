@@ -80,9 +80,9 @@ export default function ProductDetailPage() {
         <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-6">
           <Link href="/" className="hover:text-red-500">Trang chủ</Link>
           <span>/</span>
-          <Link href="/products" className="hover:text-red-500">Sản phẩm</Link>
+          <Link href="/product1s" className="hover:text-red-500">Sản phẩm</Link>
           <span>/</span>
-          <Link href="/products?category=phone" className="hover:text-red-500">Điện thoại</Link>
+          <Link href="/product1s?category=phone" className="hover:text-red-500">Điện thoại</Link>
           <span>/</span>
           <span className="text-gray-900">{product.name}</span>
         </nav>

@@ -26,7 +26,7 @@
 ## 🔄 **Đang cập nhật:**
 
 ### 📄 **Pages cần hoàn thiện:**
-- ⏳ **Product Detail Page** (`/app/products/[id]/page.tsx`)
+- ⏳ **Product Detail Page** (`/app/product1s/[id]/page.tsx`)
 - ⏳ **Login Page** (`/app/login/page.tsx`)
 
 ### 🧩 **Components cần cập nhật:**
@@ -143,7 +143,7 @@ Website hiện tại đã có **hệ thống đa ngôn ngữ hoàn chỉnh** v�
 
 1. **Products Page**: Filters, sorting, pagination
 2. **Register Page**: Form labels, validation messages
-3. **Product Detail Page**: Specifications, reviews, related products
+3. **Product Detail Page**: Specifications, reviews, related product1s
 4. **Login Page**: Form labels, error messages
 5. **Footer**: Newsletter, social links
 

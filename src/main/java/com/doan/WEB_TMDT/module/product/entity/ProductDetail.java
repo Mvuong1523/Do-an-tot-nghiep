@@ -51,5 +51,5 @@ public class ProductDetail {
 
     @OneToOne
     @JoinColumn(name = "product_id", referencedColumnName = "id")
-    private Product product;
+    private Product1 product1;
 }

@@ -1,15 +1,15 @@
 package com.doan.WEB_TMDT.module.product.repository;
 
-import com.doan.WEB_TMDT.module.product.entity.Product;
+import com.doan.WEB_TMDT.module.product.entity.Product1;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List; // 💡 Cần import List để trả về danh sách
 
 @Repository
-public interface ProductRepository extends JpaRepository<Product, Long> {
+public interface ProductRepository extends JpaRepository<Product1, Long> {
 
     // Nó cho phép tìm tất cả Product dựa trên ID của nhà cung cấp liên kết qua WarehouseProduct.
-    List<Product> findAllByWarehouseProduct_Supplier_Id(Long supplierId);
+    List<Product1> findAllByWarehouseProduct_Supplier_Id(Long supplierId);
 
 }

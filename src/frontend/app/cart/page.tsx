@@ -60,7 +60,7 @@ export default function CartPage() {
               {t('cartEmptyMessage')}
             </p>
             <Link
-              href="/products"
+              href="/product1s"
               className="bg-navy-500 text-white px-8 py-3 rounded-lg font-semibold hover:bg-navy-600 transition-colors inline-block"
             >
               {t('continueShopping')}
@@ -104,7 +104,7 @@ export default function CartPage() {
 
                       {/* Product Info */}
                       <div className="flex-1 min-w-0">
-                        <Link href={`/products/${item.id}`}>
+                        <Link href={`/product1s/${item.id}`}>
                           <h3 className="font-semibold text-gray-900 hover:text-navy-500 transition-colors line-clamp-2">
                             {item.name}
                           </h3>
@@ -210,7 +210,7 @@ export default function CartPage() {
                     {t('checkout')}
                   </Link>
                   <Link
-                    href="/products"
+                    href="/product1s"
                     className="w-full bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition-colors text-center block"
                   >
                     {t('continueShopping')}

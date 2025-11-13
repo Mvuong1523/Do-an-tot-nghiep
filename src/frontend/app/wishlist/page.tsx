@@ -11,7 +11,7 @@ export default function WishlistPage() {
   const { wishlist, removeFromWishlist, addToCart, isInWishlist } = useCartStore()
   const { t } = useTranslation()
 
-  // Mock products data - trong thực tế sẽ fetch từ API dựa trên wishlist IDs
+  // Mock product1s data - trong thực tế sẽ fetch từ API dựa trên wishlist IDs
   const allProducts = [
     {
       id: 1,
@@ -59,7 +59,7 @@ export default function WishlistPage() {
     },
   ]
 
-  // Filter products that are in wishlist
+  // Filter product1s that are in wishlist
   const wishlistProducts = allProducts.filter(product => wishlist.includes(product.id))
 
   const handleRemoveFromWishlist = (productId: number) => {
@@ -92,7 +92,7 @@ export default function WishlistPage() {
               {t('wishlistEmptyMessage')}
             </p>
             <Link
-              href="/products"
+              href="/product1s"
               className="bg-navy-500 text-white px-8 py-3 rounded-lg font-semibold hover:bg-navy-600 transition-colors inline-block"
             >
               Khám phá sản phẩm
@@ -166,7 +166,7 @@ export default function WishlistPage() {
 
               {/* Product Info */}
               <div className="p-4">
-                <Link href={`/products/${product.id}`}>
+                <Link href={`/product1s/${product.id}`}>
                   <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2 hover:text-navy-500 transition-colors">
                     {product.name}
                   </h3>
@@ -216,7 +216,7 @@ export default function WishlistPage() {
                     <span>{t('addToCart')}</span>
                   </button>
                   <Link
-                    href={`/products/${product.id}`}
+                    href={`/product1s/${product.id}`}
                     className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center"
                   >
                     {t('viewDetails')}
@@ -230,7 +230,7 @@ export default function WishlistPage() {
         {/* Continue Shopping */}
         <div className="mt-12 text-center">
           <Link
-            href="/products"
+            href="/product1s"
             className="bg-gray-200 text-gray-700 px-8 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-colors inline-block"
           >
             {t('continueShopping')}

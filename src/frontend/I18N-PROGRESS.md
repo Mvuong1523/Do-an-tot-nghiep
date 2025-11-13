@@ -10,7 +10,7 @@
 
 ### 📱 **Components đã cập nhật:**
 - ✅ **Header** (`/components/layout/Header.tsx`) - 100% đa ngôn ngữ
-- ✅ **ProductCard** (`/components/product/ProductCard.tsx`) - 100% đa ngôn ngữ
+- ✅ **ProductCard** (`/components/product1/ProductCard.tsx`) - 100% đa ngôn ngữ
 - ✅ **Footer** (`/components/layout/Footer.tsx`) - **Đang cập nhật**
 
 ### 📄 **Pages đã cập nhật:**
@@ -23,8 +23,8 @@
 ## 🔄 **Đang cập nhật:**
 
 ### 📄 **Pages cần hoàn thiện:**
-- 🔄 **Products Page** (`/app/products/page.tsx`)
-- 🔄 **Product Detail Page** (`/app/products/[id]/page.tsx`)
+- 🔄 **Products Page** (`/app/product1s/page.tsx`)
+- 🔄 **Product Detail Page** (`/app/product1s/[id]/page.tsx`)
 - 🔄 **Register Page** (`/app/register/page.tsx`)
 - 🔄 **Login Page** (`/app/login/page.tsx`)
 
