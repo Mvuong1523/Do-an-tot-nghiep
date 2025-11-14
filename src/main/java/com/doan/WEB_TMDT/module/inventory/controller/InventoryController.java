@@ -2,18 +2,14 @@ package com.doan.WEB_TMDT.module.inventory.controller;
 
 import com.doan.WEB_TMDT.common.dto.ApiResponse;
 import com.doan.WEB_TMDT.module.inventory.dto.*;
-import com.doan.WEB_TMDT.module.inventory.entity.PurchaseOrder;
 import com.doan.WEB_TMDT.module.inventory.service.InventoryService;
-import com.doan.WEB_TMDT.module.inventory.entity.WarehouseProduct;
-import com.doan.WEB_TMDT.module.product.entity.CatalogProduct;
+import com.doan.WEB_TMDT.module.product.entity.Product;
 import com.doan.WEB_TMDT.module.product.repository.ProductRepository;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/inventory")
@@ -34,7 +30,7 @@ public class InventoryController {
 
     @GetMapping("/supplier/{supplierId}/products")
     public ApiResponse getProductsBySupplier(@PathVariable Long supplierId) {
-        List<CatalogProduct> products = productRepository.findAllByWarehouseProduct_Supplier_Id(supplierId);
+        List<Product> products = productRepository.findAllByWarehouseProduct_Supplier_Id(supplierId);
         return ApiResponse.success("Danh sách sản phẩm", products);
     }
     // ===== Import / Export =====

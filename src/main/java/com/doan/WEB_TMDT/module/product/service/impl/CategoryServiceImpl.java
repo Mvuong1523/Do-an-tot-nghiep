@@ -1,42 +1,45 @@
 package com.doan.WEB_TMDT.module.product.service.impl;
 
-import com.doan.WEB_TMDT.common.dto.ApiResponse;
-import com.doan.WEB_TMDT.module.product.dto.CreateCategoryRequest;
 import com.doan.WEB_TMDT.module.product.entity.Category;
 import com.doan.WEB_TMDT.module.product.repository.CategoryRepository;
 import com.doan.WEB_TMDT.module.product.service.CategoryService;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import java.util.List;
+import java.util.Optional;
 
 @Service
-@RequiredArgsConstructor
 public class CategoryServiceImpl implements CategoryService {
 
-    private final CategoryRepository categoryRepo;
+    @Autowired
+    private CategoryRepository categoryRepository;
 
     @Override
-    public ApiResponse createCategory(CreateCategoryRequest req) {
-        if (categoryRepo.existsByName(req.getName())) {
-            return ApiResponse.error("Danh mục đã tồn tại!");
-        }
-
-        Category parent = null;
-        if (req.getParentId() != null) {
-            parent = categoryRepo.findById(req.getParentId()).orElse(null);
-        }
-
-        Category category = Category.builder()
-                .name(req.getName())
-                .description(req.getDescription())
-                .parent(parent)
-                .build();
-
-        categoryRepo.save(category);
-        return ApiResponse.success("Tạo danh mục thành công!", category);
+    public List<Category> getAll() {
+        return categoryRepository.findAll();
     }
 
     @Override
-    public ApiResponse getAllCategories() {
-        return ApiResponse.success("Danh sách danh mục", categoryRepo.findAll());
+    public Optional<Category> getById(Long id) {
+        return categoryRepository.findById(id);
+    }
+
+    @Override
+    public Category create(Category category) {
+        return categoryRepository.save(category);
+    }
+
+    @Override
+    public Category update(Long id, Category category) {
+        if (categoryRepository.existsById(id)) {
+            category.setId(id);
+            return categoryRepository.save(category);
+        }
+        return null;
+    }
+
+    @Override
+    public void delete(Long id) {
+        categoryRepository.deleteById(id);
     }
 }

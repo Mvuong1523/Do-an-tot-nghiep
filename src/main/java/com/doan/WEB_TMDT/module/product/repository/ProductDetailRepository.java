@@ -1,16 +1,19 @@
 package com.doan.WEB_TMDT.module.product.repository;
 
-import com.doan.WEB_TMDT.module.inventory.entity.ProductStatus;
-import com.doan.WEB_TMDT.module.inventory.entity.WarehouseProduct;
-import com.doan.WEB_TMDT.module.product.entity.CatalogProduct;
 import com.doan.WEB_TMDT.module.inventory.entity.ProductDetail;
 import org.springframework.data.jpa.repository.JpaRepository;
-import java.util.*;
+import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
+@Repository
 public interface ProductDetailRepository extends JpaRepository<ProductDetail, Long> {
-    Optional<ProductDetail> findBySerialNumber(String serialNumber);
-    List<ProductDetail> findByWarehouseProductAndStatus(WarehouseProduct product, ProductStatus status);
-    long countByWarehouseProductAndStatus(WarehouseProduct product, ProductStatus status);
 
+    Optional<ProductDetail> findByProductId(Long productId);
+
+    // (Từ lỗi trước) Kiểm tra sự tồn tại
     boolean existsBySerialNumber(String serialNumber);
+
+    // 💡 PHƯƠNG THỨC CẦN THÊM ĐỂ SỬA LỖI LẦN NÀY (findBySerialNumber)
+    Optional<ProductDetail> findBySerialNumber(String serialNumber);
 }
