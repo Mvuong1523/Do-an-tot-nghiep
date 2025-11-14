@@ -41,7 +41,7 @@ src/frontend/
 ├── app/                    # Next.js App Router
 │   ├── layout.tsx         # Root layout
 │   ├── page.tsx           # Trang chủ
-│   ├── product1s/          # Trang sản phẩm
+│   ├── products/          # Trang sản phẩm
 │   │   ├── page.tsx       # Danh sách sản phẩm
 │   │   └── [id]/page.tsx  # Chi tiết sản phẩm
 │   ├── cart/page.tsx      # Giỏ hàng
@@ -50,7 +50,7 @@ src/frontend/
 │   └── register/page.tsx  # Đăng ký
 ├── components/            # React components
 │   ├── layout/            # Header, Footer
-│   ├── product1/           # ProductCard
+│   ├── product/           # ProductCard
 │   └── category/          # CategoryCard
 ├── styles/                # CSS files
 │   └── globals.css        # Global styles

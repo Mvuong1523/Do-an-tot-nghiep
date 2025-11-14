@@ -1,5 +1,6 @@
 package com.doan.WEB_TMDT.module.inventory.entity;
 
+import com.doan.WEB_TMDT.module.product.entity.Product;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -43,6 +44,9 @@ public class ProductDetail {
     @JoinColumn(name = "purchase_order_item_id")
     private PurchaseOrderItem purchaseOrderItem;
 
+
+    @OneToOne(mappedBy = "productDetail", cascade = CascadeType.ALL)
+    private Product product;
 
     private Integer warrantyMonths;      // thời hạn bảo hành (tháng)
 

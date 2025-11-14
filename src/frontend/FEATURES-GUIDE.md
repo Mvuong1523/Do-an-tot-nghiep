@@ -64,7 +64,7 @@ src/frontend/
 ├── components/
 │   ├── layout/
 │   │   └── Header.tsx        # Header mới với cart counter
-│   └── product1/
+│   └── product/
 │       └── ProductCard.tsx   # Tích hợp wishlist & cart
 ```
 
@@ -75,7 +75,7 @@ src/frontend/
 interface CartStore {
   items: CartItem[]           // Sản phẩm trong giỏ
   wishlist: number[]          // IDs sản phẩm yêu thích
-  addToCart: (product1) => void
+  addToCart: (product) => void
   removeFromCart: (id) => void
   updateQuantity: (id, qty) => void
   addToWishlist: (id) => void
@@ -127,7 +127,7 @@ interface CartStore {
 2. **Authentication**: Thêm user login/logout
 3. **Payment**: Tích hợp payment gateway
 4. **Search**: Implement search functionality
-5. **Filters**: Advanced product1 filtering
+5. **Filters**: Advanced product filtering
 
 ## 📞 Support
 

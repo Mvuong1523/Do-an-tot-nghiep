@@ -1,6 +1,6 @@
 package com.doan.WEB_TMDT.module.product.service.impl;
 
-import com.doan.WEB_TMDT.module.product.entity.Product1;
+import com.doan.WEB_TMDT.module.product.entity.Product;
 import com.doan.WEB_TMDT.module.product.repository.ProductRepository;
 import com.doan.WEB_TMDT.module.product.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,25 +15,25 @@ public class ProductServiceImpl implements ProductService {
     private ProductRepository productRepository;
 
     @Override
-    public List<Product1> getAll() {
+    public List<Product> getAll() {
         return productRepository.findAll();
     }
 
     @Override
-    public Optional<Product1> getById(Long id) {
+    public Optional<Product> getById(Long id) {
         return productRepository.findById(id);
     }
 
     @Override
-    public Product1 create(Product1 product1) {
-        return productRepository.save(product1);
+    public Product create(Product product) {
+        return productRepository.save(product);
     }
 
     @Override
-    public Product1 update(Long id, Product1 product1) {
+    public Product update(Long id, Product product) {
         if (productRepository.existsById(id)) {
-            product1.setId(id);
-            return productRepository.save(product1);
+            product.setId(id);
+            return productRepository.save(product);
         }
         return null;
     }

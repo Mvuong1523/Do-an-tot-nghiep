@@ -63,14 +63,14 @@ const featuredProducts: Product[] = [
 ]
 
 const defaultCategories = [
-  { name: 'Điện thoại', icon: '📱', href: '/product1s?category=phone', count: 1250 },
-  { name: 'Laptop', icon: '💻', href: '/product1s?category=laptop', count: 450 },
-  { name: 'Tablet', icon: '📱', href: '/product1s?category=tablet', count: 200 },
-  { name: 'Màn hình', icon: '🖥️', href: '/product1s?category=monitor', count: 300 },
-  { name: 'Linh kiện máy tính', icon: '🔧', href: '/product1s?category=computer-parts', count: 800 },
-  { name: 'Điện máy', icon: '🏠', href: '/product1s?category=appliances', count: 150 },
-  { name: 'Đồng hồ', icon: '⌚', href: '/product1s?category=watch', count: 400 },
-  { name: 'Âm thanh', icon: '🎵', href: '/product1s?category=audio', count: 250 },
+  { name: 'Điện thoại', icon: '📱', href: '/products?category=phone', count: 1250 },
+  { name: 'Laptop', icon: '💻', href: '/products?category=laptop', count: 450 },
+  { name: 'Tablet', icon: '📱', href: '/products?category=tablet', count: 200 },
+  { name: 'Màn hình', icon: '🖥️', href: '/products?category=monitor', count: 300 },
+  { name: 'Linh kiện máy tính', icon: '🔧', href: '/products?category=computer-parts', count: 800 },
+  { name: 'Điện máy', icon: '🏠', href: '/products?category=appliances', count: 150 },
+  { name: 'Đồng hồ', icon: '⌚', href: '/products?category=watch', count: 400 },
+  { name: 'Âm thanh', icon: '🎵', href: '/products?category=audio', count: 250 },
 ]
 
 const banners = [
@@ -79,21 +79,21 @@ const banners = [
     title: 'iPhone 16 Pro Max',
     subtitle: 'Mua ngay',
     image: '/images/banner-iphone.jpg',
-    href: '/product1s/iphone-16-pro-max'
+    href: '/products/iphone-16-pro-max'
   },
   {
     id: 2,
     title: 'Điện thoại Xiaomi 15T',
     subtitle: 'Chạm Đỉnh Tuyệt Tác',
     image: '/images/banner-xiaomi-15t.jpg',
-    href: '/product1s/xiaomi-15t'
+    href: '/products/xiaomi-15t'
   },
   {
     id: 3,
     title: 'iPhone Air',
     subtitle: 'iPhone mỏng nhất từng có',
     image: '/images/banner-iphone-air.jpg',
-    href: '/product1s/iphone-air'
+    href: '/products/iphone-air'
   },
 ]
 
@@ -122,7 +122,7 @@ export default function HomePage() {
           const mappedCategories = response.data.map((cat: any) => ({
             name: cat.name || cat.categoryName || 'Danh mục',
             icon: '📦', // Default icon
-            href: `/product1s?category=${cat.id || cat.categoryId}`,
+            href: `/products?category=${cat.id || cat.categoryId}`,
             count: cat.productCount || cat.count || 0,
           }))
           if (mappedCategories.length > 0) {
@@ -194,7 +194,7 @@ export default function HomePage() {
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center mb-8">
             <h2 className="text-3xl font-bold">{t('featuredProducts')}</h2>
-            <Link href="/product1s" className="text-navy-500 hover:text-navy-600 font-semibold">
+            <Link href="/products" className="text-navy-500 hover:text-navy-600 font-semibold">
               {t('viewAll')} →
             </Link>
           </div>

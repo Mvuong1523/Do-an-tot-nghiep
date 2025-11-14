@@ -1,6 +1,6 @@
 package com.doan.WEB_TMDT.module.product.controller;
 
-import com.doan.WEB_TMDT.module.product.entity.Product1;
+import com.doan.WEB_TMDT.module.product.entity.Product;
 import com.doan.WEB_TMDT.module.product.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -15,25 +15,25 @@ public class ProductController {
     private ProductService productService;
 
     @GetMapping
-    public ResponseEntity<List<Product1>> getAll() {
+    public ResponseEntity<List<Product>> getAll() {
         return ResponseEntity.ok(productService.getAll());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Product1> getById(@PathVariable Long id) {
+    public ResponseEntity<Product> getById(@PathVariable Long id) {
         return productService.getById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
-    public ResponseEntity<Product1> create(@RequestBody Product1 product1) {
-        return ResponseEntity.ok(productService.create(product1));
+    public ResponseEntity<Product> create(@RequestBody Product product) {
+        return ResponseEntity.ok(productService.create(product));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Product1> update(@PathVariable Long id, @RequestBody Product1 product1) {
-        Product1 updated = productService.update(id, product1);
+    public ResponseEntity<Product> update(@PathVariable Long id, @RequestBody Product product) {
+        Product updated = productService.update(id, product);
         return updated != null ? ResponseEntity.ok(updated) : ResponseEntity.notFound().build();
     }
 

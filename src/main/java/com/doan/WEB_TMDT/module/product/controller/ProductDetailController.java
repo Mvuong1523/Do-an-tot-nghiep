@@ -1,6 +1,6 @@
 package com.doan.WEB_TMDT.module.product.controller;
 
-import com.doan.WEB_TMDT.module.product.entity.ProductDetail;
+import com.doan.WEB_TMDT.module.inventory.entity.ProductDetail;
 import com.doan.WEB_TMDT.module.product.service.ProductDetailService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;

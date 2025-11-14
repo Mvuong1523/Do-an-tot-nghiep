@@ -9,10 +9,8 @@ import com.doan.WEB_TMDT.module.inventory.service.InventoryService;
 // import com.doan.WEB_TMDT.module.inventory.entity.ProductDetail;
 import com.doan.WEB_TMDT.module.inventory.entity.ProductStatus; // Giữ lại
 import com.doan.WEB_TMDT.module.product.repository.ProductDetailRepository;
-import com.doan.WEB_TMDT.module.product.repository.ProductRepository;
 
 // 💡 Thêm import entity ProductDetail đúng từ Product module
-import com.doan.WEB_TMDT.module.product.entity.ProductDetail;
 import lombok.extern.slf4j.Slf4j;
 
 import lombok.RequiredArgsConstructor;

@@ -6,7 +6,6 @@ import lombok.*;
 import jakarta.persistence.Id;
 
 // 💡 CÂU IMPORT CẦN THÊM ĐỂ CHỈ ĐỊNH ĐÚNG ENTITY PRODUCT DETAIL
-import com.doan.WEB_TMDT.module.product.entity.ProductDetail;
 
 import java.util.List;
 

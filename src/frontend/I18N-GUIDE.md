@@ -124,7 +124,7 @@ const { t } = useTranslation()
 ## 📝 Translation Keys
 
 ### **Header & Navigation**
-- `home`, `product1s`, `contact`
+- `home`, `products`, `contact`
 - `wishlist`, `cart`, `login`
 - `searchPlaceholder`
 

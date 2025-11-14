@@ -1,7 +1,6 @@
 package com.doan.WEB_TMDT.module.order.entity;
 
 import com.doan.WEB_TMDT.module.product.entity.Product;
-import com.doan.WEB_TMDT.module.product.entity.ProductDetail;
 import jakarta.persistence.*;
 import lombok.*;
 

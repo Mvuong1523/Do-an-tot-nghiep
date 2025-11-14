@@ -3,7 +3,7 @@ package com.doan.WEB_TMDT.module.inventory.controller;
 import com.doan.WEB_TMDT.common.dto.ApiResponse;
 import com.doan.WEB_TMDT.module.inventory.dto.*;
 import com.doan.WEB_TMDT.module.inventory.service.InventoryService;
-import com.doan.WEB_TMDT.module.product.entity.Product1;
+import com.doan.WEB_TMDT.module.product.entity.Product;
 import com.doan.WEB_TMDT.module.product.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -30,8 +30,8 @@ public class InventoryController {
 
     @GetMapping("/supplier/{supplierId}/products")
     public ApiResponse getProductsBySupplier(@PathVariable Long supplierId) {
-        List<Product1> product1s = productRepository.findAllByWarehouseProduct_Supplier_Id(supplierId);
-        return ApiResponse.success("Danh sách sản phẩm", product1s);
+        List<Product> products = productRepository.findAllByWarehouseProduct_Supplier_Id(supplierId);
+        return ApiResponse.success("Danh sách sản phẩm", products);
     }
     // ===== Import / Export =====
     @PostMapping("/import")
