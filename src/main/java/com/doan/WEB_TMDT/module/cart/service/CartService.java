@@ -1,20 +1,18 @@
-package com.project.ecommerce.cart.service;
+package com.doan.WEB_TMDT.module.cart.service;
 
-import com.project.ecommerce.cart.entity.Cart;
-import com.project.ecommerce.cart.dto.CartItemRequest;
-import com.project.ecommerce.cart.dto.CartResponse; // Sử dụng CartResponse cho đầu ra
+import com.doan.WEB_TMDT.module.cart.dto.AddCartItemRequest;
+import com.doan.WEB_TMDT.module.cart.dto.CartDTO;
+import com.doan.WEB_TMDT.module.cart.dto.UpdateCartItemRequest;
 
 public interface CartService {
-    // READ
-    Cart getOrCreateCartByUserId(Long userId);
 
-    // CREATE/UPDATE
-    Cart addItemToCart(Long userId, CartItemRequest request);
+    CartDTO getCurrentCart(Long userId);
 
-    // UPDATE
-    Cart updateItemQuantity(Long userId, String sku, Integer quantity);
+    CartDTO addItem(Long userId, AddCartItemRequest req);
 
-    // DELETE
-    void removeItemFromCart(Long userId, String sku);
+    CartDTO updateItem(Long userId, Long cartItemId, UpdateCartItemRequest req);
+
+    CartDTO removeItem(Long userId, Long cartItemId);
+
     void clearCart(Long userId);
 }

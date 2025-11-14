@@ -1,45 +1,60 @@
 package com.doan.WEB_TMDT.module.product.controller;
 
+import com.doan.WEB_TMDT.module.product.dto.*;
 import com.doan.WEB_TMDT.module.product.entity.Product;
+import com.doan.WEB_TMDT.module.product.service.ProductQueryService;
 import com.doan.WEB_TMDT.module.product.service.ProductService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/products")
+@RequiredArgsConstructor
 public class ProductController {
 
-    @Autowired
-    private ProductService productService;
+    private final ProductService productService;
+    private final ProductQueryService productQueryService;
+
+    // --- KHÁCH HÀNG XEM DANH SÁCH & CHI TIẾT ---
 
     @GetMapping
-    public ResponseEntity<List<Product>> getAll() {
-        return ResponseEntity.ok(productService.getAll());
+    public Page<ProductDTO> search(@ModelAttribute ProductFilterRequest filter) {
+        return productQueryService.searchPublic(filter);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Product> getById(@PathVariable Long id) {
-        return productService.getById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ProductDTO getDetail(@PathVariable Long id) {
+        return productQueryService.getDetail(id);
     }
 
-    @PostMapping
-    public ResponseEntity<Product> create(@RequestBody Product product) {
-        return ResponseEntity.ok(productService.create(product));
+    // --- MÀN HÌNH QUẢN LÝ SẢN PHẨM ---
+
+    @GetMapping("/manage")
+    public Page<ProductDTO> searchManage(@ModelAttribute ProductFilterRequest filter) {
+        return productQueryService.searchAdmin(filter);
+    }
+
+    @PostMapping("/from-warehouse")
+    public ProductDTO createFromWarehouse(@RequestBody CreateProductFromWarehouseRequest req) {
+        Product product = productService.createFromWarehouse(req);
+        return ProductDTO.fromEntity(product);
+    }
+
+    @PatchMapping("/{id}/price")
+    public ProductDTO updatePrice(@PathVariable Long id, @RequestBody UpdatePriceRequest req) {
+        Product product = productService.updatePrice(id, req.getSalePrice());
+        return ProductDTO.fromEntity(product);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Product> update(@PathVariable Long id, @RequestBody Product product) {
-        Product updated = productService.update(id, product);
-        return updated != null ? ResponseEntity.ok(updated) : ResponseEntity.notFound().build();
+    public ProductDTO update(@PathVariable Long id, @RequestBody UpdateProductRequest req) {
+        Product product = productService.updateBasicInfo(id, req);
+        return ProductDTO.fromEntity(product);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        productService.delete(id);
-        return ResponseEntity.noContent().build();
+    public void delete(@PathVariable Long id) {
+        productService.hide(id);
     }
 }

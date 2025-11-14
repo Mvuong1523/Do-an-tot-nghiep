@@ -1,14 +1,20 @@
 package com.doan.WEB_TMDT.module.product.service;
 
+import com.doan.WEB_TMDT.module.product.dto.CreateProductFromWarehouseRequest;
+import com.doan.WEB_TMDT.module.product.dto.UpdateProductRequest;
 import com.doan.WEB_TMDT.module.product.entity.Product;
 
-import java.util.List;
-import java.util.Optional;
-
 public interface ProductService {
-    List<Product> getAll();
-    Optional<Product> getById(Long id);
-    Product create(Product product);
-    Product update(Long id, Product product);
-    void delete(Long id);
+
+    Product createFromWarehouse(CreateProductFromWarehouseRequest req);
+
+    Product updatePrice(Long id, Long newPrice);
+
+    Product updateBasicInfo(Long id, UpdateProductRequest req);
+
+    void hide(Long id); // soft delete
+
+    Product findByIdOrThrow(Long id);
+
+    void syncStockFromWarehouse(Product product);
 }

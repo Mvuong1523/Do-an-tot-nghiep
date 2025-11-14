@@ -1,140 +1,200 @@
 package com.doan.WEB_TMDT.module.cart.service.impl;
 
-import com.doan.WEB_TMDT.module.cart.dto.CartItemRequest;
-import com.project.ecommerce.cart.entity.Cart;
-import com.project.ecommerce.cart.entity.CartItem;
-import com.project.ecommerce.cart.repository.CartItemRepository;
-import com.project.ecommerce.cart.repository.CartRepository;
-import com.project.ecommerce.cart.service.CartService;
-import com.project.ecommerce.catalog.entity.Variant;
-import com.project.ecommerce.catalog.repository.VariantRepository;
-import com.project.ecommerce.auth.entity.User;
-import com.project.ecommerce.auth.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.doan.WEB_TMDT.module.cart.dto.AddCartItemRequest;
+import com.doan.WEB_TMDT.module.cart.dto.CartDTO;
+import com.doan.WEB_TMDT.module.cart.dto.CartItemDTO;
+import com.doan.WEB_TMDT.module.cart.dto.UpdateCartItemRequest;
+import com.doan.WEB_TMDT.module.cart.entity.Cart;
+import com.doan.WEB_TMDT.module.cart.entity.CartItem;
+import com.doan.WEB_TMDT.module.cart.entity.CartStatus;
+import com.doan.WEB_TMDT.module.cart.repository.CartItemRepository;
+import com.doan.WEB_TMDT.module.cart.repository.CartRepository;
+import com.doan.WEB_TMDT.module.cart.service.CartService;
+import com.doan.WEB_TMDT.module.product.entity.Product;
+import com.doan.WEB_TMDT.module.product.entity.ProductShowStatus;
+import com.doan.WEB_TMDT.module.product.repository.ProductRepository;
+import jakarta.persistence.EntityNotFoundException;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Optional;
+
+import java.util.List;
 
 @Service
+@RequiredArgsConstructor
+@Transactional
 public class CartServiceImpl implements CartService {
 
-    @Autowired private CartRepository cartRepository;
-    @Autowired private CartItemRepository cartItemRepository;
-    @Autowired private VariantRepository variantRepository; // Phụ thuộc vào Catalog
-    @Autowired private UserRepository userRepository; // Phụ thuộc vào Auth
+    private final CartRepository cartRepository;
+    private final CartItemRepository cartItemRepository;
+    private final ProductRepository productRepository;
 
-    private Cart getCart(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Lỗi xác thực: User không tồn tại."));
-
-        return cartRepository.findByUser(user).orElseGet(() -> {
-            Cart newCart = new Cart();
-            newCart.setUser(user);
-            newCart.setItems(new HashSet<>());
-            return cartRepository.save(newCart);
-        });
+    @Override
+    public CartDTO getCurrentCart(Long userId) {
+        Cart cart = findOrCreateActiveCart(userId);
+        return toDTO(cart);
     }
 
     @Override
-    public Cart getOrCreateCartByUserId(Long userId) {
-        return getCart(userId);
-    }
-
-    // CREATE/UPDATE: Thêm sản phẩm vào giỏ hàng (UC-04)
-    @Override
-    @Transactional
-    public Cart addItemToCart(Long userId, CartItemRequest request) {
-        Cart cart = getCart(userId);
-
-        Variant variant = variantRepository.findBySku(request.getSku())
-                .orElseThrow(() -> new RuntimeException("Lỗi 404: Không tìm thấy sản phẩm với SKU " + request.getSku()));
-
-        Optional<CartItem> existingItem = cart.getItems().stream()
-                .filter(item -> item.getVariant().getSku().equals(request.getSku()))
-                .findFirst();
-
-        int quantityToAdd = request.getQuantity();
-        int currentCartQuantity = existingItem.map(CartItem::getQuantity).orElse(0);
-        int finalQuantity = currentCartQuantity + quantityToAdd;
-
-        // [LOGIC NGHIỆP VỤ: Kiểm tra TỒN KHO]
-        if (variant.getCurrentStock() < finalQuantity) {
-            throw new RuntimeException("Lỗi tồn kho: Chỉ còn " + variant.getCurrentStock() + " sản phẩm.");
+    public CartDTO addItem(Long userId, AddCartItemRequest req) {
+        if (req.getQuantity() == null || req.getQuantity() <= 0) {
+            throw new IllegalArgumentException("Số lượng phải > 0");
         }
 
-        if (existingItem.isPresent()) {
-            CartItem item = existingItem.get();
-            item.setQuantity(finalQuantity);
-            cartItemRepository.save(item);
-        } else {
-            // Thêm mới Item
-            CartItem newItem = new CartItem();
-            newItem.setCart(cart);
-            newItem.setVariant(variant);
-            newItem.setQuantity(quantityToAdd);
-            newItem.setPriceSnapshot(variant.getSellingPrice()); // Snapshot giá
-            cart.getItems().add(newItem);
+        Cart cart = findOrCreateActiveCart(userId);
+        Product product = productRepository.findById(req.getProductId())
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy sản phẩm"));
+
+        if (product.getStatus() != ProductShowStatus.ACTIVE) {
+            throw new IllegalStateException("Sản phẩm hiện không được bán");
         }
 
-        cart.setUpdatedAt(LocalDateTime.now());
-        cart.setTotalItems(cart.getItems().stream().mapToInt(CartItem::getQuantity).sum());
-        return cartRepository.save(cart);
-    }
+        long stock = product.getStockQuantity() != null ? product.getStockQuantity() : Long.MAX_VALUE;
+        int newQuantity = req.getQuantity();
 
-    // UPDATE: Cập nhật số lượng
-    @Override
-    @Transactional
-    public Cart updateItemQuantity(Long userId, String sku, Integer quantity) {
-        if (quantity <= 0) {
-            removeItemFromCart(userId, sku);
-            return getCart(userId);
-        }
-
-        Cart cart = getCart(userId);
+        // tìm item cùng product trong giỏ
         CartItem item = cart.getItems().stream()
-                .filter(i -> i.getVariant().getSku().equals(sku))
+                .filter(i -> i.getProduct().getId().equals(product.getId()))
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException("Lỗi 404: Sản phẩm không có trong giỏ hàng."));
+                .orElse(null);
 
-        Variant variant = item.getVariant();
-        // [LOGIC NGHIỆP VỤ: Kiểm tra tồn kho cho số lượng mới]
-        if (variant.getCurrentStock() < quantity) {
-            throw new RuntimeException("Lỗi tồn kho: Số lượng cập nhật vượt quá giới hạn tồn kho.");
+        if (item != null) {
+            newQuantity = item.getQuantity() + req.getQuantity();
         }
 
-        item.setQuantity(quantity);
-        cart.setUpdatedAt(LocalDateTime.now());
-        cart.setTotalItems(cart.getItems().stream().mapToInt(CartItem::getQuantity).sum());
-        return cartRepository.save(cart);
-    }
-
-    // DELETE: Xóa một món hàng
-    @Override
-    @Transactional
-    public void removeItemFromCart(Long userId, String sku) {
-        Cart cart = getCart(userId);
-        Optional<CartItem> itemToRemove = cart.getItems().stream()
-                .filter(i -> i.getVariant().getSku().equals(sku))
-                .findFirst();
-
-        if (itemToRemove.isPresent()) {
-            cart.getItems().remove(itemToRemove.get());
-            cart.setUpdatedAt(LocalDateTime.now());
-            cart.setTotalItems(cart.getItems().stream().mapToInt(CartItem::getQuantity).sum());
-            cartRepository.save(cart);
+        if (newQuantity > stock) {
+            throw new IllegalStateException("Số lượng yêu cầu vượt quá tồn kho");
         }
+
+        if (item == null) {
+            item = CartItem.builder()
+                    .cart(cart)
+                    .product(product)
+                    .productName(product.getName())
+                    .productImage(product.getImageUrl())
+                    .quantity(req.getQuantity())
+                    .unitPrice(product.getSalePrice())
+                    .lineTotal(product.getSalePrice() * req.getQuantity())
+                    .build();
+            cart.getItems().add(item);
+        } else {
+            item.setQuantity(newQuantity);
+            item.setLineTotal(item.getUnitPrice() * newQuantity);
+        }
+
+        recalcCartTotals(cart);
+        cart = cartRepository.save(cart);
+
+        return toDTO(cart);
     }
 
-    // DELETE: Xóa toàn bộ giỏ
     @Override
-    @Transactional
+    public CartDTO updateItem(Long userId, Long cartItemId, UpdateCartItemRequest req) {
+        if (req.getQuantity() == null || req.getQuantity() < 0) {
+            throw new IllegalArgumentException("Số lượng không hợp lệ");
+        }
+
+        Cart cart = findOrCreateActiveCart(userId);
+
+        CartItem item = cart.getItems().stream()
+                .filter(i -> i.getId().equals(cartItemId))
+                .findFirst()
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy item trong giỏ"));
+
+        if (req.getQuantity() == 0) {
+            cart.getItems().remove(item);
+            cartItemRepository.delete(item);
+        } else {
+            Product product = item.getProduct();
+            long stock = product.getStockQuantity() != null ? product.getStockQuantity() : Long.MAX_VALUE;
+
+            if (req.getQuantity() > stock) {
+                throw new IllegalStateException("Số lượng yêu cầu vượt quá tồn kho");
+            }
+
+            item.setQuantity(req.getQuantity());
+            item.setLineTotal(item.getUnitPrice() * req.getQuantity());
+        }
+
+        recalcCartTotals(cart);
+        cart = cartRepository.save(cart);
+
+        return toDTO(cart);
+    }
+
+    @Override
+    public CartDTO removeItem(Long userId, Long cartItemId) {
+        Cart cart = findOrCreateActiveCart(userId);
+
+        CartItem item = cart.getItems().stream()
+                .filter(i -> i.getId().equals(cartItemId))
+                .findFirst()
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy item trong giỏ"));
+
+        cart.getItems().remove(item);
+        cartItemRepository.delete(item);
+
+        recalcCartTotals(cart);
+        cart = cartRepository.save(cart);
+
+        return toDTO(cart);
+    }
+
+    @Override
     public void clearCart(Long userId) {
-        Cart cart = getCart(userId);
+        Cart cart = cartRepository.findByUserIdAndStatus(userId, CartStatus.ACTIVE)
+                .orElse(null);
+        if (cart == null) return;
+
         cart.getItems().clear();
+        cart.setTotalAmount(0L);
         cart.setTotalItems(0);
-        cart.setUpdatedAt(LocalDateTime.now());
         cartRepository.save(cart);
+    }
+
+    // ==================== HELPER ====================
+
+    private Cart findOrCreateActiveCart(Long userId) {
+        return cartRepository.findByUserIdAndStatus(userId, CartStatus.ACTIVE)
+                .orElseGet(() -> {
+                    Cart c = Cart.builder()
+                            .userId(userId)
+                            .status(CartStatus.ACTIVE)
+                            .totalAmount(0L)
+                            .totalItems(0)
+                            .build();
+                    return cartRepository.save(c);
+                });
+    }
+
+    private void recalcCartTotals(Cart cart) {
+        long totalAmount = 0L;
+        int totalItems = 0;
+
+        for (CartItem item : cart.getItems()) {
+            totalAmount += item.getLineTotal();
+            totalItems += item.getQuantity();
+        }
+
+        cart.setTotalAmount(totalAmount);
+        cart.setTotalItems(totalItems);
+    }
+
+    private CartDTO toDTO(Cart cart) {
+        List<CartItemDTO> itemDTOs = cart.getItems().stream()
+                .map(item -> {
+                    Product p = item.getProduct();
+                    Long stock = p.getStockQuantity();
+                    return CartItemDTO.fromEntity(item, stock);
+                })
+                .toList();
+
+        return CartDTO.builder()
+                .id(cart.getId())
+                .userId(cart.getUserId())
+                .totalAmount(cart.getTotalAmount())
+                .totalItems(cart.getTotalItems())
+                .items(itemDTOs)
+                .build();
     }
 }

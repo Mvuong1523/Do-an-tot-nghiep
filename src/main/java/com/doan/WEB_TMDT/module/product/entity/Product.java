@@ -1,6 +1,5 @@
 package com.doan.WEB_TMDT.module.product.entity;
 
-import com.doan.WEB_TMDT.module.inventory.entity.ProductDetail;
 import com.doan.WEB_TMDT.module.inventory.entity.WarehouseProduct;
 import jakarta.persistence.*;
 import lombok.*;
@@ -18,30 +17,43 @@ public class Product {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id")
-    private Category category;
-
+    // Tên hiển thị cho khách
     @Column(nullable = false)
     private String name;
 
-    private Double price;
+    // Brand, model hiển thị
+    private String brand;
+    private String model;
 
-    @Column(unique = true)
-    private String sku;
+    // Giá bán cho khách
+    @Column(nullable = false)
+    private Long salePrice;     // giá bán
 
+    // Giá niêm yết (để hiện giảm giá % nếu muốn)
+    private Long originalPrice;
+
+    // Mô tả chi tiết
     @Column(columnDefinition = "TEXT")
     private String description;
 
     private String imageUrl;
 
+    // Trạng thái hiển thị
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ProductShowStatus status;
+    // ACTIVE, HIDDEN, OUT_OF_STOCK
+
+    // Số lượng tồn (cache)
     private Long stockQuantity;
 
-    @OneToOne
-    @JoinColumn(name = "product_detail_id")
-    private ProductDetail productDetail;
+    // Danh mục
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
 
+    // Liên kết với hàng trong kho
     @OneToOne
-    @JoinColumn(name = "warehouse_product_id")
+    @JoinColumn(name = "warehouse_product_id", unique = true)
     private WarehouseProduct warehouseProduct;
 }
