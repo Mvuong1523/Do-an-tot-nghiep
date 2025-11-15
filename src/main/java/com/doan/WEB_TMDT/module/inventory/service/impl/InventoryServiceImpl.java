@@ -8,7 +8,6 @@ import com.doan.WEB_TMDT.module.inventory.service.InventoryService;
 // ❌ Dòng này đã bị xóa/thay thế vì nó xung đột với ProductDetail của Product module:
 // import com.doan.WEB_TMDT.module.inventory.entity.ProductDetail;
 import com.doan.WEB_TMDT.module.inventory.entity.ProductStatus; // Giữ lại
-import com.doan.WEB_TMDT.module.product.repository.ProductDetailRepository;
 
 // 💡 Thêm import entity ProductDetail đúng từ Product module
 import lombok.extern.slf4j.Slf4j;
