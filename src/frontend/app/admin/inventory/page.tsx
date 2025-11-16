@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { FiPackage, FiPlus, FiDownload, FiUpload, FiSearch } from 'react-icons/fi'
+import { FiPackage, FiPlus, FiDownload, FiUpload, FiSearch, FiUpload as FiFileUpload } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { useTranslation } from '@/hooks/useTranslation'
 import { useAuthStore } from '@/store/authStore'
@@ -116,6 +116,13 @@ export default function InventoryPage() {
           <h1 className="text-3xl font-bold text-gray-900">Quản lý kho</h1>
           
           <div className="flex space-x-2">
+            <Link
+              href="/admin/inventory/import"
+              className="flex items-center space-x-2 bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors"
+            >
+              <FiUpload />
+              <span>Import Excel</span>
+            </Link>
             <Link
               href="/admin/inventory/transactions/create?type=IMPORT"
               className="flex items-center space-x-2 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
