@@ -121,13 +121,19 @@ public class UserServiceImpl implements UserService {
 
         Employee emp = user.getEmployee();
 
+        // Kiểm tra mật khẩu hiện tại
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            return ApiResponse.error("Mật khẩu hiện tại không đúng!");
+        }
 
+        // Kiểm tra mật khẩu mới khớp
         if (!request.getNewPassword().equals(request.getConfirmPassword())) {
             return ApiResponse.error("Xác nhận mật khẩu mới không khớp!");
         }
 
+        // Đổi mật khẩu
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-        emp.setFirstLogin(false); // ✅ nhân viên này đã đổi mật khẩu xong
+        emp.setFirstLogin(false); // ✅ Đánh dấu đã đổi mật khẩu
         userRepository.save(user);
 
         return ApiResponse.success("Đổi mật khẩu thành công!");
