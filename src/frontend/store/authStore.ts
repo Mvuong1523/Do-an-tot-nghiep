@@ -5,6 +5,7 @@ export interface User {
   email: string
   role: 'CUSTOMER' | 'ADMIN' | 'WAREHOUSE' | 'EMPLOYEE'
   status?: string
+  position?: 'SALE' | 'CSKH' | 'PRODUCT_MANAGER' | 'WAREHOUSE' | 'ACCOUNTANT'
 }
 
 interface AuthStore {

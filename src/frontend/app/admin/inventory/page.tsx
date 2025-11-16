@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { FiPackage, FiPlus, FiDownload, FiUpload, FiSearch } from 'react-icons/fi'
+import { FiPackage, FiPlus, FiDownload, FiUpload, FiSearch, FiUpload as FiFileUpload } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { useTranslation } from '@/hooks/useTranslation'
 import { useAuthStore } from '@/store/authStore'
@@ -24,9 +24,9 @@ export default function InventoryPage() {
       return
     }
 
-    // Check if user is admin or employee
+    // Check if user is admin or employee (tạm thời cho tất cả employee)
     if (user?.role !== 'ADMIN' && user?.role !== 'EMPLOYEE') {
-      toast.error('Bạn không có quyền truy cập trang này')
+      toast.error('Chỉ quản lý và nhân viên mới có quyền truy cập')
       router.push('/')
       return
     }
@@ -39,7 +39,37 @@ export default function InventoryPage() {
       // TODO: Call inventory API
       // const response = await inventoryApi.getAll()
       // setInventory(response.data)
-      setInventory([])
+      
+      // Mock data
+      setInventory([
+        {
+          id: 1,
+          name: 'iPhone 16 Pro Max 256GB',
+          sku: 'IP16PM-256',
+          category: 'Điện thoại',
+          price: 29990000,
+          quantity: 15,
+          image: '/images/iphone-16-pro-max.jpg'
+        },
+        {
+          id: 2,
+          name: 'Xiaomi POCO C71 4GB/128GB',
+          sku: 'XM-POCO-C71',
+          category: 'Điện thoại',
+          price: 2490000,
+          quantity: 25,
+          image: '/images/xiaomi-poco-c71.jpg'
+        },
+        {
+          id: 3,
+          name: 'MacBook Pro 14 inch M3',
+          sku: 'MBP14-M3',
+          category: 'Laptop',
+          price: 45990000,
+          quantity: 5,
+          image: '/images/macbook-pro-14.jpg'
+        }
+      ])
     } catch (error) {
       toast.error('Lỗi khi tải kho hàng')
     } finally {
@@ -86,18 +116,34 @@ export default function InventoryPage() {
           <h1 className="text-3xl font-bold text-gray-900">Quản lý kho</h1>
           
           <div className="flex space-x-2">
-            <button className="flex items-center space-x-2 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
+            <Link
+              href="/admin/inventory/import"
+              className="flex items-center space-x-2 bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors"
+            >
+              <FiUpload />
+              <span>Import Excel</span>
+            </Link>
+            <Link
+              href="/admin/inventory/transactions/create?type=IMPORT"
+              className="flex items-center space-x-2 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
+            >
               <FiDownload />
               <span>Nhập hàng</span>
-            </button>
-            <button className="flex items-center space-x-2 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+            </Link>
+            <Link
+              href="/admin/inventory/transactions/create?type=EXPORT"
+              className="flex items-center space-x-2 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+            >
               <FiUpload />
               <span>Xuất hàng</span>
-            </button>
-            <button className="flex items-center space-x-2 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors">
+            </Link>
+            <Link
+              href="/admin/products/create"
+              className="flex items-center space-x-2 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
+            >
               <FiPlus />
               <span>Thêm sản phẩm</span>
-            </button>
+            </Link>
           </div>
         </div>
 
