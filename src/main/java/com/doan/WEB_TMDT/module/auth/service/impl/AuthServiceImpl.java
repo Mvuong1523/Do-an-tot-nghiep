@@ -32,16 +32,24 @@ public class AuthServiceImpl implements AuthService {
     // -----------------------------------------------------------
     @Override
     public ApiResponse sendOtp(RegisterRequest request) {
+        System.out.println("=== SEND OTP START ===");
+        System.out.println("Email: " + request.getEmail());
+        System.out.println("Phone: " + request.getPhone());
+        System.out.println("Full Name: " + request.getFullName());
+        
         // Kiểm tra trùng email hoặc SĐT
         if (userRepository.existsByEmail(request.getEmail())) {
+            System.out.println("ERROR: Email already exists");
             return ApiResponse.error("Email đã được sử dụng!");
         }
         if (customerRepository.existsByPhone(request.getPhone())) {
+            System.out.println("ERROR: Phone already exists");
             return ApiResponse.error("Số điện thoại đã tồn tại!");
         }
 
         // Tạo mã OTP ngẫu nhiên 6 chữ số
         String otp = String.format("%06d", new Random().nextInt(999999));
+        System.out.println("Generated OTP: " + otp);
 
         // Mã hóa mật khẩu tạm (sẽ dùng khi tạo tài khoản)
         String encodedPassword = passwordEncoder.encode(request.getPassword());
@@ -58,17 +66,29 @@ public class AuthServiceImpl implements AuthService {
                 .expiresAt(LocalDateTime.now().plusMinutes(5))
                 .verified(false)
                 .build();
+        
+        System.out.println("Saving OTP to database...");
         otpRepository.save(otpVerification);
+        System.out.println("OTP saved successfully");
 
         // Gửi OTP qua email
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setTo(request.getEmail());
-        message.setSubject("Mã xác minh đăng ký tài khoản");
-        message.setText("Xin chào " + request.getFullName() +
-                ",\n\nMã OTP của bạn là: " + otp +
-                "\nMã có hiệu lực trong 2 phút.\n\nTrân trọng,\nĐội ngũ hỗ trợ WEB_TMDT.");
-        mailSender.send(message);
+        try {
+            System.out.println("Sending OTP email to: " + request.getEmail());
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(request.getEmail());
+            message.setSubject("Mã xác minh đăng ký tài khoản");
+            message.setText("Xin chào " + request.getFullName() +
+                    ",\n\nMã OTP của bạn là: " + otp +
+                    "\nMã có hiệu lực trong 5 phút.\n\nTrân trọng,\nĐội ngũ hỗ trợ WEB_TMDT.");
+            mailSender.send(message);
+            System.out.println("✅ OTP email sent successfully");
+        } catch (Exception e) {
+            System.err.println("❌ Failed to send OTP email: " + e.getMessage());
+            e.printStackTrace();
+            return ApiResponse.error("Không thể gửi email OTP. Vui lòng thử lại sau!");
+        }
 
+        System.out.println("=== SEND OTP END ===");
         return ApiResponse.success("Mã OTP đã được gửi đến email của bạn!");
     }
 

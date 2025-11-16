@@ -59,9 +59,9 @@ export const authApi = {
     }
   },
 
-  verifyOtp: async (data: { email: string; otp: string }): Promise<ApiResponse<any>> => {
+  verifyOtp: async (data: { email: string; otpCode: string }): Promise<ApiResponse<any>> => {
     try {
-      const response = await apiClient.post('/auth/verify-otp', data)
+      const response = await apiClient.post('/auth/register/verify-otp', data)
       if (response.data.token) {
         localStorage.setItem('auth_token', response.data.token)
       }
@@ -108,13 +108,29 @@ export const authApi = {
       }
     }
   },
+
+  registerEmployee: async (data: {
+    fullName: string
+    email: string
+    phone: string
+    address?: string
+    position: string
+    note?: string
+  }): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.post('/employee-registration/apply', data)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi đăng ký nhân viên')
+    }
+  },
 }
 
 // Category API
 export const categoryApi = {
   getAll: async (): Promise<ApiResponse<any[]>> => {
     try {
-      const response = await apiClient.get('/category')
+      const response = await apiClient.get('/categories')
       return {
         success: true,
         data: response.data || [],
@@ -130,7 +146,7 @@ export const categoryApi = {
 
   getById: async (id: string | number): Promise<ApiResponse<any>> => {
     try {
-      const response = await apiClient.get(`/category/${id}`)
+      const response = await apiClient.get(`/categories/${id}`)
       return response.data
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Lỗi khi lấy thông tin danh mục')
@@ -233,6 +249,58 @@ export const contactApi = {
       return response.data
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Lỗi khi gửi tin nhắn')
+    }
+  },
+}
+
+// Inventory API
+export const inventoryApi = {
+  createPurchaseOrder: async (data: any): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.post('/inventory/create_pchaseOrder', data)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi tạo đơn nhập hàng')
+    }
+  },
+
+  createSupplier: async (data: any): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.post('/inventory/suppliers', data)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi tạo nhà cung cấp')
+    }
+  },
+
+  getProductsBySupplier: async (supplierId: number): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await apiClient.get(`/inventory/supplier/${supplierId}/products`)
+      return response.data
+    } catch (error: any) {
+      return {
+        success: false,
+        data: [],
+        error: error.message,
+      }
+    }
+  },
+
+  importStock: async (data: any): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.post('/inventory/import', data)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi nhập hàng')
+    }
+  },
+
+  createExportOrder: async (data: any): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.post('/inventory/create', data)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi tạo đơn xuất hàng')
     }
   },
 }

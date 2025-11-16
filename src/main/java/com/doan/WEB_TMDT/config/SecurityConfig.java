@@ -34,14 +34,23 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // Public endpoints
                         .requestMatchers("/api/auth/**").permitAll()
-
                         .requestMatchers("/api/payment/ipn").permitAll()
-
+                        .requestMatchers("/api/categories/**").permitAll()
                         .requestMatchers("/api/category/**").permitAll()
-
+                        .requestMatchers("/api/products/**").permitAll()
+                        .requestMatchers("/api/product/**").permitAll()
                         .requestMatchers("/api/employee-registration/apply").permitAll()
+                        .requestMatchers("/api/test/**").permitAll() // Test endpoints
+                        
+                        // Admin endpoints
+                        .requestMatchers("/api/employee-registration/list").hasAuthority("ADMIN")
+                        .requestMatchers("/api/employee-registration/pending").hasAuthority("ADMIN")
+                        .requestMatchers("/api/employee-registration/approve/**").hasAuthority("ADMIN")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        
+                        // Role-based endpoints
                         .requestMatchers("/api/employee/**").hasRole("EMPLOYEE")
                         .requestMatchers("/api/customer/**").hasRole("CUSTOMER")
                         .requestMatchers("/api/sale/**").hasAnyAuthority("SALE", "ADMIN")
@@ -49,7 +58,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/product-manager/**").hasAnyAuthority("PRODUCT_MANAGER", "ADMIN")
                         .requestMatchers("/api/warehouse/**").hasAnyAuthority("WAREHOUSE", "ADMIN")
                         .requestMatchers("/api/accountant/**").hasAnyAuthority("ACCOUNTANT", "ADMIN")
-                        .requestMatchers("/api/employee-registration/approve/**").hasAuthority("ADMIN")
+                        .requestMatchers("/api/inventory/**").hasAnyAuthority("WAREHOUSE", "ADMIN")
+                        
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
