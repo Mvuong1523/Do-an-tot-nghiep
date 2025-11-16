@@ -88,7 +88,8 @@ export default function FirstChangePasswordPage() {
         body: JSON.stringify({
           email: email,
           currentPassword: formData.currentPassword,
-          newPassword: formData.newPassword
+          newPassword: formData.newPassword,
+          confirmPassword: formData.confirmPassword
         })
       })
 
