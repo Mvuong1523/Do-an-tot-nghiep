@@ -4,12 +4,12 @@ import com.doan.WEB_TMDT.common.dto.ApiResponse;
 import com.doan.WEB_TMDT.module.auth.entity.*;
 import com.doan.WEB_TMDT.module.auth.repository.*;
 import com.doan.WEB_TMDT.module.auth.service.EmployeeRegistrationService;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Random;
@@ -25,12 +25,25 @@ public class EmployeeRegistrationServiceImpl implements EmployeeRegistrationServ
     private final JavaMailSender mailSender;
 
     @Override
+    @Transactional
     public ApiResponse registerEmployee(String fullName, String email, String phone, String address, Position position, String note) {
+        System.out.println("=== REGISTER EMPLOYEE START ===");
+        System.out.println("Full Name: " + fullName);
+        System.out.println("Email: " + email);
+        System.out.println("Phone: " + phone);
+        System.out.println("Address: " + address);
+        System.out.println("Position: " + position);
+        System.out.println("Note: " + note);
+        
+        // Kiểm tra email đã tồn tại trong registration (chờ duyệt) hoặc users (đã duyệt)
         if (registrationRepo.existsByEmail(email) || userRepo.existsByEmail(email)) {
+            System.out.println("ERROR: Email already exists");
             return ApiResponse.error("Email đã tồn tại hoặc đang chờ duyệt!");
         }
 
-        if (registrationRepo.existsByPhone(phone)) {
+        // Kiểm tra phone đã tồn tại trong registration (chờ duyệt) hoặc employees (đã duyệt)
+        if (registrationRepo.existsByPhone(phone) || employeeRepo.existsByPhone(phone)) {
+            System.out.println("ERROR: Phone already exists");
             return ApiResponse.error("Số điện thoại đã tồn tại hoặc đang chờ duyệt!");
         }
 
@@ -44,9 +57,19 @@ public class EmployeeRegistrationServiceImpl implements EmployeeRegistrationServ
                 .approved(false)
                 .createdAt(LocalDateTime.now())
                 .build();
-        registrationRepo.save(reg);
+        
+        System.out.println("Before save - Total count: " + registrationRepo.count());
+        System.out.println("Saving registration to database...");
+        System.out.println("Registration object: " + reg);
+        
+        EmployeeRegistration saved = registrationRepo.save(reg);
+        
+        System.out.println("After save - Saved with ID: " + saved.getId());
+        System.out.println("After save - Total count: " + registrationRepo.count());
+        System.out.println("Verifying saved data exists: " + registrationRepo.existsById(saved.getId()));
+        System.out.println("=== REGISTER EMPLOYEE END ===");
 
-        return ApiResponse.success("Gửi yêu cầu đăng ký nhân viên thành công, chờ admin duyệt!", reg);
+        return ApiResponse.success("Gửi yêu cầu đăng ký nhân viên thành công, chờ admin duyệt!", saved);
     }
 
     @Transactional
@@ -82,13 +105,13 @@ public class EmployeeRegistrationServiceImpl implements EmployeeRegistrationServ
 
         userRepo.save(user); // cascade lưu cả employee
 
-        // Cập nhật trạng thái phiếu
-        reg.setApproved(true);
-        reg.setApprovedAt(LocalDateTime.now());
-        registrationRepo.save(reg);
-
         // Gửi mail thông báo tài khoản
         sendEmailAccount(reg.getEmail(), rawPassword);
+
+        // Xóa phiếu đăng ký sau khi duyệt thành công
+        System.out.println("Deleting registration ID: " + registrationId + " after approval");
+        registrationRepo.deleteById(registrationId);
+        System.out.println("Registration deleted successfully");
 
         return ApiResponse.success("Đã duyệt và gửi thông tin tài khoản qua email!", emp);
     }
@@ -114,6 +137,11 @@ public class EmployeeRegistrationServiceImpl implements EmployeeRegistrationServ
                 registrationRepo.findAll().stream()
                         .filter(reg -> !reg.isApproved())
                         .toList());
+    }
+
+    @Override
+    public long getRegistrationCount() {
+        return registrationRepo.count();
     }
 
     private void sendEmailAccount(String email, String password) {

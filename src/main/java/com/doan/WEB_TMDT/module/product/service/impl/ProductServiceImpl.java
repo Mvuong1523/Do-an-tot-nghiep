@@ -1,52 +1,45 @@
 package com.doan.WEB_TMDT.module.product.service.impl;
 
-import com.doan.WEB_TMDT.common.dto.ApiResponse;
-import com.doan.WEB_TMDT.module.inventory.entity.WarehouseProduct;
-import com.doan.WEB_TMDT.module.product.entity.CatalogProduct;
+import com.doan.WEB_TMDT.module.product.entity.Product;
 import com.doan.WEB_TMDT.module.product.repository.ProductRepository;
-import com.doan.WEB_TMDT.module.product.entity.CatalogProduct;
-import com.doan.WEB_TMDT.module.inventory.entity.ProductStatus;
-
-import com.doan.WEB_TMDT.module.product.repository.*;
 import com.doan.WEB_TMDT.module.product.service.ProductService;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import java.util.Map;
+import java.util.List;
+import java.util.Optional;
 
 @Service
-@RequiredArgsConstructor
 public class ProductServiceImpl implements ProductService {
 
-    private final ProductRepository productRepo;
-    private final ProductSerialRepository serialRepo;
+    @Autowired
+    private ProductRepository productRepository;
 
     @Override
-    public ApiResponse getProductQuantity(Long productId) {
-        //  Lấy thông tin sản phẩm hiển thị
-        CatalogProduct product = productRepo.findById(productId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm!"));
+    public List<Product> getAll() {
+        return productRepository.findAll();
+    }
 
-        //  Lấy bản ghi sản phẩm thực trong kho
-        WarehouseProduct warehouseProduct = product.getWarehouseProduct();
-        if (warehouseProduct == null) {
-            throw new IllegalStateException("Sản phẩm chưa liên kết với kho!");
+    @Override
+    public Optional<Product> getById(Long id) {
+        return productRepository.findById(id);
+    }
+
+    @Override
+    public Product create(Product product) {
+        return productRepository.save(product);
+    }
+
+    @Override
+    public Product update(Long id, Product product) {
+        if (productRepository.existsById(id)) {
+            product.setId(id);
+            return productRepository.save(product);
         }
+        return null;
+    }
 
-        //  Đếm serial theo trạng thái thực tế trong kho
-        long available = serialRepo.countByWarehouseProductAndStatus(warehouseProduct, ProductStatus.IN_STOCK);
-        long sold = serialRepo.countByWarehouseProductAndStatus(warehouseProduct, ProductStatus.SOLD);
-        long returned = serialRepo.countByWarehouseProductAndStatus(warehouseProduct, ProductStatus.RETURNED);
-        long damaged = serialRepo.countByWarehouseProductAndStatus(warehouseProduct, ProductStatus.DAMAGED);
-
-        //  Trả về kết quả
-        return ApiResponse.success("Số lượng sản phẩm trong kho", Map.of(
-                "productId", product.getId(),
-                "name", product.getDisplayName(),
-                "available", available,  // ✅ hàng đang có thể bán
-                "sold", sold,            // ✅ hàng đã bán
-                "returned", returned,    // ✅ hàng khách trả
-                "damaged", damaged       // ✅ hàng lỗi/hỏng
-        ));
+    @Override
+    public void delete(Long id) {
+        productRepository.deleteById(id);
     }
 }

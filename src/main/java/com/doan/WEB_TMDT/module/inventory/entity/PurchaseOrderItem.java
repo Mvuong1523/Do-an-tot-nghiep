@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import jakarta.persistence.Id;
 
+// 💡 CÂU IMPORT CẦN THÊM ĐỂ CHỈ ĐỊNH ĐÚNG ENTITY PRODUCT DETAIL
+
 import java.util.List;
 
 @Entity
@@ -38,5 +40,5 @@ public class PurchaseOrderItem {
 
 
     @OneToMany(mappedBy = "purchaseOrderItem", cascade = CascadeType.ALL)
-    private List<ProductDetail> productDetails; // chứa các serial thực tế sau khi nhập
+    private List<ProductDetail> productDetails; // Chứa các serial thực tế sau khi nhập
 }

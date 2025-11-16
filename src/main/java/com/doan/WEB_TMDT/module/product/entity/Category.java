@@ -21,10 +21,6 @@ public class Category {
 
     private String description;
 
-    @ManyToOne
-    @JoinColumn(name = "parent_id")
-    private Category parent; // ✅ danh mục cha (ví dụ: "Điện thoại" là cha của "iPhone")
-
-    @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL)
-    private List<Category> children;
+    @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Product> products;
 }

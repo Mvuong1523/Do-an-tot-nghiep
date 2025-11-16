@@ -1,0 +1,47 @@
+package com.doan.WEB_TMDT.module.product.entity;
+
+import com.doan.WEB_TMDT.module.inventory.entity.ProductDetail;
+import com.doan.WEB_TMDT.module.inventory.entity.WarehouseProduct;
+import jakarta.persistence.*;
+import lombok.*;
+
+@Entity
+@Table(name = "products")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Product {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
+
+    @Column(nullable = false)
+    private String name;
+
+    private Double price;
+
+    @Column(unique = true)
+    private String sku;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    private String imageUrl;
+
+    private Long stockQuantity;
+
+    @OneToOne
+    @JoinColumn(name = "product_detail_id")
+    private ProductDetail productDetail;
+
+    @OneToOne
+    @JoinColumn(name = "warehouse_product_id")
+    private WarehouseProduct warehouseProduct;
+}

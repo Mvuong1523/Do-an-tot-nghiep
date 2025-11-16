@@ -17,7 +17,14 @@ public class EmployeeRegistrationController {
     // 🟡 Nhân viên gửi yêu cầu đăng ký
     @PostMapping("/apply")
     public ApiResponse registerEmployee(@RequestBody EmployeeRegistrationRequest req) {
-        return registrationService.registerEmployee(
+        System.out.println("=== CONTROLLER RECEIVED REQUEST ===");
+        System.out.println("Request: " + req);
+        System.out.println("Full Name: " + req.getFullName());
+        System.out.println("Email: " + req.getEmail());
+        System.out.println("Phone: " + req.getPhone());
+        System.out.println("Position: " + req.getPosition());
+        
+        ApiResponse response = registrationService.registerEmployee(
                 req.getFullName(),
                 req.getEmail(),
                 req.getPhone(),
@@ -25,6 +32,9 @@ public class EmployeeRegistrationController {
                 req.getPosition(),
                 req.getNote()
         );
+        
+        System.out.println("Response: " + response);
+        return response;
     }
 
     // 🟢 Admin duyệt yêu cầu
@@ -43,5 +53,13 @@ public class EmployeeRegistrationController {
     @GetMapping("/pending")
     public ApiResponse getPendingRegistrations() {
         return registrationService.getPendingRegistrations();
+    }
+
+    // 🔍 Debug endpoint - kiểm tra database
+    @GetMapping("/debug/count")
+    public ApiResponse getRegistrationCount() {
+        long count = registrationService.getRegistrationCount();
+        System.out.println("Total registrations in DB: " + count);
+        return ApiResponse.success("Total registrations: " + count, count);
     }
 }

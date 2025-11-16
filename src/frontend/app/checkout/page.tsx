@@ -135,28 +135,47 @@ export default function CheckoutPage() {
     setIsProcessing(true)
     
     try {
-      // TODO: Cần cập nhật khi có Product API để lấy serial number
-      // Hiện tại tạm thời dùng product ID
-      const orderItems = items.map(item => ({
-        productId: item.id,
-        serialNumber: `SN-${item.id}-${Date.now()}`, // Temporary
-        price: item.price,
-      }))
-
+      // Tạm thời lưu đơn hàng vào localStorage vì backend chưa có Order API
       const shippingAddress = `${formData.address}, ${formData.ward}, ${formData.district}, ${formData.city}`
       
-      const response = await orderApi.create({
+      const order = {
+        id: Date.now(),
         customerId: user.id,
-        items: orderItems,
+        customerName: formData.fullName,
+        customerEmail: formData.email,
+        customerPhone: formData.phone,
+        items: items.map(item => ({
+          productId: item.id,
+          productName: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          image: item.image,
+        })),
         shippingAddress: shippingAddress,
-        note: formData.notes || undefined,
-      })
-
-      if (response.success) {
-        toast.success('Đặt hàng thành công!')
-        clearCart()
-        router.push('/orders')
+        paymentMethod: formData.paymentMethod,
+        note: formData.notes || '',
+        totalAmount: total,
+        status: 'PENDING',
+        createdAt: new Date().toISOString(),
       }
+
+      // Lưu vào localStorage (tạm thời)
+      const existingOrders = JSON.parse(localStorage.getItem('orders') || '[]')
+      existingOrders.push(order)
+      localStorage.setItem('orders', JSON.stringify(existingOrders))
+
+      // TODO: Khi backend có Order API, gọi API thay vì lưu localStorage
+      // const response = await orderApi.create({
+      //   customerId: user.id,
+      //   items: orderItems,
+      //   shippingAddress: shippingAddress,
+      //   paymentMethod: formData.paymentMethod,
+      //   note: formData.notes || undefined,
+      // })
+
+      toast.success('Đặt hàng thành công! (Lưu tạm thời - Backend chưa có Order API)')
+      clearCart()
+      router.push('/orders')
     } catch (error: any) {
       toast.error(error.message || 'Đặt hàng thất bại!')
     } finally {
