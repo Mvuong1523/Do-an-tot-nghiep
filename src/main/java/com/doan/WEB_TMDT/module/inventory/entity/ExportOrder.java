@@ -31,5 +31,6 @@ public class ExportOrder {
 //    private Order order;
 
     @OneToMany(mappedBy = "exportOrder", cascade = CascadeType.ALL)
+    @com.fasterxml.jackson.annotation.JsonManagedReference
     private List<ExportOrderItem> items = new ArrayList<>();     // Danh sách sản phẩm xuất
 }

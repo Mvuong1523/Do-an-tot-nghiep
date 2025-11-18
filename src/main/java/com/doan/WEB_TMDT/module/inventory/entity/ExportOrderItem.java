@@ -14,6 +14,7 @@ public class ExportOrderItem {
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "export_order_id")
+    @com.fasterxml.jackson.annotation.JsonBackReference
     private ExportOrder exportOrder;  // Phiếu xuất chứa dòng này
 
     @ManyToOne

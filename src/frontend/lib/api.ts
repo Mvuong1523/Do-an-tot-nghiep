@@ -331,6 +331,95 @@ export const inventoryApi = {
       }
     }
   },
+
+  getPurchaseOrderDetail: async (id: number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get(`/inventory/purchase-orders/${id}`)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi tải chi tiết phiếu nhập')
+    }
+  },
+
+  getExportOrderDetail: async (id: number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get(`/inventory/export-orders/${id}`)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi tải chi tiết phiếu xuất')
+    }
+  },
+
+  completePurchaseOrder: async (data: any): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.post('/inventory/import', data)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi hoàn tất đơn nhập')
+    }
+  },
+
+  cancelTransaction: async (id: number, type: string): Promise<ApiResponse<any>> => {
+    try {
+      const endpoint = type === 'IMPORT' ? 'purchase-orders' : 'export-orders'
+      const response = await apiClient.put(`/inventory/${endpoint}/${id}/cancel`)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi hủy phiếu')
+    }
+  },
+}
+
+// Cart API
+export const cartApi = {
+  getCart: async (): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get('/cart')
+      return response.data
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+      }
+    }
+  },
+
+  addToCart: async (productId: number, quantity: number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.post('/cart/items', { productId, quantity })
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi thêm vào giỏ hàng')
+    }
+  },
+
+  updateCartItem: async (itemId: number, quantity: number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.put(`/cart/items/${itemId}`, { quantity })
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi cập nhật giỏ hàng')
+    }
+  },
+
+  removeCartItem: async (itemId: number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.delete(`/cart/items/${itemId}`)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi xóa sản phẩm')
+    }
+  },
+
+  clearCart: async (): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.delete('/cart')
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi xóa giỏ hàng')
+    }
+  },
 }
 
 export default apiClient

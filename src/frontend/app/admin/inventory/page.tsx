@@ -92,12 +92,20 @@ export default function InventoryPage() {
       
       // Load purchase orders
       const poResponse = await inventoryApi.getPurchaseOrders(statusFilter || undefined)
+      console.log('Purchase Orders Response:', poResponse)
       setPurchaseOrders(poResponse.data || [])
       
       // Load export orders
       const eoResponse = await inventoryApi.getExportOrders(statusFilter || undefined)
+      console.log('Export Orders Response:', eoResponse)
       setExportOrders(eoResponse.data || [])
+      
+      console.log('Total transactions:', {
+        purchaseOrders: poResponse.data?.length || 0,
+        exportOrders: eoResponse.data?.length || 0
+      })
     } catch (error) {
+      console.error('Error loading transactions:', error)
       toast.error('Lỗi khi tải phiếu xuất nhập')
     } finally {
       setLoading(false)
@@ -470,10 +478,13 @@ export default function InventoryPage() {
                           {transaction.note || transaction.reason || '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button className="text-red-500 hover:text-red-600 flex items-center space-x-1 ml-auto">
+                          <Link 
+                            href={`/admin/inventory/transactions/${transaction.id}?type=${transaction.type}`}
+                            className="text-red-500 hover:text-red-600 flex items-center space-x-1 ml-auto"
+                          >
                             <FiEye />
                             <span>Chi tiết</span>
-                          </button>
+                          </Link>
                         </td>
                       </tr>
                     ))}

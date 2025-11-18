@@ -1,124 +1,127 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { useRouter, useParams } from 'next/navigation'
-import { FiArrowLeft, FiPrinter, FiDownload, FiEdit, FiTrash2, FiCheck, FiX } from 'react-icons/fi'
+import { FiArrowLeft, FiPackage, FiCheck, FiX, FiEdit } from 'react-icons/fi'
 import toast from 'react-hot-toast'
-import { useAuthStore } from '@/store/authStore'
-import { useReactToPrint } from 'react-to-print'
-
-interface TransactionItem {
-  productId: number
-  productName: string
-  quantity: number
-  price: number
-}
-
-interface Transaction {
-  id: number
-  type: 'IMPORT' | 'EXPORT'
-  transactionCode: string
-  createdBy: string
-  createdAt: string
-  totalAmount: number
-  status: 'PENDING' | 'COMPLETED' | 'CANCELLED'
-  note?: string
-  supplier?: string
-  invoiceNumber?: string
-  items: TransactionItem[]
-}
+import { inventoryApi } from '@/lib/api'
 
 export default function TransactionDetailPage() {
-  const router = useRouter()
   const params = useParams()
-  const { user, isAuthenticated } = useAuthStore()
-  const printRef = useRef<HTMLDivElement>(null)
-  
-  const [transaction, setTransaction] = useState<Transaction | null>(null)
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [transaction, setTransaction] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [showCancelModal, setShowCancelModal] = useState(false)
+  const [showSerialModal, setShowSerialModal] = useState(false)
+  const [serialInputs, setSerialInputs] = useState<Record<string, string[]>>({})
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      toast.error('Vui lòng đăng nhập')
-      router.push('/login')
-      return
-    }
+    loadTransactionDetail()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.id, searchParams])
 
-    // Check if user is admin or employee (tạm thời cho tất cả employee)
-    if (user?.role !== 'ADMIN' && user?.role !== 'EMPLOYEE') {
-      toast.error('Chỉ quản lý và nhân viên mới có quyền truy cập')
-      router.push('/')
-      return
-    }
-
-    loadTransaction()
-  }, [isAuthenticated, user, router, params.id])
-
-  const loadTransaction = async () => {
+  const loadTransactionDetail = async () => {
     try {
-      // TODO: Call API
-      // const response = await inventoryApi.getTransaction(params.id)
-      // setTransaction(response.data)
+      setLoading(true)
+      const idParam = params.id as string
+      const typeParam = searchParams.get('type')
       
-      // Mock data
-      setTransaction({
-        id: Number(params.id),
-        type: 'IMPORT',
-        transactionCode: 'IMP-2024-001',
-        createdBy: 'Admin',
-        createdAt: '2024-01-15T10:30:00',
-        totalAmount: 299900000,
-        status: 'COMPLETED',
-        note: 'Nhập hàng iPhone 16 Pro Max từ nhà cung cấp Apple',
-        supplier: 'Apple Vietnam',
-        invoiceNumber: 'INV-2024-001',
-        items: [
-          { productId: 1, productName: 'iPhone 16 Pro Max 256GB - Titan Tự Nhiên', quantity: 5, price: 29990000 },
-          { productId: 2, productName: 'iPhone 16 Pro Max 256GB - Titan Đen', quantity: 5, price: 29990000 }
-        ]
-      })
-    } catch (error) {
-      toast.error('Lỗi khi tải thông tin phiếu')
-      router.push('/admin/inventory/transactions')
+      const numericId = parseInt(idParam)
+      const isPO = typeParam === 'IMPORT'
+      
+      if (isNaN(numericId)) {
+        throw new Error('ID không hợp lệ')
+      }
+      
+      const response = isPO
+        ? await inventoryApi.getPurchaseOrderDetail(numericId)
+        : await inventoryApi.getExportOrderDetail(numericId)
+      
+      setTransaction({ ...response.data, type: isPO ? 'IMPORT' : 'EXPORT' })
+      
+      // Initialize serial inputs for purchase orders
+      if (isPO && response.data.status === 'CREATED') {
+        const inputs: Record<string, string[]> = {}
+        response.data.items?.forEach((item: any) => {
+          inputs[item.sku] = Array(item.quantity).fill('')
+        })
+        setSerialInputs(inputs)
+      }
+    } catch (error: any) {
+      console.error('Error loading transaction:', error)
+      toast.error(error.message || 'Lỗi khi tải chi tiết phiếu')
+      router.push('/admin/inventory')
     } finally {
       setLoading(false)
     }
   }
 
-  const handlePrint = useReactToPrint({
-    content: () => printRef.current,
-    documentTitle: transaction?.transactionCode || 'Phiếu xuất nhập kho',
-  })
-
-  const handleComplete = async () => {
+  const handleCompleteOrder = async () => {
     if (!transaction) return
 
-    try {
-      // TODO: Call API
-      // await inventoryApi.completeTransaction(transaction.id)
+    // Validate all serials are filled
+    const allSerials: any[] = []
+    const allSerialNumbers: string[] = []
+    
+    for (const item of transaction.items) {
+      const serials = serialInputs[item.sku] || []
       
-      setTransaction({ ...transaction, status: 'COMPLETED' })
-      toast.success('Đã hoàn thành phiếu')
-    } catch (error) {
-      toast.error('Có lỗi xảy ra')
+      // Check empty serials
+      if (serials.some(s => !s.trim())) {
+        toast.error(`Vui lòng nhập đủ serial cho sản phẩm ${item.sku}`)
+        return
+      }
+      
+      // Check duplicate serials within this order
+      for (const serial of serials) {
+        if (allSerialNumbers.includes(serial.trim())) {
+          toast.error(`Serial "${serial}" bị trùng lặp trong đơn hàng này!`)
+          return
+        }
+        allSerialNumbers.push(serial.trim())
+      }
+      
+      allSerials.push({
+        productSku: item.sku,
+        serialNumbers: serials.map(s => s.trim())
+      })
+    }
+
+    try {
+      await inventoryApi.completePurchaseOrder({
+        poId: transaction.id,
+        serials: allSerials,
+        receivedDate: new Date().toISOString()
+      })
+      toast.success('Hoàn tất nhập hàng thành công!')
+      loadTransactionDetail()
+    } catch (error: any) {
+      toast.error(error.message || 'Lỗi khi hoàn tất đơn hàng')
     }
   }
 
-  const handleCancel = async () => {
-    if (!transaction) return
+  const handleCancelOrder = async () => {
+    if (!confirm('Bạn có chắc muốn hủy phiếu này?')) return
 
     try {
-      // TODO: Call API
-      // await inventoryApi.cancelTransaction(transaction.id)
-      
-      setTransaction({ ...transaction, status: 'CANCELLED' })
-      setShowCancelModal(false)
-      toast.success('Đã hủy phiếu')
-    } catch (error) {
-      toast.error('Có lỗi xảy ra')
+      await inventoryApi.cancelTransaction(transaction.id, transaction.type)
+      toast.success('Đã hủy phiếu thành công')
+      loadTransactionDetail()
+    } catch (error: any) {
+      toast.error(error.message || 'Lỗi khi hủy phiếu')
     }
+  }
+
+  const updateSerial = (sku: string, index: number, value: string) => {
+    setSerialInputs(prev => ({
+      ...prev,
+      [sku]: prev[sku].map((s, i) => i === index ? value : s)
+    }))
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('vi-VN')
   }
 
   const formatPrice = (price: number) => {
@@ -128,24 +131,33 @@ export default function TransactionDetailPage() {
     }).format(price)
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('vi-VN')
+  const getStatusBadge = (status: string) => {
+    const statusMap: Record<string, { label: string; className: string }> = {
+      CREATED: { label: 'Chờ xử lý', className: 'bg-yellow-100 text-yellow-800' },
+      RECEIVED: { label: 'Đã nhập', className: 'bg-green-100 text-green-800' },
+      COMPLETED: { label: 'Hoàn thành', className: 'bg-blue-100 text-blue-800' },
+      CANCELLED: { label: 'Đã hủy', className: 'bg-red-100 text-red-800' }
+    }
+    const config = statusMap[status] || { label: status, className: 'bg-gray-100 text-gray-800' }
+    return (
+      <span className={`px-3 py-1 text-sm font-semibold rounded ${config.className}`}>
+        {config.label}
+      </span>
+    )
   }
 
-  const getStatusBadge = (status: string) => {
-    const badges = {
-      PENDING: 'bg-yellow-100 text-yellow-800',
-      COMPLETED: 'bg-green-100 text-green-800',
-      CANCELLED: 'bg-red-100 text-red-800'
+  const getProductStatusBadge = (status: string) => {
+    const statusMap: Record<string, { label: string; className: string }> = {
+      IN_STOCK: { label: 'Trong kho', className: 'bg-green-100 text-green-800' },
+      SOLD: { label: 'Đã bán', className: 'bg-blue-100 text-blue-800' },
+      RESERVED: { label: 'Đã đặt', className: 'bg-yellow-100 text-yellow-800' },
+      DAMAGED: { label: 'Hỏng', className: 'bg-red-100 text-red-800' },
+      RETURNED: { label: 'Trả lại', className: 'bg-purple-100 text-purple-800' }
     }
-    const labels = {
-      PENDING: 'Chờ xử lý',
-      COMPLETED: 'Hoàn thành',
-      CANCELLED: 'Đã hủy'
-    }
+    const config = statusMap[status] || { label: status, className: 'bg-gray-100 text-gray-800' }
     return (
-      <span className={`px-3 py-1 text-sm font-semibold rounded-full ${badges[status as keyof typeof badges]}`}>
-        {labels[status as keyof typeof labels]}
+      <span className={`px-2 py-1 text-xs font-semibold rounded ${config.className}`}>
+        {config.label}
       </span>
     )
   }
@@ -162,20 +174,12 @@ export default function TransactionDetailPage() {
   }
 
   if (!transaction) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600">Không tìm thấy phiếu</p>
-          <Link
-            href="/admin/inventory/transactions"
-            className="mt-4 inline-block text-red-500 hover:text-red-600"
-          >
-            Quay lại danh sách
-          </Link>
-        </div>
-      </div>
-    )
+    return null
   }
+
+  const isPurchaseOrder = transaction.poCode !== undefined
+  const canComplete = isPurchaseOrder && transaction.status === 'CREATED'
+  const canCancel = transaction.status === 'CREATED'
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -186,272 +190,284 @@ export default function TransactionDetailPage() {
           <span>/</span>
           <Link href="/admin" className="hover:text-red-500">Quản trị</Link>
           <span>/</span>
-          <Link href="/admin/inventory/transactions" className="hover:text-red-500">Xuất nhập kho</Link>
+          <Link href="/admin/inventory" className="hover:text-red-500">Quản lý kho</Link>
           <span>/</span>
-          <span className="text-gray-900">{transaction.transactionCode}</span>
+          <span className="text-gray-900">Chi tiết phiếu</span>
         </nav>
 
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 space-y-4 md:space-y-0">
+        <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
-            <Link
-              href="/admin/inventory/transactions"
+            <button
+              onClick={() => router.back()}
               className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
             >
               <FiArrowLeft size={24} />
-            </Link>
+            </button>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">{transaction.transactionCode}</h1>
+              <h1 className="text-3xl font-bold text-gray-900">
+                {isPurchaseOrder ? 'Phiếu nhập hàng' : 'Phiếu xuất hàng'}
+              </h1>
               <p className="text-gray-600 mt-1">
-                {transaction.type === 'IMPORT' ? 'Phiếu nhập kho' : 'Phiếu xuất kho'}
+                Mã: {transaction.poCode || transaction.exportCode}
               </p>
             </div>
           </div>
-          
-          <div className="flex space-x-2">
-            <button
-              onClick={handlePrint}
-              className="flex items-center space-x-2 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors"
-            >
-              <FiPrinter />
-              <span>In phiếu</span>
-            </button>
-            
-            {transaction.status === 'PENDING' && (
-              <>
-                <button
-                  onClick={handleComplete}
-                  className="flex items-center space-x-2 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
-                >
-                  <FiCheck />
-                  <span>Hoàn thành</span>
-                </button>
-                <button
-                  onClick={() => setShowCancelModal(true)}
-                  className="flex items-center space-x-2 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
-                >
-                  <FiX />
-                  <span>Hủy phiếu</span>
-                </button>
-              </>
+          <div className="flex items-center space-x-3">
+            {getStatusBadge(transaction.status)}
+            {canComplete && (
+              <button
+                onClick={() => setShowSerialModal(true)}
+                className="flex items-center space-x-2 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
+              >
+                <FiCheck />
+                <span>Hoàn tất nhập hàng</span>
+              </button>
+            )}
+            {canCancel && (
+              <button
+                onClick={handleCancelOrder}
+                className="flex items-center space-x-2 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
+              >
+                <FiX />
+                <span>Hủy phiếu</span>
+              </button>
             )}
           </div>
         </div>
 
-        {/* Printable Content */}
-        <div ref={printRef} className="bg-white rounded-lg shadow-sm p-8">
-          {/* Header Info */}
-          <div className="border-b pb-6 mb-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  {transaction.type === 'IMPORT' ? 'PHIẾU NHẬP KHO' : 'PHIẾU XUẤT KHO'}
-                </h2>
-                <p className="text-gray-600">Mã phiếu: <span className="font-semibold">{transaction.transactionCode}</span></p>
+        {/* Transaction Info */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h2 className="text-lg font-semibold mb-4">Thông tin chung</h2>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Ngày tạo:</span>
+                <span className="font-medium">{formatDate(transaction.orderDate || transaction.exportDate)}</span>
               </div>
-              <div className="text-right">
-                {getStatusBadge(transaction.status)}
-                <p className="text-sm text-gray-600 mt-2">
-                  Ngày tạo: {formatDate(transaction.createdAt)}
-                </p>
+              {transaction.receivedDate && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Ngày nhận:</span>
+                  <span className="font-medium">{formatDate(transaction.receivedDate)}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-gray-600">Người tạo:</span>
+                <span className="font-medium">{transaction.createdBy || 'N/A'}</span>
               </div>
+              {transaction.note && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Ghi chú:</span>
+                  <span className="font-medium">{transaction.note}</span>
+                </div>
+              )}
+              {transaction.reason && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Lý do:</span>
+                  <span className="font-medium">{transaction.reason}</span>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Transaction Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Thông tin chung</h3>
+          {isPurchaseOrder && transaction.supplier && (
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-lg font-semibold mb-4">Nhà cung cấp</h2>
               <div className="space-y-3">
-                <div className="flex">
-                  <span className="text-gray-600 w-32">Người tạo:</span>
-                  <span className="font-medium text-gray-900">{transaction.createdBy}</span>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Tên:</span>
+                  <span className="font-medium">{transaction.supplier.name}</span>
                 </div>
-                <div className="flex">
-                  <span className="text-gray-600 w-32">Thời gian:</span>
-                  <span className="font-medium text-gray-900">{formatDate(transaction.createdAt)}</span>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Mã số thuế:</span>
+                  <span className="font-medium">{transaction.supplier.taxCode}</span>
                 </div>
-                {transaction.supplier && (
-                  <div className="flex">
-                    <span className="text-gray-600 w-32">Nhà cung cấp:</span>
-                    <span className="font-medium text-gray-900">{transaction.supplier}</span>
+                {transaction.supplier.phone && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Điện thoại:</span>
+                    <span className="font-medium">{transaction.supplier.phone}</span>
                   </div>
                 )}
-                {transaction.invoiceNumber && (
-                  <div className="flex">
-                    <span className="text-gray-600 w-32">Số hóa đơn:</span>
-                    <span className="font-medium text-gray-900">{transaction.invoiceNumber}</span>
+                {transaction.supplier.email && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Email:</span>
+                    <span className="font-medium">{transaction.supplier.email}</span>
                   </div>
                 )}
               </div>
             </div>
+          )}
+        </div>
 
-            {transaction.note && (
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Ghi chú</h3>
-                <p className="text-gray-700 bg-gray-50 p-4 rounded-lg">{transaction.note}</p>
-              </div>
-            )}
+        {/* Items Table */}
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-lg font-semibold">Danh sách sản phẩm</h2>
           </div>
-
-          {/* Items Table */}
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Chi tiết sản phẩm</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b-2 border-gray-200">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">STT</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Tên sản phẩm</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Số lượng</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Đơn giá</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Thành tiền</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {transaction.items.map((item, index) => (
-                    <tr key={item.productId} className="hover:bg-gray-50">
-                      <td className="px-4 py-4 text-sm text-gray-900">{index + 1}</td>
-                      <td className="px-4 py-4 text-sm text-gray-900">{item.productName}</td>
-                      <td className="px-4 py-4 text-sm text-center text-gray-900">{item.quantity}</td>
-                      <td className="px-4 py-4 text-sm text-right text-gray-900">{formatPrice(item.price)}</td>
-                      <td className="px-4 py-4 text-sm text-right font-medium text-gray-900">
-                        {formatPrice(item.quantity * item.price)}
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sản phẩm</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Thông số kỹ thuật</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">SKU</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">SL</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Đơn giá</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Thành tiền</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ngày nhập</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">BH</th>
+                  {transaction.status !== 'CREATED' && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Serial</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {transaction.items?.map((item: any, index: number) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    {/* Cột Sản phẩm */}
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-semibold text-gray-900 mb-1">
+                        {item.warehouseProduct?.internalName || 'N/A'}
+                      </div>
+                      {item.warehouseProduct?.description && (
+                        <div className="text-xs text-gray-600">
+                          {item.warehouseProduct.description}
+                        </div>
+                      )}
+                      {item.note && (
+                        <div className="text-xs text-orange-600 mt-2 italic">
+                          💬 {item.note}
+                        </div>
+                      )}
+                    </td>
+                    
+                    {/* Cột Thông số kỹ thuật */}
+                    <td className="px-6 py-4">
+                      {item.warehouseProduct?.techSpecsJson && item.warehouseProduct.techSpecsJson !== '{}' ? (
+                        <div className="text-xs text-gray-700 space-y-1">
+                          {(() => {
+                            try {
+                              const specs = JSON.parse(item.warehouseProduct.techSpecsJson)
+                              return Object.entries(specs).map(([key, value]: [string, any]) => (
+                                <div key={key} className="flex">
+                                  <span className="font-semibold text-gray-900 min-w-[100px]">{key}:</span>
+                                  <span className="text-gray-700">{value}</span>
+                                </div>
+                              ))
+                            } catch {
+                              return <div className="text-gray-500">{item.warehouseProduct.techSpecsJson}</div>
+                            }
+                          })()}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400 italic">Chưa có thông số</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-sm font-mono font-semibold text-gray-900">{item.sku}</td>
+                    <td className="px-6 py-4 text-sm text-center font-bold text-gray-900">{item.quantity}</td>
+                    <td className="px-6 py-4 text-sm text-gray-900">{formatPrice(item.unitCost || item.totalCost / item.quantity)}</td>
+                    <td className="px-6 py-4 text-sm font-semibold text-red-600">
+                      {formatPrice((item.unitCost || item.totalCost / item.quantity) * item.quantity)}
+                    </td>
+                    <td className="px-6 py-4 text-xs text-gray-600">
+                      {item.productDetails?.[0]?.importDate 
+                        ? formatDate(item.productDetails[0].importDate)
+                        : '-'}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{item.warrantyMonths || 0} tháng</td>
+                    {transaction.status !== 'CREATED' && (
+                      <td className="px-6 py-4">
+                        {item.productDetails?.length > 0 ? (
+                          <div className="space-y-1">
+                            {item.productDetails.map((detail: any, idx: number) => (
+                              <div key={idx} className="flex items-center space-x-2 text-xs">
+                                <span className="font-mono font-medium text-gray-900">
+                                  {detail.serialNumber}
+                                </span>
+                                {getProductStatusBadge(detail.status)}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400">Chưa nhập</span>
+                        )}
                       </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot className="bg-gray-50 border-t-2 border-gray-200">
-                  <tr>
-                    <td colSpan={4} className="px-4 py-4 text-right text-sm font-semibold text-gray-900">
-                      Tổng cộng:
-                    </td>
-                    <td className="px-4 py-4 text-right text-lg font-bold text-red-600">
-                      {formatPrice(transaction.totalAmount)}
-                    </td>
+                    )}
                   </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
-
-          {/* Summary */}
-          <div className="border-t pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="text-center">
-                <p className="text-sm text-gray-600 mb-2">Tổng số lượng</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {transaction.items.reduce((sum, item) => sum + item.quantity, 0)}
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-sm text-gray-600 mb-2">Số mặt hàng</p>
-                <p className="text-2xl font-bold text-gray-900">{transaction.items.length}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-sm text-gray-600 mb-2">Tổng giá trị</p>
-                <p className="text-2xl font-bold text-red-600">{formatPrice(transaction.totalAmount)}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Signatures */}
-          <div className="grid grid-cols-3 gap-8 mt-12 pt-8 border-t print:block">
-            <div className="text-center">
-              <p className="font-semibold text-gray-900 mb-16">Người lập phiếu</p>
-              <p className="text-gray-600">{transaction.createdBy}</p>
-            </div>
-            <div className="text-center">
-              <p className="font-semibold text-gray-900 mb-16">Thủ kho</p>
-              <p className="text-gray-600">_______________</p>
-            </div>
-            <div className="text-center">
-              <p className="font-semibold text-gray-900 mb-16">Giám đốc</p>
-              <p className="text-gray-600">_______________</p>
-            </div>
+                ))}
+              </tbody>
+              <tfoot className="bg-gray-50 border-t-2 border-gray-300">
+                <tr>
+                  <td colSpan={5} className="px-6 py-4 text-right font-semibold text-gray-900">
+                    Tổng cộng:
+                  </td>
+                  <td className="px-6 py-4 text-sm font-bold text-red-600">
+                    {formatPrice(
+                      transaction.items?.reduce((sum: number, item: any) => 
+                        sum + ((item.unitCost || item.totalCost / item.quantity) * item.quantity), 0
+                      ) || 0
+                    )}
+                  </td>
+                  <td colSpan={transaction.status !== 'CREATED' ? 3 : 2}></td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
         </div>
 
-        {/* Activity Log */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mt-6 print:hidden">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Lịch sử hoạt động</h3>
-          <div className="space-y-4">
-            <div className="flex items-start space-x-4">
-              <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">Phiếu được tạo</p>
-                <p className="text-xs text-gray-500">{formatDate(transaction.createdAt)} bởi {transaction.createdBy}</p>
+        {/* Serial Input Modal */}
+        {showSerialModal && canComplete && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-gray-200 sticky top-0 bg-white">
+                <h2 className="text-xl font-semibold">Nhập Serial cho sản phẩm</h2>
+                <p className="text-sm text-gray-600 mt-1">Vui lòng nhập đầy đủ serial cho tất cả sản phẩm</p>
+              </div>
+              
+              <div className="p-6 space-y-6">
+                {transaction.items?.map((item: any) => (
+                  <div key={item.sku} className="border border-gray-200 rounded-lg p-4">
+                    <h3 className="font-semibold mb-3">
+                      {item.sku} - Số lượng: {item.quantity}
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {Array.from({ length: item.quantity }).map((_, index) => (
+                        <div key={index}>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Serial #{index + 1}
+                          </label>
+                          <input
+                            type="text"
+                            value={serialInputs[item.sku]?.[index] || ''}
+                            onChange={(e) => updateSerial(item.sku, index, e.target.value)}
+                            placeholder={`Nhập serial ${index + 1}`}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="p-6 border-t border-gray-200 flex justify-end space-x-3 sticky bottom-0 bg-white">
+                <button
+                  onClick={() => setShowSerialModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleCompleteOrder}
+                  className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                >
+                  Hoàn tất nhập hàng
+                </button>
               </div>
             </div>
-            {transaction.status === 'COMPLETED' && (
-              <div className="flex items-start space-x-4">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">Phiếu đã hoàn thành</p>
-                  <p className="text-xs text-gray-500">{formatDate(transaction.createdAt)}</p>
-                </div>
-              </div>
-            )}
-            {transaction.status === 'CANCELLED' && (
-              <div className="flex items-start space-x-4">
-                <div className="w-2 h-2 bg-red-500 rounded-full mt-2"></div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">Phiếu đã bị hủy</p>
-                  <p className="text-xs text-gray-500">{formatDate(transaction.createdAt)}</p>
-                </div>
-              </div>
-            )}
           </div>
-        </div>
+        )}
       </div>
-
-      {/* Cancel Modal */}
-      {showCancelModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Xác nhận hủy phiếu</h3>
-            <p className="text-gray-600 mb-6">
-              Bạn có chắc chắn muốn hủy phiếu <strong>{transaction.transactionCode}</strong>? 
-              Hành động này không thể hoàn tác.
-            </p>
-            <div className="flex space-x-3">
-              <button
-                onClick={handleCancel}
-                className="flex-1 bg-red-500 text-white py-3 px-6 rounded-lg font-semibold hover:bg-red-600 transition-colors"
-              >
-                Xác nhận hủy
-              </button>
-              <button
-                onClick={() => setShowCancelModal(false)}
-                className="flex-1 bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
-              >
-                Đóng
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <style jsx global>{`
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          .print\\:hidden {
-            display: none !important;
-          }
-          #print-content,
-          #print-content * {
-            visibility: visible;
-          }
-          #print-content {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-          }
-        }
-      `}</style>
     </div>
   )
 }

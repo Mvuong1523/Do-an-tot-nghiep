@@ -40,5 +40,6 @@ public class PurchaseOrderItem {
 
 
     @OneToMany(mappedBy = "purchaseOrderItem", cascade = CascadeType.ALL)
+    @com.fasterxml.jackson.annotation.JsonManagedReference
     private List<ProductDetail> productDetails; // Chứa các serial thực tế sau khi nhập
 }

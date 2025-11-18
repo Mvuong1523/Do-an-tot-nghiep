@@ -89,4 +89,24 @@ public class InventoryController {
         }
         return inventoryService.getExportOrders(exportStatus);
     }
+
+    @GetMapping("/purchase-orders/{id}")
+    public ApiResponse getPurchaseOrderDetail(@PathVariable Long id) {
+        return inventoryService.getPurchaseOrderDetail(id);
+    }
+
+    @GetMapping("/export-orders/{id}")
+    public ApiResponse getExportOrderDetail(@PathVariable Long id) {
+        return inventoryService.getExportOrderDetail(id);
+    }
+
+    @PutMapping("/purchase-orders/{id}/cancel")
+    public ApiResponse cancelPurchaseOrder(@PathVariable Long id) {
+        return inventoryService.cancelPurchaseOrder(id);
+    }
+
+    @PutMapping("/export-orders/{id}/cancel")
+    public ApiResponse cancelExportOrder(@PathVariable Long id) {
+        return inventoryService.cancelExportOrder(id);
+    }
 }

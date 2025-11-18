@@ -12,4 +12,8 @@ public interface InventoryService {
     ApiResponse createExportOrder(CreateExportOrderRequest req);
     ApiResponse getPurchaseOrders(POStatus status);
     ApiResponse getExportOrders(ExportStatus status);
+    ApiResponse getPurchaseOrderDetail(Long id);
+    ApiResponse getExportOrderDetail(Long id);
+    ApiResponse cancelPurchaseOrder(Long id);
+    ApiResponse cancelExportOrder(Long id);
 }
