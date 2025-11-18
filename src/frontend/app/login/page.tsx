@@ -51,8 +51,16 @@ const LoginPage = () => {
           response.data.token
         )
     
-    toast.success('Đăng nhập thành công!')
-        router.push('/')
+        toast.success('Đăng nhập thành công!')
+        
+        // Redirect theo role
+        if (response.data.role === 'ADMIN') {
+          router.push('/admin')
+        } else if (response.data.role === 'EMPLOYEE') {
+          router.push('/admin/inventory') // Nhân viên kho vào trang quản lý kho
+        } else {
+          router.push('/') // Customer vào trang chủ
+        }
       }
     } catch (error: any) {
       toast.error(error.message || 'Đăng nhập thất bại!')

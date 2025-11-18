@@ -29,11 +29,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String path = request.getServletPath();
 
-        // ✅ chỉ bỏ qua các endpoint public thật sự
-        if (path.equals("/api/auth/login") ||
-                path.equals("/api/auth/register") ||
-                path.equals("/api/auth/verify-otp")||
-                path.equals("/api/payment/ipn")) {
+        // ✅ Bỏ qua tất cả endpoint /api/auth/* (không cần JWT)
+        if (path.startsWith("/api/auth/") || path.equals("/api/payment/ipn")) {
             chain.doFilter(request, response);
             return;
         }

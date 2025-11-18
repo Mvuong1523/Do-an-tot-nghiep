@@ -59,35 +59,61 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public ApiResponse login(LoginRequest request) {
+        System.out.println("=== LOGIN START ===");
+        System.out.println("Email: " + request.getEmail());
+        
         var user = userRepository.findByEmail(request.getEmail()).orElse(null);
-        if (user == null) return ApiResponse.error("Email không tồn tại!");
+        if (user == null) {
+            System.out.println("❌ Email không tồn tại!");
+            return ApiResponse.error("Email không tồn tại!");
+        }
+        
+        System.out.println("✅ User found: " + user.getEmail() + ", Role: " + user.getRole());
+        
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            System.out.println("❌ Mật khẩu không đúng!");
             return ApiResponse.error("Mật khẩu không đúng!");
         }
+        
+        System.out.println("✅ Password matched");
+        
         if (user.getStatus() != Status.ACTIVE) {
+            System.out.println("❌ Tài khoản bị khóa!");
             return ApiResponse.error("Tài khoản đang bị khóa!");
         }
+        
+        System.out.println("✅ Account active");
+        
         if (user.getRole() == Role.EMPLOYEE && user.getEmployee() != null) {
             if (user.getEmployee().isFirstLogin()) {
+                System.out.println("⚠️ First login - require password change");
                 return ApiResponse.success("Đăng nhập lần đầu. Yêu cầu đổi mật khẩu!",
                         Map.of("requireChangePassword", true, "email", user.getEmail()));
             }
         }
+        
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", user.getRole().name());
         if (user.getEmployee() != null && user.getEmployee().getPosition() != null) {
             claims.put("position", user.getEmployee().getPosition().name());
         }
 
+        System.out.println("🔑 Generating JWT token...");
         String token = jwtService.generateToken(user.getEmail(), claims);
+        System.out.println("✅ Token generated: " + token.substring(0, 20) + "...");
 
-        return ApiResponse.success("Đăng nhập thành công!", new LoginResponse(
+        LoginResponse response = new LoginResponse(
                 token,
                 user.getId(),
                 user.getEmail(),
                 user.getRole().name(),
                 user.getStatus().name()
-        ));
+        );
+        
+        System.out.println("✅ Login successful!");
+        System.out.println("=== LOGIN END ===");
+        
+        return ApiResponse.success("Đăng nhập thành công!", response);
     }
 
     @Override

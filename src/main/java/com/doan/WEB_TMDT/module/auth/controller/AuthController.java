@@ -25,7 +25,12 @@ public class AuthController {
 
     @PostMapping("/register/verify-otp")
     public ApiResponse verifyOtp(@RequestBody OtpVerifyRequest request) {
-        return authService.verifyOtpAndRegister(request);
+        try {
+            return authService.verifyOtpAndRegister(request);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ApiResponse.error("Lỗi xác thực OTP: " + e.getMessage());
+        }
     }
     @PostMapping("/login")
     public ApiResponse login(@RequestBody LoginRequest request) {
