@@ -13,6 +13,9 @@ public class ProductController {
 
     @Autowired
     private ProductService productService;
+    
+    @Autowired
+    private com.doan.WEB_TMDT.module.inventory.service.ProductSpecificationService productSpecificationService;
 
     @GetMapping
     public ResponseEntity<List<Product>> getAll() {
@@ -23,6 +26,13 @@ public class ProductController {
     public ResponseEntity<Product> getById(@PathVariable Long id) {
         return productService.getById(id)
                 .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/{id}/with-specs")
+    public ResponseEntity<com.doan.WEB_TMDT.module.product.dto.ProductWithSpecsDTO> getByIdWithSpecs(@PathVariable Long id) {
+        return productService.getById(id)
+                .map(product -> ResponseEntity.ok(productService.toProductWithSpecs(product)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -41,5 +51,38 @@ public class ProductController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         productService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // ===== Search by Specifications (Cho khách hàng) =====
+    
+    @GetMapping("/search-by-specs")
+    public ResponseEntity<List<Product>> searchBySpecs(@RequestParam String keyword) {
+        // Search WarehouseProduct theo specs
+        var warehouseProducts = productSpecificationService.searchBySpecValue(keyword);
+        
+        // Lấy Product tương ứng
+        List<Product> products = warehouseProducts.stream()
+                .map(wp -> wp.getProduct())
+                .filter(p -> p != null)
+                .toList();
+        
+        return ResponseEntity.ok(products);
+    }
+
+    @GetMapping("/filter-by-specs")
+    public ResponseEntity<List<Product>> filterBySpecs(
+            @RequestParam String key,
+            @RequestParam String value
+    ) {
+        // Filter WarehouseProduct theo key + value
+        var warehouseProducts = productSpecificationService.searchBySpecKeyAndValue(key, value);
+        
+        // Lấy Product tương ứng
+        List<Product> products = warehouseProducts.stream()
+                .map(wp -> wp.getProduct())
+                .filter(p -> p != null)
+                .toList();
+        
+        return ResponseEntity.ok(products);
     }
 }

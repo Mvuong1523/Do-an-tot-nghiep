@@ -8,10 +8,13 @@ import toast from 'react-hot-toast'
 import { useAuthStore } from '@/store/authStore'
 
 interface TransactionItem {
-  productId: number
+  sku: string
   productName: string
   quantity: number
   price: number
+  warrantyMonths?: number
+  techSpecs?: string
+  note?: string
 }
 
 export default function CreateTransactionPage() {
@@ -23,24 +26,29 @@ export default function CreateTransactionPage() {
   
   const [formData, setFormData] = useState({
     note: '',
-    supplier: '',
+    supplierName: '',
+    supplierContactName: '',
+    supplierTaxCode: '',
+    supplierPhone: '',
+    supplierEmail: '',
+    supplierAddress: '',
+    supplierBankAccount: '',
+    supplierPaymentTerm: '',
     invoiceNumber: ''
   })
   
   const [items, setItems] = useState<TransactionItem[]>([])
   const [showProductModal, setShowProductModal] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState<any>(null)
-  const [quantity, setQuantity] = useState(1)
-  const [price, setPrice] = useState(0)
+  const [newItem, setNewItem] = useState({
+    sku: '',
+    productName: '',
+    quantity: 1,
+    price: 0,
+    warrantyMonths: 12,
+    techSpecs: '',
+    note: ''
+  })
   const [isSubmitting, setIsSubmitting] = useState(false)
-
-  // Mock products
-  const products = [
-    { id: 1, name: 'iPhone 16 Pro Max 256GB', price: 29990000, stock: 10 },
-    { id: 2, name: 'Xiaomi POCO C71 4GB/128GB', price: 2490000, stock: 25 },
-    { id: 3, name: 'Xiaomi POCO M6 8GB/256GB', price: 3990000, stock: 15 },
-    { id: 4, name: 'Xiaomi 15T 12GB/512GB', price: 14990000, stock: 8 }
-  ]
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -58,47 +66,47 @@ export default function CreateTransactionPage() {
   }, [isAuthenticated, user, router])
 
   const handleAddProduct = () => {
-    if (!selectedProduct) {
-      toast.error('Vui lòng chọn sản phẩm')
+    if (!newItem.sku || !newItem.productName) {
+      toast.error('Vui lòng nhập SKU và tên sản phẩm')
       return
     }
 
-    if (quantity <= 0) {
+    if (newItem.quantity <= 0) {
       toast.error('Số lượng phải lớn hơn 0')
       return
     }
 
-    if (type === 'EXPORT' && quantity > selectedProduct.stock) {
-      toast.error('Số lượng xuất vượt quá tồn kho')
+    if (newItem.price <= 0) {
+      toast.error('Giá phải lớn hơn 0')
       return
     }
 
-    const existingItem = items.find(item => item.productId === selectedProduct.id)
-    
+    // Kiểm tra SKU trùng
+    const existingItem = items.find(item => item.sku === newItem.sku)
     if (existingItem) {
-      setItems(items.map(item =>
-        item.productId === selectedProduct.id
-          ? { ...item, quantity: item.quantity + quantity, price }
-          : item
-      ))
-    } else {
-      setItems([...items, {
-        productId: selectedProduct.id,
-        productName: selectedProduct.name,
-        quantity,
-        price
-      }])
+      toast.error('SKU đã tồn tại trong danh sách')
+      return
     }
 
+    setItems([...items, { ...newItem }])
+    
+    // Reset form
+    setNewItem({
+      sku: '',
+      productName: '',
+      quantity: 1,
+      price: 0,
+      warrantyMonths: 12,
+      techSpecs: '',
+      note: ''
+    })
+    
     setShowProductModal(false)
-    setSelectedProduct(null)
-    setQuantity(1)
-    setPrice(0)
     toast.success('Đã thêm sản phẩm')
   }
 
-  const handleRemoveItem = (productId: number) => {
-    setItems(items.filter(item => item.productId !== productId))
+  const handleRemoveItem = (sku: string) => {
+    setItems(items.filter(item => item.sku !== sku))
     toast.success('Đã xóa sản phẩm')
   }
 
@@ -110,21 +118,60 @@ export default function CreateTransactionPage() {
       return
     }
 
+    if (type === 'IMPORT') {
+      if (!formData.supplierName || !formData.supplierTaxCode) {
+        toast.error('Vui lòng nhập thông tin nhà cung cấp (Tên và Mã số thuế)')
+        return
+      }
+    }
+
     setIsSubmitting(true)
 
     try {
-      // TODO: Call API
-      // const response = await inventoryApi.createTransaction({
-      //   type,
-      //   items,
-      //   note: formData.note,
-      //   supplier: formData.supplier,
-      //   invoiceNumber: formData.invoiceNumber
-      // })
+      if (type === 'IMPORT') {
+        // Gọi API tạo phiếu nhập kho
+        const { inventoryApi } = await import('@/lib/api')
+        
+        const poCode = `PO-${Date.now()}`
+        
+        const response = await inventoryApi.createPurchaseOrder({
+          poCode,
+          createdBy: user?.email || 'admin',
+          supplier: {
+            name: formData.supplierName,
+            contactName: formData.supplierContactName,
+            taxCode: formData.supplierTaxCode,
+            phone: formData.supplierPhone,
+            email: formData.supplierEmail,
+            address: formData.supplierAddress,
+            bankAccount: formData.supplierBankAccount,
+            paymentTerm: formData.supplierPaymentTerm,
+            active: true
+          },
+          items: items.map(item => ({
+            sku: item.sku,
+            quantity: item.quantity,
+            unitCost: item.price,
+            internalName: item.productName,
+            techSpecsJson: item.techSpecs || '{}',
+            warrantyMonths: item.warrantyMonths || 12,
+            note: item.note || ''
+          })),
+          note: formData.note
+        })
 
-      toast.success(`Tạo phiếu ${type === 'IMPORT' ? 'nhập' : 'xuất'} kho thành công!`)
-      router.push('/admin/inventory/transactions')
+        if (response.success) {
+          toast.success('Tạo phiếu nhập kho thành công!')
+          router.push('/admin/inventory/transactions')
+        } else {
+          toast.error(response.message || 'Tạo phiếu nhập thất bại')
+        }
+      } else {
+        // TODO: Implement export order
+        toast.info('Chức năng xuất kho đang phát triển')
+      }
     } catch (error: any) {
+      console.error('Error creating purchase order:', error)
       toast.error(error.message || 'Có lỗi xảy ra')
     } finally {
       setIsSubmitting(false)
@@ -183,15 +230,112 @@ export default function CreateTransactionPage() {
                     <>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Nhà cung cấp
+                          Tên nhà cung cấp *
                         </label>
                         <input
                           type="text"
-                          value={formData.supplier}
-                          onChange={(e) => setFormData({...formData, supplier: e.target.value})}
+                          required
+                          value={formData.supplierName}
+                          onChange={(e) => setFormData({...formData, supplierName: e.target.value})}
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                           placeholder="Nhập tên nhà cung cấp"
                         />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Mã số thuế *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={formData.supplierTaxCode}
+                          onChange={(e) => setFormData({...formData, supplierTaxCode: e.target.value})}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                          placeholder="Nhập mã số thuế"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Số điện thoại
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.supplierPhone}
+                            onChange={(e) => setFormData({...formData, supplierPhone: e.target.value})}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                            placeholder="Nhập SĐT"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Email
+                          </label>
+                          <input
+                            type="email"
+                            value={formData.supplierEmail}
+                            onChange={(e) => setFormData({...formData, supplierEmail: e.target.value})}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                            placeholder="Nhập email"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Tên người liên hệ
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.supplierContactName}
+                          onChange={(e) => setFormData({...formData, supplierContactName: e.target.value})}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                          placeholder="Nhập tên người liên hệ"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Địa chỉ
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.supplierAddress}
+                          onChange={(e) => setFormData({...formData, supplierAddress: e.target.value})}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                          placeholder="Nhập địa chỉ"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Tài khoản ngân hàng
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.supplierBankAccount}
+                            onChange={(e) => setFormData({...formData, supplierBankAccount: e.target.value})}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                            placeholder="Số TK ngân hàng"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Điều khoản thanh toán
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.supplierPaymentTerm}
+                            onChange={(e) => setFormData({...formData, supplierPaymentTerm: e.target.value})}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                            placeholder="VD: 30 ngày"
+                          />
+                        </div>
                       </div>
 
                       <div>
@@ -262,9 +406,12 @@ export default function CreateTransactionPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {items.map((item) => (
-                          <tr key={item.productId}>
-                            <td className="px-4 py-4 text-sm text-gray-900">{item.productName}</td>
+                        {items.map((item, index) => (
+                          <tr key={item.sku + index}>
+                            <td className="px-4 py-4">
+                              <div className="text-sm font-medium text-gray-900">{item.productName}</div>
+                              <div className="text-xs text-gray-500">SKU: {item.sku}</div>
+                            </td>
                             <td className="px-4 py-4 text-sm text-gray-900">{item.quantity}</td>
                             <td className="px-4 py-4 text-sm text-gray-900">{formatPrice(item.price)}</td>
                             <td className="px-4 py-4 text-sm font-medium text-gray-900">
@@ -273,7 +420,7 @@ export default function CreateTransactionPage() {
                             <td className="px-4 py-4 text-right">
                               <button
                                 type="button"
-                                onClick={() => handleRemoveItem(item.productId)}
+                                onClick={() => handleRemoveItem(item.sku)}
                                 className="text-red-500 hover:text-red-600"
                               >
                                 <FiTrash2 />
@@ -362,27 +509,34 @@ export default function CreateTransactionPage() {
                 </div>
 
                 <div className="space-y-4">
-                  {/* Product Selection */}
+                  {/* SKU */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Sản phẩm *
+                      SKU *
                     </label>
-                    <select
-                      value={selectedProduct?.id || ''}
-                      onChange={(e) => {
-                        const product = products.find(p => p.id === Number(e.target.value))
-                        setSelectedProduct(product)
-                        setPrice(product?.price || 0)
-                      }}
+                    <input
+                      type="text"
+                      required
+                      value={newItem.sku}
+                      onChange={(e) => setNewItem({...newItem, sku: e.target.value})}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                    >
-                      <option value="">Chọn sản phẩm</option>
-                      {products.map(product => (
-                        <option key={product.id} value={product.id}>
-                          {product.name} - Tồn kho: {product.stock}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="Nhập mã SKU (VD: IP16PM-256)"
+                    />
+                  </div>
+
+                  {/* Product Name */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Tên sản phẩm *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={newItem.productName}
+                      onChange={(e) => setNewItem({...newItem, productName: e.target.value})}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                      placeholder="Nhập tên sản phẩm"
+                    />
                   </div>
 
                   {/* Quantity */}
@@ -393,15 +547,11 @@ export default function CreateTransactionPage() {
                     <input
                       type="number"
                       min="1"
-                      value={quantity}
-                      onChange={(e) => setQuantity(Number(e.target.value))}
+                      required
+                      value={newItem.quantity}
+                      onChange={(e) => setNewItem({...newItem, quantity: Number(e.target.value)})}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                     />
-                    {type === 'EXPORT' && selectedProduct && (
-                      <p className="text-sm text-gray-500 mt-1">
-                        Tồn kho hiện tại: {selectedProduct.stock}
-                      </p>
-                    )}
                   </div>
 
                   {/* Price */}
@@ -412,19 +562,65 @@ export default function CreateTransactionPage() {
                     <input
                       type="number"
                       min="0"
-                      value={price}
-                      onChange={(e) => setPrice(Number(e.target.value))}
+                      required
+                      value={newItem.price}
+                      onChange={(e) => setNewItem({...newItem, price: Number(e.target.value)})}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                      placeholder="Nhập giá"
+                    />
+                  </div>
+
+                  {/* Warranty */}
+                  {type === 'IMPORT' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Bảo hành (tháng)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={newItem.warrantyMonths}
+                        onChange={(e) => setNewItem({...newItem, warrantyMonths: Number(e.target.value)})}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                      />
+                    </div>
+                  )}
+
+                  {/* Tech Specs */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Thông số kỹ thuật
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={newItem.techSpecs}
+                      onChange={(e) => setNewItem({...newItem, techSpecs: e.target.value})}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                      placeholder="VD: RAM: 8GB, ROM: 256GB, Màn hình: 6.7 inch..."
+                    />
+                  </div>
+
+                  {/* Note */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Ghi chú
+                    </label>
+                    <input
+                      type="text"
+                      value={newItem.note}
+                      onChange={(e) => setNewItem({...newItem, note: e.target.value})}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                      placeholder="Ghi chú (không bắt buộc)"
                     />
                   </div>
 
                   {/* Total */}
-                  {quantity > 0 && price > 0 && (
+                  {newItem.quantity > 0 && newItem.price > 0 && (
                     <div className="bg-gray-50 p-4 rounded-lg">
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600">Thành tiền:</span>
                         <span className="text-xl font-bold text-red-500">
-                          {formatPrice(quantity * price)}
+                          {formatPrice(newItem.quantity * newItem.price)}
                         </span>
                       </div>
                     </div>

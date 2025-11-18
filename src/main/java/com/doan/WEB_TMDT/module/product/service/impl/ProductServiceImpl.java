@@ -42,4 +42,34 @@ public class ProductServiceImpl implements ProductService {
     public void delete(Long id) {
         productRepository.deleteById(id);
     }
+
+    @Override
+    public com.doan.WEB_TMDT.module.product.dto.ProductWithSpecsDTO toProductWithSpecs(Product product) {
+        var dto = com.doan.WEB_TMDT.module.product.dto.ProductWithSpecsDTO.builder()
+                .id(product.getId())
+                .name(product.getName())
+                .sku(product.getSku())
+                .price(product.getPrice())
+                .description(product.getDescription())
+                .imageUrl(product.getImageUrl())
+                .stockQuantity(product.getStockQuantity())
+                .categoryName(product.getCategory() != null ? product.getCategory().getName() : null)
+                .build();
+
+        // Lấy specifications từ WarehouseProduct
+        if (product.getWarehouseProduct() != null && 
+            product.getWarehouseProduct().getSpecifications() != null) {
+            
+            java.util.Map<String, String> specs = product.getWarehouseProduct()
+                    .getSpecifications()
+                    .stream()
+                    .collect(java.util.stream.Collectors.toMap(
+                            com.doan.WEB_TMDT.module.inventory.entity.ProductSpecification::getSpecKey,
+                            com.doan.WEB_TMDT.module.inventory.entity.ProductSpecification::getSpecValue
+                    ));
+            dto.setSpecifications(specs);
+        }
+
+        return dto;
+    }
 }

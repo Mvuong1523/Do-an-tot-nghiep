@@ -52,6 +52,10 @@ public class WarehouseProduct {
     @OneToMany(mappedBy="warehouseProduct", cascade=CascadeType.ALL, orphanRemoval=true)
     private List<WarehouseProductImage> images;
 
+    // Thông số kỹ thuật (dạng bảng riêng để search)
+    @OneToMany(mappedBy = "warehouseProduct", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ProductSpecification> specifications;
+
     @Transient
     public long getQuantityInStock() {
         return serials == null ? 0L :

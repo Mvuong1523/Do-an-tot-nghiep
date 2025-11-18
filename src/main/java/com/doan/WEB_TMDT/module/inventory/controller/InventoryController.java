@@ -16,7 +16,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class InventoryController {
     private final InventoryService inventoryService;
-    private  final ProductRepository productRepository;
+    private final ProductRepository productRepository;
+    private final com.doan.WEB_TMDT.module.inventory.service.ProductSpecificationService productSpecificationService;
     // ===== Products =====
     @PostMapping("/create_pchaseOrder")
     public  ApiResponse createPurchaseOrder(@RequestBody CreatePORequest req){
@@ -45,6 +46,22 @@ public class InventoryController {
     @PostMapping("/create")
     public ApiResponse export(@RequestBody CreateExportOrderRequest req) {
         return inventoryService.createExportOrder(req); // ✅ gọi đúng
+    }
+
+    // ===== Search by Specifications =====
+    @GetMapping("/search")
+    public ApiResponse searchBySpecs(@RequestParam String keyword) {
+        var products = productSpecificationService.searchBySpecValue(keyword);
+        return ApiResponse.success("Tìm thấy " + products.size() + " sản phẩm", products);
+    }
+
+    @GetMapping("/filter")
+    public ApiResponse filterBySpecs(
+            @RequestParam String key,
+            @RequestParam String value
+    ) {
+        var products = productSpecificationService.searchBySpecKeyAndValue(key, value);
+        return ApiResponse.success("Tìm thấy " + products.size() + " sản phẩm", products);
     }
 
     // ===== Stock View =====

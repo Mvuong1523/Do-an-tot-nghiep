@@ -32,6 +32,7 @@ public class InventoryServiceImpl implements InventoryService {
     private final ProductDetailRepository productDetailRepository;
     private final InventoryStockRepository inventoryStockRepository;
     private final SupplierRepository supplierRepository;
+    private final com.doan.WEB_TMDT.module.inventory.service.ProductSpecificationService productSpecificationService;
     private String generateExportCode() {
         return "PX" + LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE)
                 + "-" + String.format("%03d", new Random().nextInt(999));
@@ -173,7 +174,12 @@ public class InventoryServiceImpl implements InventoryService {
                                     .description(item.getNote())
                                     .techSpecsJson("{}")
                                     .build();
-                            return warehouseProductRepository.save(newWp);
+                            WarehouseProduct savedWp = warehouseProductRepository.save(newWp);
+                            
+                            // Parse và lưu specifications
+                            productSpecificationService.parseAndSaveSpecs(savedWp);
+                            
+                            return savedWp;
                         });
 
                 // Gắn lại WarehouseProduct vừa tạo vào POItem (update cột warehouse_product_id)
