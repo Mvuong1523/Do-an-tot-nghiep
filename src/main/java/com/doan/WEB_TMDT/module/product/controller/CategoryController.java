@@ -1,45 +1,46 @@
 package com.doan.WEB_TMDT.module.product.controller;
 
+import com.doan.WEB_TMDT.common.dto.ApiResponse;
 import com.doan.WEB_TMDT.module.product.entity.Category;
 import com.doan.WEB_TMDT.module.product.service.CategoryService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/categories")
+@RequiredArgsConstructor
 public class CategoryController {
 
-    @Autowired
-    private CategoryService categoryService;
+    private final CategoryService categoryService;
 
     @GetMapping
-    public ResponseEntity<List<Category>> getAll() {
-        return ResponseEntity.ok(categoryService.getAll());
+    public ApiResponse getAll() {
+        return ApiResponse.success("Danh sách danh mục", categoryService.getAll());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Category> getById(@PathVariable Long id) {
+    public ApiResponse getById(@PathVariable Long id) {
         return categoryService.getById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .map(category -> ApiResponse.success("Thông tin danh mục", category))
+                .orElse(ApiResponse.error("Không tìm thấy danh mục"));
     }
 
     @PostMapping
-    public ResponseEntity<Category> create(@RequestBody Category category) {
-        return ResponseEntity.ok(categoryService.create(category));
+    public ApiResponse create(@RequestBody Category category) {
+        return ApiResponse.success("Tạo danh mục thành công", categoryService.create(category));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Category> update(@PathVariable Long id, @RequestBody Category category) {
+    public ApiResponse update(@PathVariable Long id, @RequestBody Category category) {
         Category updated = categoryService.update(id, category);
-        return updated != null ? ResponseEntity.ok(updated) : ResponseEntity.notFound().build();
+        return updated != null ? 
+                ApiResponse.success("Cập nhật danh mục thành công", updated) : 
+                ApiResponse.error("Không tìm thấy danh mục");
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ApiResponse delete(@PathVariable Long id) {
         categoryService.delete(id);
-        return ResponseEntity.noContent().build();
+        return ApiResponse.success("Xóa danh mục thành công");
     }
 }

@@ -3,16 +3,17 @@ package com.doan.WEB_TMDT.module.product.service.impl;
 import com.doan.WEB_TMDT.module.product.entity.Category;
 import com.doan.WEB_TMDT.module.product.repository.CategoryRepository;
 import com.doan.WEB_TMDT.module.product.service.CategoryService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
 import java.util.List;
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class CategoryServiceImpl implements CategoryService {
 
-    @Autowired
-    private CategoryRepository categoryRepository;
+    private final CategoryRepository categoryRepository;
 
     @Override
     public List<Category> getAll() {

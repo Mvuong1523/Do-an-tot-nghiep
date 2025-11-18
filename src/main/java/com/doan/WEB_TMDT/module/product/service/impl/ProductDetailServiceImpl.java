@@ -3,16 +3,17 @@ package com.doan.WEB_TMDT.module.product.service.impl;
 import com.doan.WEB_TMDT.module.inventory.entity.ProductDetail;
 import com.doan.WEB_TMDT.module.inventory.repository.ProductDetailRepository;
 import com.doan.WEB_TMDT.module.product.service.ProductDetailService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
 import java.util.List;
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class ProductDetailServiceImpl implements ProductDetailService {
 
-    @Autowired
-    private ProductDetailRepository productDetailRepository;
+    private final ProductDetailRepository productDetailRepository;
 
     @Override
     public List<ProductDetail> getAll() {

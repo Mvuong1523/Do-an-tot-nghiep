@@ -303,6 +303,34 @@ export const inventoryApi = {
       throw new Error(error.response?.data?.message || 'Lỗi khi tạo đơn xuất hàng')
     }
   },
+
+  getPurchaseOrders: async (status?: string): Promise<ApiResponse<any[]>> => {
+    try {
+      const params = status ? { status } : {}
+      const response = await apiClient.get('/inventory/purchase-orders', { params })
+      return response.data
+    } catch (error: any) {
+      return {
+        success: false,
+        data: [],
+        error: error.message,
+      }
+    }
+  },
+
+  getExportOrders: async (status?: string): Promise<ApiResponse<any[]>> => {
+    try {
+      const params = status ? { status } : {}
+      const response = await apiClient.get('/inventory/export-orders', { params })
+      return response.data
+    } catch (error: any) {
+      return {
+        success: false,
+        data: [],
+        error: error.message,
+      }
+    }
+  },
 }
 
 export default apiClient

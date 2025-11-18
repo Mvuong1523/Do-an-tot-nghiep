@@ -1,6 +1,7 @@
 package com.doan.WEB_TMDT.module.product.service;
 
 import com.doan.WEB_TMDT.module.product.dto.ProductWithSpecsDTO;
+import com.doan.WEB_TMDT.module.product.dto.PublishProductRequest;
 import com.doan.WEB_TMDT.module.product.entity.Product;
 
 import java.util.List;
@@ -15,4 +16,7 @@ public interface ProductService {
     
     // Convert Product → DTO kèm specifications
     ProductWithSpecsDTO toProductWithSpecs(Product product);
+    
+    // Đăng bán sản phẩm từ kho
+    Product publishProduct(PublishProductRequest request);
 }

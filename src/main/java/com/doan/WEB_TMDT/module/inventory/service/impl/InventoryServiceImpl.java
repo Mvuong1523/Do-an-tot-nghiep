@@ -117,14 +117,31 @@ public class InventoryServiceImpl implements InventoryService {
                 .note(req.getNote())
                 .build();
 
-        // 4️⃣ Gắn sản phẩm — không tự tạo WarehouseProduct mới
+        // 4️⃣ Gắn sản phẩm — tạo WarehouseProduct nếu chưa có
         List<PurchaseOrderItem> items = req.getItems().stream().map(i -> {
-            WarehouseProduct wp = warehouseProductRepository.findBySku(i.getSku()).orElse(null);
+            WarehouseProduct wp = warehouseProductRepository.findBySku(i.getSku())
+                    .orElseGet(() -> {
+                        log.info("🆕 Tạo WarehouseProduct mới cho SKU: {}", i.getSku());
+                        WarehouseProduct newWp = WarehouseProduct.builder()
+                                .sku(i.getSku())
+                                .internalName("Sản phẩm mới - " + i.getSku())
+                                .supplier(supplier)
+                                .lastImportDate(LocalDateTime.now())
+                                .description(i.getNote())
+                                .techSpecsJson("{}")
+                                .build();
+                        WarehouseProduct savedWp = warehouseProductRepository.save(newWp);
+                        
+                        // Parse và lưu specifications
+                        productSpecificationService.parseAndSaveSpecs(savedWp);
+                        
+                        return savedWp;
+                    });
 
             return PurchaseOrderItem.builder()
                     .purchaseOrder(po)
-                    .sku(i.getSku()) // ✅ luôn lưu SKU
-                    .warehouseProduct(wp) // có thể null (SKU mới)
+                    .sku(i.getSku())
+                    .warehouseProduct(wp) // ✅ luôn có giá trị
                     .quantity(i.getQuantity())
                     .unitCost(i.getUnitCost())
                     .warrantyMonths(i.getWarrantyMonths())
@@ -140,6 +157,7 @@ public class InventoryServiceImpl implements InventoryService {
 
 
     @Override
+    @Transactional
     public ApiResponse completePurchaseOrder(CompletePORequest req) {
         // 1️⃣ Lấy phiếu nhập hàng
         PurchaseOrder po = purchaseOrderRepository.findById(req.getPoId())
@@ -160,31 +178,10 @@ public class InventoryServiceImpl implements InventoryService {
                     .orElseThrow(() -> new IllegalArgumentException(
                             "Sản phẩm SKU " + sku + " không thuộc phiếu nhập #" + po.getId()));
 
-            // 🆕 Nếu chưa có WarehouseProduct (SKU mới) → tạo mới và gán lại
+            // Lấy WarehouseProduct (đã được tạo sẵn khi tạo PO)
             WarehouseProduct wp = item.getWarehouseProduct();
             if (wp == null) {
-                wp = warehouseProductRepository.findBySku(sku)
-                        .orElseGet(() -> {
-                            log.info("🆕 Tạo WarehouseProduct mới khi nhập hàng SKU: {}", sku);
-                            WarehouseProduct newWp = WarehouseProduct.builder()
-                                    .sku(sku)
-                                    .internalName("Sản phẩm mới - " + sku)
-                                    .supplier(po.getSupplier())
-                                    .lastImportDate(LocalDateTime.now())
-                                    .description(item.getNote())
-                                    .techSpecsJson("{}")
-                                    .build();
-                            WarehouseProduct savedWp = warehouseProductRepository.save(newWp);
-                            
-                            // Parse và lưu specifications
-                            productSpecificationService.parseAndSaveSpecs(savedWp);
-                            
-                            return savedWp;
-                        });
-
-                // Gắn lại WarehouseProduct vừa tạo vào POItem (update cột warehouse_product_id)
-                item.setWarehouseProduct(wp);
-                purchaseOrderItemRepository.save(item);
+                throw new IllegalStateException("WarehouseProduct không tồn tại cho SKU: " + sku);
             }
 
             // 3️⃣ Kiểm tra số lượng serial có khớp số lượng đặt
@@ -242,8 +239,8 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
 
-    @Transactional
     @Override
+    @Transactional
     public ApiResponse createExportOrder(CreateExportOrderRequest req) {
 
         // 1️⃣ Tạo phiếu xuất
@@ -317,6 +314,28 @@ public class InventoryServiceImpl implements InventoryService {
         exportOrderRepository.save(exportOrder);
 
         return ApiResponse.success("Xuất kho thành công!", exportOrder.getExportCode());
+    }
+
+    @Override
+    public ApiResponse getPurchaseOrders(POStatus status) {
+        List<PurchaseOrder> orders;
+        if (status != null) {
+            orders = purchaseOrderRepository.findByStatus(status);
+        } else {
+            orders = purchaseOrderRepository.findAll();
+        }
+        return ApiResponse.success("Danh sách phiếu nhập", orders);
+    }
+
+    @Override
+    public ApiResponse getExportOrders(ExportStatus status) {
+        List<ExportOrder> orders;
+        if (status != null) {
+            orders = exportOrderRepository.findByStatus(status);
+        } else {
+            orders = exportOrderRepository.findAll();
+        }
+        return ApiResponse.success("Danh sách phiếu xuất", orders);
     }
 
 }

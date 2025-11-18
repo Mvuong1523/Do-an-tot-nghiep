@@ -3,19 +3,28 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { FiPackage, FiPlus, FiDownload, FiUpload, FiSearch, FiUpload as FiFileUpload } from 'react-icons/fi'
+import { FiPackage, FiPlus, FiDownload, FiUpload, FiSearch, FiFileText, FiEye } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { useTranslation } from '@/hooks/useTranslation'
 import { useAuthStore } from '@/store/authStore'
+import { inventoryApi } from '@/lib/api'
+
+type TabType = 'inventory' | 'transactions'
+type TransactionType = 'all' | 'import' | 'export'
 
 export default function InventoryPage() {
   const { t } = useTranslation()
   const router = useRouter()
   const { user, isAuthenticated } = useAuthStore()
   
+  const [activeTab, setActiveTab] = useState<TabType>('inventory')
   const [inventory, setInventory] = useState<any[]>([])
+  const [purchaseOrders, setPurchaseOrders] = useState<any[]>([])
+  const [exportOrders, setExportOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [transactionType, setTransactionType] = useState<TransactionType>('all')
+  const [statusFilter, setStatusFilter] = useState('')
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -77,6 +86,31 @@ export default function InventoryPage() {
     }
   }
 
+  const loadTransactions = async () => {
+    try {
+      setLoading(true)
+      
+      // Load purchase orders
+      const poResponse = await inventoryApi.getPurchaseOrders(statusFilter || undefined)
+      setPurchaseOrders(poResponse.data || [])
+      
+      // Load export orders
+      const eoResponse = await inventoryApi.getExportOrders(statusFilter || undefined)
+      setExportOrders(eoResponse.data || [])
+    } catch (error) {
+      toast.error('Lỗi khi tải phiếu xuất nhập')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'transactions') {
+      loadTransactions()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, statusFilter])
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
@@ -88,6 +122,51 @@ export default function InventoryPage() {
     item.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     item.sku?.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  const filteredTransactions = () => {
+    let transactions: any[] = []
+    
+    if (transactionType === 'all') {
+      transactions = [
+        ...purchaseOrders.map(po => ({ ...po, type: 'IMPORT' })),
+        ...exportOrders.map(eo => ({ ...eo, type: 'EXPORT' }))
+      ]
+    } else if (transactionType === 'import') {
+      transactions = purchaseOrders.map(po => ({ ...po, type: 'IMPORT' }))
+    } else {
+      transactions = exportOrders.map(eo => ({ ...eo, type: 'EXPORT' }))
+    }
+
+    return transactions.filter(t =>
+      t.poCode?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.exportCode?.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  const getStatusBadge = (status: string) => {
+    const statusMap: Record<string, { label: string; className: string }> = {
+      CREATED: { label: 'Chờ xử lý', className: 'bg-yellow-100 text-yellow-800' },
+      RECEIVED: { label: 'Đã nhập', className: 'bg-green-100 text-green-800' },
+      COMPLETED: { label: 'Hoàn thành', className: 'bg-blue-100 text-blue-800' },
+      CANCELLED: { label: 'Đã hủy', className: 'bg-red-100 text-red-800' }
+    }
+    const config = statusMap[status] || { label: status, className: 'bg-gray-100 text-gray-800' }
+    return (
+      <span className={`px-2 py-1 text-xs font-semibold rounded ${config.className}`}>
+        {config.label}
+      </span>
+    )
+  }
 
   if (loading) {
     return (
@@ -117,13 +196,6 @@ export default function InventoryPage() {
           
           <div className="flex space-x-2">
             <Link
-              href="/admin/inventory/import"
-              className="flex items-center space-x-2 bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors"
-            >
-              <FiUpload />
-              <span>Import Excel</span>
-            </Link>
-            <Link
               href="/admin/inventory/transactions/create?type=IMPORT"
               className="flex items-center space-x-2 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
             >
@@ -147,6 +219,38 @@ export default function InventoryPage() {
           </div>
         </div>
 
+        {/* Tabs */}
+        <div className="mb-6 border-b border-gray-200">
+          <nav className="flex space-x-8">
+            <button
+              onClick={() => setActiveTab('inventory')}
+              className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'inventory'
+                  ? 'border-red-500 text-red-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <FiPackage />
+                <span>Tồn kho</span>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('transactions')}
+              className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'transactions'
+                  ? 'border-red-500 text-red-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <FiFileText />
+                <span>Phiếu xuất nhập</span>
+              </div>
+            </button>
+          </nav>
+        </div>
+
         {/* Search and Filter */}
         <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
           <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
@@ -154,29 +258,59 @@ export default function InventoryPage() {
               <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Tìm kiếm sản phẩm..."
+                placeholder={activeTab === 'inventory' ? 'Tìm kiếm sản phẩm...' : 'Tìm kiếm phiếu...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
               />
             </div>
-            <select className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500">
-              <option value="">Tất cả danh mục</option>
-              <option value="phone">Điện thoại</option>
-              <option value="laptop">Laptop</option>
-              <option value="tablet">Tablet</option>
-            </select>
-            <select className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500">
-              <option value="">Tất cả trạng thái</option>
-              <option value="in-stock">Còn hàng</option>
-              <option value="low-stock">Sắp hết</option>
-              <option value="out-of-stock">Hết hàng</option>
-            </select>
+            
+            {activeTab === 'inventory' ? (
+              <>
+                <select className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500">
+                  <option value="">Tất cả danh mục</option>
+                  <option value="phone">Điện thoại</option>
+                  <option value="laptop">Laptop</option>
+                  <option value="tablet">Tablet</option>
+                </select>
+                <select className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500">
+                  <option value="">Tất cả trạng thái</option>
+                  <option value="in-stock">Còn hàng</option>
+                  <option value="low-stock">Sắp hết</option>
+                  <option value="out-of-stock">Hết hàng</option>
+                </select>
+              </>
+            ) : (
+              <>
+                <select 
+                  value={transactionType}
+                  onChange={(e) => setTransactionType(e.target.value as TransactionType)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                >
+                  <option value="all">Tất cả loại phiếu</option>
+                  <option value="import">Phiếu nhập</option>
+                  <option value="export">Phiếu xuất</option>
+                </select>
+                <select 
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                >
+                  <option value="">Tất cả trạng thái</option>
+                  <option value="CREATED">Chờ xử lý</option>
+                  <option value="RECEIVED">Đã nhập</option>
+                  <option value="COMPLETED">Hoàn thành</option>
+                  <option value="CANCELLED">Đã hủy</option>
+                </select>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Inventory Table */}
-        {filteredInventory.length === 0 ? (
+        {/* Content based on active tab */}
+        {activeTab === 'inventory' ? (
+          /* Inventory Table */
+          filteredInventory.length === 0 ? (
           <div className="bg-white rounded-lg shadow-sm p-12 text-center">
             <FiPackage size={64} className="mx-auto text-gray-400 mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
@@ -265,6 +399,88 @@ export default function InventoryPage() {
                 </tbody>
               </table>
             </div>
+          </div>
+        )
+        ) : (
+          /* Transactions Table */
+          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            {filteredTransactions().length === 0 ? (
+              <div className="p-12 text-center">
+                <FiFileText size={64} className="mx-auto text-gray-400 mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  Chưa có phiếu xuất nhập nào
+                </h3>
+                <p className="text-gray-600">
+                  Các phiếu xuất nhập sẽ hiển thị ở đây
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Mã phiếu
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Loại
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Ngày tạo
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Người tạo
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Trạng thái
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Ghi chú
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Thao tác
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredTransactions().map((transaction) => (
+                      <tr key={`${transaction.type}-${transaction.id}`} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {transaction.poCode || transaction.exportCode}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 text-xs font-semibold rounded ${
+                            transaction.type === 'IMPORT'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {transaction.type === 'IMPORT' ? 'Nhập hàng' : 'Xuất hàng'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatDate(transaction.orderDate || transaction.exportDate)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {transaction.createdBy || 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {getStatusBadge(transaction.status)}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
+                          {transaction.note || transaction.reason || '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <button className="text-red-500 hover:text-red-600 flex items-center space-x-1 ml-auto">
+                            <FiEye />
+                            <span>Chi tiết</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </div>
