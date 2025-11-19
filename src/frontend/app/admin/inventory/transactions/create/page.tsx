@@ -57,9 +57,9 @@ export default function CreateTransactionPage() {
       return
     }
 
-    // Check if user is admin or employee (tạm thời cho tất cả employee)
-    if (user?.role !== 'ADMIN' && user?.role !== 'EMPLOYEE') {
-      toast.error('Chỉ quản lý và nhân viên mới có quyền truy cập')
+    // Check if user is admin or warehouse
+    if (user?.role !== 'ADMIN' && user?.role !== 'WAREHOUSE') {
+      toast.error('Chỉ quản trị viên và nhân viên kho mới có quyền truy cập')
       router.push('/')
       return
     }
@@ -162,7 +162,7 @@ export default function CreateTransactionPage() {
 
         if (response.success) {
           toast.success('Tạo phiếu nhập kho thành công!')
-          router.push('/admin/inventory/transactions')
+          router.push('/warehouse/import/list')
         } else {
           toast.error(response.message || 'Tạo phiếu nhập thất bại')
         }
@@ -198,7 +198,7 @@ export default function CreateTransactionPage() {
           <span>/</span>
           <Link href="/admin" className="hover:text-red-500">Quản trị</Link>
           <span>/</span>
-          <Link href="/admin/inventory/transactions" className="hover:text-red-500">Xuất nhập kho</Link>
+          <Link href="/warehouse/import/list" className="hover:text-red-500">Danh sách phiếu nhập</Link>
           <span>/</span>
           <span className="text-gray-900">Tạo phiếu {type === 'IMPORT' ? 'nhập' : 'xuất'}</span>
         </nav>
@@ -481,7 +481,7 @@ export default function CreateTransactionPage() {
                   </button>
 
                   <Link
-                    href="/admin/inventory/transactions"
+                    href="/warehouse/import/list"
                     className="w-full flex items-center justify-center space-x-2 bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
                   >
                     <FiX />

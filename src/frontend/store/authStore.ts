@@ -3,9 +3,9 @@ import { create } from 'zustand'
 export interface User {
   id?: string
   email: string
-  role: 'CUSTOMER' | 'ADMIN' | 'WAREHOUSE' | 'EMPLOYEE'
+  fullName?: string
+  role: 'CUSTOMER' | 'ADMIN' | 'WAREHOUSE' | 'PRODUCT_MANAGER'
   status?: string
-  position?: 'SALE' | 'CSKH' | 'PRODUCT_MANAGER' | 'WAREHOUSE' | 'ACCOUNTANT'
 }
 
 interface AuthStore {

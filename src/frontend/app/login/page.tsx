@@ -40,12 +40,20 @@ const LoginPage = () => {
           return
         }
 
+        // Xác định role thực tế dựa trên role và position
+        let actualRole = response.data.role
+        if (response.data.role === 'EMPLOYEE' && response.data.position) {
+          // Nếu là EMPLOYEE, dùng position làm role
+          actualRole = response.data.position
+        }
+
         // Lưu thông tin đăng nhập
         setAuth(
           {
             id: response.data.userId,
             email: response.data.email,
-            role: response.data.role,
+            fullName: response.data.fullName,
+            role: actualRole,
             status: response.data.status,
           },
           response.data.token
@@ -53,13 +61,21 @@ const LoginPage = () => {
     
         toast.success('Đăng nhập thành công!')
         
-        // Redirect theo role
-        if (response.data.role === 'ADMIN') {
-          router.push('/admin')
-        } else if (response.data.role === 'EMPLOYEE') {
-          router.push('/admin/inventory') // Nhân viên kho vào trang quản lý kho
-        } else {
-          router.push('/') // Customer vào trang chủ
+        // Redirect theo role thực tế
+        switch (actualRole) {
+          case 'ADMIN':
+            router.push('/admin')
+            break
+          case 'WAREHOUSE':
+            router.push('/warehouse')
+            break
+          case 'PRODUCT_MANAGER':
+            router.push('/product-manager')
+            break
+          case 'CUSTOMER':
+          default:
+            router.push('/')
+            break
         }
       }
     } catch (error: any) {

@@ -50,4 +50,13 @@ public class AuthController {
         return userService.changePassword(email, req);
     }
 
+    @GetMapping("/me")
+    public ApiResponse getCurrentUser(Authentication authentication) {
+        if (authentication == null) {
+            return ApiResponse.error("Chưa đăng nhập");
+        }
+        String email = authentication.getName();
+        return userService.getCurrentUser(email);
+    }
+
 }

@@ -165,119 +165,164 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          <Link
-            href="/admin/employee-approval"
-            className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Duyệt nhân viên</h3>
-              <FiArrowRight className="text-gray-400" />
-            </div>
-            <p className="text-gray-600 text-sm mb-2">
-              Quản lý yêu cầu đăng ký nhân viên mới
-            </p>
-            <div className="text-red-500 font-semibold">
-              {stats.pendingOrders} yêu cầu đang chờ
-            </div>
-          </Link>
+        {/* Quick Actions - ADMIN có tất cả quyền */}
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Quản trị hệ thống</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <Link
+              href="/admin/employee-approval"
+              className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Duyệt nhân viên</h3>
+                <FiArrowRight className="text-gray-400" />
+              </div>
+              <p className="text-gray-600 text-sm mb-2">
+                Quản lý yêu cầu đăng ký nhân viên mới
+              </p>
+              <div className="text-red-500 font-semibold">
+                {stats.pendingOrders} yêu cầu đang chờ
+              </div>
+            </Link>
 
-          <Link
-            href="/admin/inventory"
-            className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Quản lý kho</h3>
-              <FiArrowRight className="text-gray-400" />
-            </div>
-            <p className="text-gray-600 text-sm mb-2">
-              Quản lý nhập xuất và tồn kho
-            </p>
-            <div className="text-yellow-500 font-semibold">
-              {stats.lowStockProducts} sản phẩm sắp hết
-            </div>
-          </Link>
+            <Link
+              href="/admin/customers"
+              className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Quản lý người dùng</h3>
+                <FiArrowRight className="text-gray-400" />
+              </div>
+              <p className="text-gray-600 text-sm mb-2">
+                Xem thông tin khách hàng và nhân viên
+              </p>
+              <div className="text-purple-500 font-semibold">
+                {stats.totalCustomers} người dùng
+              </div>
+            </Link>
 
-          <Link
-            href="/admin/products/publish"
-            className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Đăng bán sản phẩm</h3>
-              <FiArrowRight className="text-gray-400" />
-            </div>
-            <p className="text-gray-600 text-sm mb-2">
-              Đăng sản phẩm từ kho lên trang bán
-            </p>
-            <div className="text-blue-500 font-semibold">
-              Quản lý đăng bán
-            </div>
-          </Link>
+            <Link
+              href="/admin/reports"
+              className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Báo cáo tổng hợp</h3>
+                <FiArrowRight className="text-gray-400" />
+              </div>
+              <p className="text-gray-600 text-sm mb-2">
+                Xem báo cáo doanh thu và thống kê
+              </p>
+              <div className="text-indigo-500 font-semibold">
+                Xem báo cáo
+              </div>
+            </Link>
+          </div>
+        </div>
 
-          <Link
-            href="/admin/products"
-            className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Quản lý sản phẩm</h3>
-              <FiArrowRight className="text-gray-400" />
-            </div>
-            <p className="text-gray-600 text-sm mb-2">
-              Xem danh sách sản phẩm đang bán
-            </p>
-            <div className="text-blue-500 font-semibold">
-              {stats.totalProducts} sản phẩm
-            </div>
-          </Link>
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Quản lý kho hàng</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <Link
+              href="/admin/inventory"
+              className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Quản lý kho</h3>
+                <FiArrowRight className="text-gray-400" />
+              </div>
+              <p className="text-gray-600 text-sm mb-2">
+                Quản lý nhập xuất và tồn kho
+              </p>
+              <div className="text-yellow-500 font-semibold">
+                {stats.lowStockProducts} sản phẩm sắp hết
+              </div>
+            </Link>
 
-          <Link
-            href="/admin/orders"
-            className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Quản lý đơn hàng</h3>
-              <FiArrowRight className="text-gray-400" />
-            </div>
-            <p className="text-gray-600 text-sm mb-2">
-              Xem và xử lý đơn hàng
-            </p>
-            <div className="text-green-500 font-semibold">
-              {stats.totalOrders} đơn hàng
-            </div>
-          </Link>
+            <Link
+              href="/admin/suppliers"
+              className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Nhà cung cấp</h3>
+                <FiArrowRight className="text-gray-400" />
+              </div>
+              <p className="text-gray-600 text-sm mb-2">
+                Quản lý nhà cung cấp
+              </p>
+              <div className="text-orange-500 font-semibold">
+                Quản lý NCC
+              </div>
+            </Link>
+          </div>
+        </div>
 
-          <Link
-            href="/admin/customers"
-            className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Quản lý khách hàng</h3>
-              <FiArrowRight className="text-gray-400" />
-            </div>
-            <p className="text-gray-600 text-sm mb-2">
-              Xem thông tin khách hàng
-            </p>
-            <div className="text-purple-500 font-semibold">
-              {stats.totalCustomers} khách hàng
-            </div>
-          </Link>
+        <div className="mb-8">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Quản lý sản phẩm</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <Link
+              href="/admin/products/publish"
+              className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Đăng bán sản phẩm</h3>
+                <FiArrowRight className="text-gray-400" />
+              </div>
+              <p className="text-gray-600 text-sm mb-2">
+                Đăng sản phẩm từ kho lên trang bán
+              </p>
+              <div className="text-blue-500 font-semibold">
+                Quản lý đăng bán
+              </div>
+            </Link>
 
-          <Link
-            href="/admin/reports"
-            className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Báo cáo</h3>
-              <FiArrowRight className="text-gray-400" />
-            </div>
-            <p className="text-gray-600 text-sm mb-2">
-              Xem báo cáo doanh thu và thống kê
-            </p>
-            <div className="text-indigo-500 font-semibold">
-              Xem báo cáo
-            </div>
-          </Link>
+            <Link
+              href="/admin/products"
+              className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Quản lý sản phẩm</h3>
+                <FiArrowRight className="text-gray-400" />
+              </div>
+              <p className="text-gray-600 text-sm mb-2">
+                Xem danh sách sản phẩm đang bán
+              </p>
+              <div className="text-blue-500 font-semibold">
+                {stats.totalProducts} sản phẩm
+              </div>
+            </Link>
+
+            <Link
+              href="/admin/categories"
+              className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Quản lý danh mục</h3>
+                <FiArrowRight className="text-gray-400" />
+              </div>
+              <p className="text-gray-600 text-sm mb-2">
+                Tạo và chỉnh sửa danh mục sản phẩm
+              </p>
+              <div className="text-purple-500 font-semibold">
+                Quản lý danh mục
+              </div>
+            </Link>
+
+            <Link
+              href="/admin/orders"
+              className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Quản lý đơn hàng</h3>
+                <FiArrowRight className="text-gray-400" />
+              </div>
+              <p className="text-gray-600 text-sm mb-2">
+                Xem và xử lý đơn hàng
+              </p>
+              <div className="text-green-500 font-semibold">
+                {stats.totalOrders} đơn hàng
+              </div>
+            </Link>
+          </div>
         </div>
 
         {/* Recent Orders */}

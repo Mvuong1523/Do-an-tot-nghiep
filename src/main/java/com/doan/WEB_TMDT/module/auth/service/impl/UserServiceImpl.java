@@ -102,15 +102,29 @@ public class UserServiceImpl implements UserService {
         String token = jwtService.generateToken(user.getEmail(), claims);
         System.out.println("✅ Token generated: " + token.substring(0, 20) + "...");
 
+        // Get fullName and position
+        String fullName = null;
+        String position = null;
+        
+        if (user.getCustomer() != null) {
+            fullName = user.getCustomer().getFullName();
+        } else if (user.getEmployee() != null) {
+            fullName = user.getEmployee().getFullName();
+            position = user.getEmployee().getPosition() != null ? 
+                      user.getEmployee().getPosition().name() : null;
+        }
+        
         LoginResponse response = new LoginResponse(
                 token,
                 user.getId(),
                 user.getEmail(),
+                fullName,
                 user.getRole().name(),
+                position,
                 user.getStatus().name()
         );
         
-        System.out.println("✅ Login successful!");
+        System.out.println("✅ Login successful! Position: " + position);
         System.out.println("=== LOGIN END ===");
         
         return ApiResponse.success("Đăng nhập thành công!", response);
@@ -163,5 +177,32 @@ public class UserServiceImpl implements UserService {
         userRepository.save(user);
 
         return ApiResponse.success("Đổi mật khẩu thành công!");
+    }
+
+    @Override
+    public ApiResponse getCurrentUser(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng!"));
+
+        String fullName = null;
+        String position = null;
+        
+        if (user.getCustomer() != null) {
+            fullName = user.getCustomer().getFullName();
+        } else if (user.getEmployee() != null) {
+            fullName = user.getEmployee().getFullName();
+            position = user.getEmployee().getPosition() != null ? 
+                      user.getEmployee().getPosition().name() : null;
+        }
+
+        Map<String, Object> userData = new HashMap<>();
+        userData.put("id", user.getId());
+        userData.put("email", user.getEmail());
+        userData.put("fullName", fullName);
+        userData.put("role", user.getRole().name());
+        userData.put("position", position);
+        userData.put("status", user.getStatus().name());
+
+        return ApiResponse.success("Lấy thông tin người dùng thành công", userData);
     }
 }

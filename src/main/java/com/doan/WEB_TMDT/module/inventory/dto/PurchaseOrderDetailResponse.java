@@ -31,9 +31,12 @@ public class PurchaseOrderDetailResponse {
         private Long id;
         private String name;
         private String taxCode;
+        private String contactPerson;
         private String phone;
         private String email;
         private String address;
+        private String bankAccount;
+        private String paymentTerm;
     }
     
     @Data
@@ -60,7 +63,7 @@ public class PurchaseOrderDetailResponse {
         private String sku;
         private String internalName;
         private String description;
-        private String techSpecsJson;  // Thông số kỹ thuật
+        private String techSpecsJson;  // Thông số kỹ thuật (JSON) - hiển thị nguyên bản
     }
     
     @Data

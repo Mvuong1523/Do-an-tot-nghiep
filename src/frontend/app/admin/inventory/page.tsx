@@ -33,9 +33,9 @@ export default function InventoryPage() {
       return
     }
 
-    // Check if user is admin or employee (tạm thời cho tất cả employee)
-    if (user?.role !== 'ADMIN' && user?.role !== 'EMPLOYEE') {
-      toast.error('Chỉ quản lý và nhân viên mới có quyền truy cập')
+    // Check if user is admin or warehouse
+    if (user?.role !== 'ADMIN' && user?.role !== 'WAREHOUSE') {
+      toast.error('Chỉ quản trị viên và nhân viên kho mới có quyền truy cập')
       router.push('/')
       return
     }
@@ -180,42 +180,30 @@ export default function InventoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">
-        {/* Breadcrumb */}
-        <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-6">
-          <Link href="/" className="hover:text-red-500">{t('home')}</Link>
-          <span>/</span>
-          <Link href="/admin" className="hover:text-red-500">Quản trị</Link>
-          <span>/</span>
-          <span className="text-gray-900">Quản lý kho</span>
-        </nav>
+    <div className="p-6">
 
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 space-y-4 md:space-y-0">
           <h1 className="text-3xl font-bold text-gray-900">Quản lý kho</h1>
           
           <div className="flex space-x-2">
-            <Link
-              href="/admin/inventory/transactions/create?type=IMPORT"
-              className="flex items-center space-x-2 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
-            >
-              <FiDownload />
-              <span>Nhập hàng</span>
-            </Link>
-            <Link
-              href="/admin/inventory/transactions/create?type=EXPORT"
-              className="flex items-center space-x-2 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
-            >
-              <FiUpload />
-              <span>Xuất hàng</span>
-            </Link>
-            <Link
-              href="/admin/products/create"
-              className="flex items-center space-x-2 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
-            >
-              <FiPlus />
-              <span>Thêm sản phẩm</span>
-            </Link>
+            {(user?.role === 'ADMIN' || user?.role === 'WAREHOUSE') && (
+              <>
+                <Link
+                  href="/admin/inventory/transactions/create?type=IMPORT"
+                  className="flex items-center space-x-2 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
+                >
+                  <FiDownload />
+                  <span>Nhập hàng</span>
+                </Link>
+                <Link
+                  href="/admin/inventory/transactions/create?type=EXPORT"
+                  className="flex items-center space-x-2 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  <FiUpload />
+                  <span>Xuất hàng</span>
+                </Link>
+              </>
+            )}
           </div>
         </div>
 
@@ -471,7 +459,7 @@ export default function InventoryPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <Link 
-                            href={`/admin/inventory/transactions/${transaction.id}?type=${transaction.type}`}
+                            href={transaction.type === 'IMPORT' ? `/warehouse/import/${transaction.id}` : `/warehouse/export/${transaction.id}`}
                             className="text-red-500 hover:text-red-600 flex items-center space-x-1 ml-auto"
                           >
                             <FiEye />
@@ -486,7 +474,6 @@ export default function InventoryPage() {
             )}
           </div>
         )}
-      </div>
     </div>
   )
 }

@@ -1,8 +1,42 @@
 # 🔐 HỆ THỐNG PHÂN QUYỀN
 
+## 📌 Cấu trúc Role
+
+### Backend (Database)
+```
+User {
+  role: Role (CUSTOMER, ADMIN, EMPLOYEE)
+  employee: Employee {
+    position: Position (WAREHOUSE, PRODUCT_MANAGER, SALE, CSKH, ACCOUNTANT)
+  }
+}
+```
+
+**Lưu ý quan trọng:**
+- `EMPLOYEE` là role chung cho tất cả nhân viên
+- `Position` xác định chức vụ cụ thể và quyền hạn
+- Backend phân quyền dựa trên `Position`, không phải `Role.EMPLOYEE`
+
+### Frontend (After Login)
+```typescript
+// Backend trả về
+{
+  role: "EMPLOYEE",
+  position: "WAREHOUSE"  // hoặc "PRODUCT_MANAGER"
+}
+
+// Frontend convert
+user.role = position  // "WAREHOUSE" hoặc "PRODUCT_MANAGER"
+```
+
+---
+
 ## 👥 CÁC VAI TRÒ (ROLES)
 
 ### 1. **CUSTOMER** - Khách hàng
+**Backend:** `Role.CUSTOMER`  
+**Frontend:** `role: "CUSTOMER"`
+
 **Quyền hạn:**
 - ✅ Xem sản phẩm, tìm kiếm
 - ✅ Thêm vào giỏ hàng
@@ -20,6 +54,9 @@
 - Trang cá nhân
 
 ### 2. **WAREHOUSE** - Nhân viên kho
+**Backend:** `Role.EMPLOYEE` + `Position.WAREHOUSE`  
+**Frontend:** `role: "WAREHOUSE"`
+
 **Quyền hạn:**
 - ✅ Tạo phiếu nhập kho
 - ✅ Hoàn tất nhập kho (nhập serial)
@@ -38,6 +75,9 @@
 - Báo cáo nhập xuất tồn
 
 ### 3. **PRODUCT_MANAGER** - Quản lý sản phẩm
+**Backend:** `Role.EMPLOYEE` + `Position.PRODUCT_MANAGER`  
+**Frontend:** `role: "PRODUCT_MANAGER"`
+
 **Quyền hạn:**
 - ✅ Đăng bán sản phẩm từ kho
 - ✅ Chỉnh sửa thông tin sản phẩm hiển thị
@@ -55,6 +95,9 @@
 - Quản lý danh mục
 
 ### 4. **ADMIN** - Quản trị viên
+**Backend:** `Role.ADMIN`  
+**Frontend:** `role: "ADMIN"`
+
 **Quyền hạn:**
 - ✅ Tất cả quyền của WAREHOUSE
 - ✅ Tất cả quyền của PRODUCT_MANAGER
@@ -84,6 +127,7 @@
 | Hoàn tất nhập kho | ❌ | ✅ | ❌ | ✅ |
 | Xuất kho | ❌ | ✅ | ❌ | ✅ |
 | Cập nhật tồn kho | ❌ | ✅ | ❌ | ✅ |
+| Xem tồn kho (read-only) | ❌ | ✅ | ✅ | ✅ |
 | Xem báo cáo kho | ❌ | ✅ | ❌ | ✅ |
 | **Quản lý sản phẩm** |
 | Đăng bán sản phẩm | ❌ | ❌ | ✅ | ✅ |
@@ -132,13 +176,17 @@ POST   /api/inventory/create_pchaseOrder
 POST   /api/inventory/suppliers
 POST   /api/inventory/import
 POST   /api/inventory/create (export)
-GET    /api/inventory/stock
 GET    /api/inventory/purchase-orders
 GET    /api/inventory/export-orders
 GET    /api/inventory/purchase-orders/{id}
 GET    /api/inventory/export-orders/{id}
 PUT    /api/inventory/purchase-orders/{id}/cancel
 PUT    /api/inventory/export-orders/{id}/cancel
+```
+
+### Warehouse + Product Manager
+```
+GET    /api/inventory/stock (PRODUCT_MANAGER: read-only)
 ```
 
 ### Product Manager Only
@@ -224,9 +272,31 @@ POST   /api/employee-registration/approve/{id}
 - Public endpoints không cần authentication
 - Role-based access control với `@PreAuthorize`
 - JWT authentication filter
+- JWT claims chứa cả `role` và `position`
+
+**Lưu ý:** Backend sử dụng `Role.EMPLOYEE` chung, phân quyền dựa trên `Position`
 
 ### Frontend (Next.js)
-Kiểm tra role trong component:
+
+#### 1. Login Flow
+```typescript
+// Backend response
+{
+  role: "EMPLOYEE",
+  position: "WAREHOUSE"  // hoặc "PRODUCT_MANAGER"
+}
+
+// Frontend xử lý
+let actualRole = response.data.role
+if (response.data.role === 'EMPLOYEE' && response.data.position) {
+  actualRole = response.data.position  // "WAREHOUSE" hoặc "PRODUCT_MANAGER"
+}
+
+// Lưu vào store
+setAuth({ ...user, role: actualRole }, token)
+```
+
+#### 2. Kiểm tra quyền trong component
 ```typescript
 const { user } = useAuthStore()
 
@@ -242,8 +312,13 @@ if (user?.role !== 'WAREHOUSE' && user?.role !== 'ADMIN') {
 )}
 ```
 
-### Routing
+#### 3. Routing
 - `/` - Customer (public)
-- `/warehouse/*` - Warehouse only
-- `/product-manager/*` - Product Manager only
-- `/admin/*` - Admin only
+- `/warehouse/*` - WAREHOUSE only (Employee với Position.WAREHOUSE)
+- `/product-manager/*` - PRODUCT_MANAGER only (Employee với Position.PRODUCT_MANAGER)
+- `/admin/*` - ADMIN only
+
+#### 4. Layout riêng
+- Customer: Header + Footer đầy đủ
+- Employee (WAREHOUSE, PRODUCT_MANAGER): EmployeeHeader đơn giản
+- Admin: EmployeeHeader với đầy đủ quyền

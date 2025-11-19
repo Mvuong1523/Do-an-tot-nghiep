@@ -80,7 +80,10 @@ export const authApi = {
       const response = await apiClient.get('/auth/me')
       return response.data
     } catch (error: any) {
-      throw new Error('Không thể lấy thông tin người dùng')
+      return {
+        success: false,
+        error: 'Không thể lấy thông tin người dùng'
+      }
     }
   },
 
@@ -207,7 +210,7 @@ export const productApi = {
   },
 
   // Warehouse product management for publishing
-  getWarehouseProducts: async (): Promise<ApiResponse<any[]>> => {
+  getWarehouseProductsForPublish: async (): Promise<ApiResponse<any[]>> => {
     try {
       const response = await apiClient.get('/products/warehouse/list')
       return response.data
@@ -220,7 +223,7 @@ export const productApi = {
     }
   },
 
-  publishProduct: async (data: any): Promise<ApiResponse<any>> => {
+  createProductFromWarehouse: async (data: any): Promise<ApiResponse<any>> => {
     try {
       const response = await apiClient.post('/products/warehouse/publish', data)
       return response.data

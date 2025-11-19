@@ -383,9 +383,12 @@ public class InventoryServiceImpl implements InventoryService {
                     .id(po.getSupplier().getId())
                     .name(po.getSupplier().getName())
                     .taxCode(po.getSupplier().getTaxCode())
+                    .contactPerson(po.getSupplier().getContactName())
                     .phone(po.getSupplier().getPhone())
                     .email(po.getSupplier().getEmail())
                     .address(po.getSupplier().getAddress())
+                    .bankAccount(po.getSupplier().getBankAccount())
+                    .paymentTerm(po.getSupplier().getPaymentTerm())
                     .build();
         }
         
@@ -395,12 +398,13 @@ public class InventoryServiceImpl implements InventoryService {
             // Map warehouse product
             com.doan.WEB_TMDT.module.inventory.dto.PurchaseOrderDetailResponse.WarehouseProductInfo wpInfo = null;
             if (item.getWarehouseProduct() != null) {
+                WarehouseProduct wp = item.getWarehouseProduct();
                 wpInfo = com.doan.WEB_TMDT.module.inventory.dto.PurchaseOrderDetailResponse.WarehouseProductInfo.builder()
-                        .id(item.getWarehouseProduct().getId())
-                        .sku(item.getWarehouseProduct().getSku())
-                        .internalName(item.getWarehouseProduct().getInternalName())
-                        .description(item.getWarehouseProduct().getDescription())
-                        .techSpecsJson(item.getWarehouseProduct().getTechSpecsJson())
+                        .id(wp.getId())
+                        .sku(wp.getSku())
+                        .internalName(wp.getInternalName())
+                        .description(wp.getDescription())
+                        .techSpecsJson(wp.getTechSpecsJson())
                         .build();
             }
             
