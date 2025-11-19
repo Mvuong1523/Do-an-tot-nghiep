@@ -165,4 +165,5 @@ public class EmployeeRegistrationServiceImpl implements EmployeeRegistrationServ
             System.err.println("Không thể gửi email cho " + email + ": " + e.getMessage());
         }
     }
+    
 }

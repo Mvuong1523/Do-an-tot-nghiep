@@ -45,42 +45,34 @@ export default function InventoryPage() {
 
   const loadInventory = async () => {
     try {
-      // TODO: Call inventory API
-      // const response = await inventoryApi.getAll()
-      // setInventory(response.data)
+      const response = await inventoryApi.getStocks()
+      console.log('Inventory Response:', response)
       
-      // Mock data
-      setInventory([
-        {
-          id: 1,
-          name: 'iPhone 16 Pro Max 256GB',
-          sku: 'IP16PM-256',
-          category: 'Điện thoại',
-          price: 29990000,
-          quantity: 15,
-          image: '/images/iphone-16-pro-max.jpg'
-        },
-        {
-          id: 2,
-          name: 'Xiaomi POCO C71 4GB/128GB',
-          sku: 'XM-POCO-C71',
-          category: 'Điện thoại',
-          price: 2490000,
-          quantity: 25,
-          image: '/images/xiaomi-poco-c71.jpg'
-        },
-        {
-          id: 3,
-          name: 'MacBook Pro 14 inch M3',
-          sku: 'MBP14-M3',
-          category: 'Laptop',
-          price: 45990000,
-          quantity: 5,
-          image: '/images/macbook-pro-14.jpg'
-        }
-      ])
+      if (response.success && response.data) {
+        // Map data from API to display format
+        const mappedData = response.data.map((stock: any) => ({
+          id: stock.id,
+          name: stock.warehouseProduct?.internalName || 'N/A',
+          sku: stock.warehouseProduct?.sku || 'N/A',
+          category: 'N/A', // TODO: Add category mapping if needed
+          price: 0, // Price is not in inventory_stock, might need to join with product table
+          quantity: stock.onHand || 0,
+          reserved: stock.reserved || 0,
+          damaged: stock.damaged || 0,
+          sellable: stock.sellable || 0,
+          supplier: stock.warehouseProduct?.supplier?.name || 'N/A',
+          lastImportDate: stock.warehouseProduct?.lastImportDate || null,
+          description: stock.warehouseProduct?.description || '',
+          image: '/images/placeholder.jpg'
+        }))
+        setInventory(mappedData)
+      } else {
+        setInventory([])
+      }
     } catch (error) {
+      console.error('Error loading inventory:', error)
       toast.error('Lỗi khi tải kho hàng')
+      setInventory([])
     } finally {
       setLoading(false)
     }
@@ -276,16 +268,10 @@ export default function InventoryPage() {
             {activeTab === 'inventory' ? (
               <>
                 <select className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500">
-                  <option value="">Tất cả danh mục</option>
-                  <option value="phone">Điện thoại</option>
-                  <option value="laptop">Laptop</option>
-                  <option value="tablet">Tablet</option>
-                </select>
-                <select className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500">
                   <option value="">Tất cả trạng thái</option>
-                  <option value="in-stock">Còn hàng</option>
-                  <option value="low-stock">Sắp hết</option>
-                  <option value="out-of-stock">Hết hàng</option>
+                  <option value="in-stock">Còn hàng (&gt;10)</option>
+                  <option value="low-stock">Sắp hết (1-10)</option>
+                  <option value="out-of-stock">Hết hàng (0)</option>
                 </select>
               </>
             ) : (
@@ -344,13 +330,16 @@ export default function InventoryPage() {
                       SKU
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Danh mục
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Giá
+                      Nhà cung cấp
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Tồn kho
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Đã giữ
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Có thể bán
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Trạng thái
@@ -368,6 +357,9 @@ export default function InventoryPage() {
                           <div className="w-10 h-10 bg-gray-100 rounded flex-shrink-0"></div>
                           <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900">{item.name}</div>
+                            {item.description && (
+                              <div className="text-xs text-gray-500 truncate max-w-xs">{item.description}</div>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -375,31 +367,31 @@ export default function InventoryPage() {
                         {item.sku}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.category}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatPrice(item.price)}
+                        {item.supplier}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {item.quantity}
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {item.reserved || 0}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {item.sellable || 0}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 text-xs font-semibold rounded ${
-                          item.quantity > 10
+                          (item.sellable || 0) > 10
                             ? 'bg-green-100 text-green-800'
-                            : item.quantity > 0
+                            : (item.sellable || 0) > 0
                             ? 'bg-yellow-100 text-yellow-800'
                             : 'bg-red-100 text-red-800'
                         }`}>
-                          {item.quantity > 10 ? 'Còn hàng' : item.quantity > 0 ? 'Sắp hết' : 'Hết hàng'}
+                          {(item.sellable || 0) > 10 ? 'Còn hàng' : (item.sellable || 0) > 0 ? 'Sắp hết' : 'Hết hàng'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button className="text-red-500 hover:text-red-600 mr-3">
-                          Sửa
-                        </button>
-                        <button className="text-gray-500 hover:text-gray-600">
-                          Xóa
+                          Chi tiết
                         </button>
                       </td>
                     </tr>

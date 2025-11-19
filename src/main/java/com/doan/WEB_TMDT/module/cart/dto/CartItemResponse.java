@@ -10,13 +10,14 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CartItemResponse {
-    private Long id;
+    private Long itemId;
     private Long productId;
     private String productName;
     private String productImage;
-    private String sku;
-    private Integer quantity;
+    private String productSku;
     private Double price;
+    private Integer quantity;
+    private Integer stockQuantity;
     private Double subtotal;
-    private Integer stockQuantity; // Số lượng còn trong kho
+    private Boolean available; // Còn hàng không
 }

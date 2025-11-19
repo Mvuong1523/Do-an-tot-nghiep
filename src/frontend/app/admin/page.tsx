@@ -200,6 +200,22 @@ export default function AdminDashboard() {
           </Link>
 
           <Link
+            href="/admin/products/publish"
+            className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Đăng bán sản phẩm</h3>
+              <FiArrowRight className="text-gray-400" />
+            </div>
+            <p className="text-gray-600 text-sm mb-2">
+              Đăng sản phẩm từ kho lên trang bán
+            </p>
+            <div className="text-blue-500 font-semibold">
+              Quản lý đăng bán
+            </div>
+          </Link>
+
+          <Link
             href="/admin/products"
             className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
           >
@@ -208,7 +224,7 @@ export default function AdminDashboard() {
               <FiArrowRight className="text-gray-400" />
             </div>
             <p className="text-gray-600 text-sm mb-2">
-              Thêm, sửa, xóa sản phẩm
+              Xem danh sách sản phẩm đang bán
             </p>
             <div className="text-blue-500 font-semibold">
               {stats.totalProducts} sản phẩm

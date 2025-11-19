@@ -7,6 +7,7 @@ import com.doan.WEB_TMDT.module.product.entity.Product;
 import com.doan.WEB_TMDT.module.product.repository.ProductRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,6 +16,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/inventory")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyAuthority('WAREHOUSE', 'ADMIN')")
 public class InventoryController {
     private final InventoryService inventoryService;
     private final ProductRepository productRepository;
@@ -66,10 +68,10 @@ public class InventoryController {
     }
 
     // ===== Stock View =====
-//    @GetMapping("/stock")
-//    public ApiResponse getStocks() {
-//        return inventoryService.getStocks();
-//    }
+    @GetMapping("/stock")
+    public ApiResponse getStocks() {
+        return inventoryService.getStocks();
+    }
 
     // ===== Transaction History =====
     @GetMapping("/purchase-orders")

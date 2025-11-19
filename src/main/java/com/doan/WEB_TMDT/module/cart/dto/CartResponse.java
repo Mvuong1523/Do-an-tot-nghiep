@@ -4,7 +4,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.util.List;
 
 @Data
@@ -12,9 +11,11 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CartResponse {
-    private Long id;
-    private Long userId;
+    private Long cartId;
     private List<CartItemResponse> items;
     private Integer totalItems;
-    private Double totalAmount;
+    private Double subtotal;
+    private Double shippingFee;
+    private Double discount;
+    private Double total;
 }

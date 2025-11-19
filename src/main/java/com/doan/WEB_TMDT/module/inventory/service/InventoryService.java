@@ -16,4 +16,5 @@ public interface InventoryService {
     ApiResponse getExportOrderDetail(Long id);
     ApiResponse cancelPurchaseOrder(Long id);
     ApiResponse cancelExportOrder(Long id);
+    ApiResponse getStocks();
 }

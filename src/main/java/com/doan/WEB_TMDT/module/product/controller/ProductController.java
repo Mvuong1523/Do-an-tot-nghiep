@@ -7,6 +7,7 @@ import com.doan.WEB_TMDT.module.product.dto.PublishProductRequest;
 import com.doan.WEB_TMDT.module.product.entity.Product;
 import com.doan.WEB_TMDT.module.product.service.ProductService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -41,9 +42,37 @@ public class ProductController {
                 .orElse(ApiResponse.error("Không tìm thấy sản phẩm"));
     }
 
-    // ===== Đăng bán sản phẩm từ kho =====
+    // ===== Quản lý đăng bán sản phẩm từ kho (PRODUCT_MANAGER & ADMIN) =====
+    
+    @GetMapping("/warehouse/list")
+    @PreAuthorize("hasAnyAuthority('PRODUCT_MANAGER', 'ADMIN')")
+    public ApiResponse getWarehouseProductsForPublish() {
+        return productService.getWarehouseProductsForPublish();
+    }
+    
+    @PostMapping("/warehouse/publish")
+    @PreAuthorize("hasAnyAuthority('PRODUCT_MANAGER', 'ADMIN')")
+    public ApiResponse createProductFromWarehouse(
+            @RequestBody com.doan.WEB_TMDT.module.product.dto.CreateProductFromWarehouseRequest request) {
+        return productService.createProductFromWarehouse(request);
+    }
+    
+    @PutMapping("/warehouse/publish/{productId}")
+    @PreAuthorize("hasAnyAuthority('PRODUCT_MANAGER', 'ADMIN')")
+    public ApiResponse updatePublishedProduct(
+            @PathVariable Long productId,
+            @RequestBody com.doan.WEB_TMDT.module.product.dto.CreateProductFromWarehouseRequest request) {
+        return productService.updatePublishedProduct(productId, request);
+    }
+    
+    @DeleteMapping("/warehouse/unpublish/{productId}")
+    @PreAuthorize("hasAnyAuthority('PRODUCT_MANAGER', 'ADMIN')")
+    public ApiResponse unpublishProduct(@PathVariable Long productId) {
+        return productService.unpublishProduct(productId);
+    }
     
     @PostMapping("/publish")
+    @PreAuthorize("hasAnyAuthority('PRODUCT_MANAGER', 'ADMIN')")
     public ApiResponse publishProduct(@RequestBody PublishProductRequest request) {
         try {
             Product product = productService.publishProduct(request);
@@ -53,12 +82,16 @@ public class ProductController {
         }
     }
 
+    // ===== CRUD sản phẩm (PRODUCT_MANAGER & ADMIN) =====
+    
     @PostMapping
+    @PreAuthorize("hasAnyAuthority('PRODUCT_MANAGER', 'ADMIN')")
     public ApiResponse create(@RequestBody Product product) {
         return ApiResponse.success("Tạo sản phẩm thành công", productService.create(product));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('PRODUCT_MANAGER', 'ADMIN')")
     public ApiResponse update(@PathVariable Long id, @RequestBody Product product) {
         Product updated = productService.update(id, product);
         return updated != null ? 
@@ -67,6 +100,7 @@ public class ProductController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ApiResponse delete(@PathVariable Long id) {
         productService.delete(id);
         return ApiResponse.success("Xóa sản phẩm thành công");

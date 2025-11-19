@@ -36,10 +36,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             path.equals("/api/auth/first-change-password") ||
             path.equals("/api/payment/ipn") ||
             path.equals("/api/employee-registration/apply") ||
-            path.startsWith("/api/products") ||  // Public cho khách hàng
-            path.startsWith("/api/categories")) { // Public cho khách hàng
+            path.startsWith("/api/categories") ||
+            path.startsWith("/api/category") ||
+            path.equals("/error")) {
             chain.doFilter(request, response);
             return;
+        }
+        
+        // ✅ Cho phép GET public product endpoints (không cần JWT)
+        if (path.startsWith("/api/products") && request.getMethod().equals("GET")) {
+            // Nhưng không cho phép warehouse endpoints
+            if (!path.startsWith("/api/products/warehouse")) {
+                chain.doFilter(request, response);
+                return;
+            }
         }
 
         String authHeader = request.getHeader("Authorization");
@@ -53,6 +63,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             email = jwtService.extractEmail(token);
         } catch (Exception e) {
+            System.out.println("❌ JWT Token invalid: " + e.getMessage());
             chain.doFilter(request, response);
             return;
         }
@@ -65,10 +76,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 List<SimpleGrantedAuthority> authorities = new ArrayList<>();
 
                 Object role = claims.get("role");
-                if (role != null) authorities.add(new SimpleGrantedAuthority(role.toString()));
+                if (role != null) {
+                    authorities.add(new SimpleGrantedAuthority(role.toString()));
+                    System.out.println("✅ User role: " + role.toString());
+                }
 
                 Object position = claims.get("position");
-                if (position != null) authorities.add(new SimpleGrantedAuthority(position.toString()));
+                if (position != null) {
+                    authorities.add(new SimpleGrantedAuthority(position.toString()));
+                    System.out.println("✅ User position: " + position.toString());
+                }
 
                 userDetails.getAuthorities().forEach(a -> {
                     if (authorities.stream().noneMatch(x -> x.getAuthority().equals(a.getAuthority()))) {

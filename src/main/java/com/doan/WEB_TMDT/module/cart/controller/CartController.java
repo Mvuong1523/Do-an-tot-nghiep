@@ -6,64 +6,74 @@ import com.doan.WEB_TMDT.module.cart.dto.UpdateCartItemRequest;
 import com.doan.WEB_TMDT.module.cart.service.CartService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/cart")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyAuthority('CUSTOMER', 'ADMIN')")
 public class CartController {
-    
+
     private final CartService cartService;
-    
+
+    /**
+     * Lấy giỏ hàng của user
+     */
     @GetMapping
-    public ApiResponse getCart(Authentication auth) {
-        Long userId = getUserIdFromAuth(auth);
+    public ApiResponse getCart(Authentication authentication) {
+        Long userId = getUserIdFromAuth(authentication);
         return cartService.getCart(userId);
     }
-    
+
+    /**
+     * Thêm sản phẩm vào giỏ hàng
+     */
     @PostMapping("/items")
     public ApiResponse addToCart(
             @Valid @RequestBody AddToCartRequest request,
-            Authentication auth
-    ) {
-        Long userId = getUserIdFromAuth(auth);
+            Authentication authentication) {
+        Long userId = getUserIdFromAuth(authentication);
         return cartService.addToCart(userId, request);
     }
-    
+
+    /**
+     * Cập nhật số lượng sản phẩm trong giỏ
+     */
     @PutMapping("/items/{itemId}")
     public ApiResponse updateCartItem(
             @PathVariable Long itemId,
             @Valid @RequestBody UpdateCartItemRequest request,
-            Authentication auth
-    ) {
-        Long userId = getUserIdFromAuth(auth);
+            Authentication authentication) {
+        Long userId = getUserIdFromAuth(authentication);
         return cartService.updateCartItem(userId, itemId, request);
     }
-    
+
+    /**
+     * Xóa sản phẩm khỏi giỏ hàng
+     */
     @DeleteMapping("/items/{itemId}")
     public ApiResponse removeCartItem(
             @PathVariable Long itemId,
-            Authentication auth
-    ) {
-        Long userId = getUserIdFromAuth(auth);
+            Authentication authentication) {
+        Long userId = getUserIdFromAuth(authentication);
         return cartService.removeCartItem(userId, itemId);
     }
-    
+
+    /**
+     * Xóa tất cả sản phẩm trong giỏ
+     */
     @DeleteMapping
-    public ApiResponse clearCart(Authentication auth) {
-        Long userId = getUserIdFromAuth(auth);
+    public ApiResponse clearCart(Authentication authentication) {
+        Long userId = getUserIdFromAuth(authentication);
         return cartService.clearCart(userId);
     }
-    
-    private Long getUserIdFromAuth(Authentication auth) {
-        if (auth == null || auth.getPrincipal() == null) {
-            throw new RuntimeException("Vui lòng đăng nhập");
-        }
-        // Assuming principal is User object or email
-        String email = auth.getName();
-        // You might need to fetch user ID from UserRepository
-        // For now, assuming you have a way to get it
-        return 1L; // TODO: Implement proper user ID extraction
+
+    // Helper method
+    private Long getUserIdFromAuth(Authentication authentication) {
+        // TODO: Extract user ID from authentication
+        // For now, return mock ID
+        return 1L;
     }
 }

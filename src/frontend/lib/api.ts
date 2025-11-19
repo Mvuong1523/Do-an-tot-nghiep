@@ -131,11 +131,23 @@ export const categoryApi = {
   getAll: async (): Promise<ApiResponse<any[]>> => {
     try {
       const response = await apiClient.get('/categories')
+      console.log('Category API raw response:', response)
+      
+      // Kiểm tra nếu response.data là ApiResponse
+      if (response.data && response.data.data) {
+        return {
+          success: true,
+          data: Array.isArray(response.data.data) ? response.data.data : [],
+        }
+      }
+      
+      // Nếu response.data là array trực tiếp
       return {
         success: true,
-        data: response.data || [],
+        data: Array.isArray(response.data) ? response.data : [],
       }
     } catch (error: any) {
+      console.error('Category API error:', error)
       return {
         success: false,
         data: [],
@@ -158,11 +170,8 @@ export const categoryApi = {
 export const productApi = {
   getAll: async (params?: any): Promise<ApiResponse<any[]>> => {
     try {
-      const response = await apiClient.get('/product', { params })
-      return {
-        success: true,
-        data: response.data || [],
-      }
+      const response = await apiClient.get('/products', { params })
+      return response.data
     } catch (error: any) {
       return {
         success: false,
@@ -174,11 +183,8 @@ export const productApi = {
 
   getById: async (id: string | number): Promise<ApiResponse<any>> => {
     try {
-      const response = await apiClient.get(`/product/${id}`)
-      return {
-        success: true,
-        data: response.data,
-      }
+      const response = await apiClient.get(`/products/${id}`)
+      return response.data
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Lỗi khi lấy thông tin sản phẩm')
     }
@@ -186,7 +192,7 @@ export const productApi = {
 
   search: async (query: string): Promise<ApiResponse<any[]>> => {
     try {
-      const response = await apiClient.get('/product/search', { params: { q: query } })
+      const response = await apiClient.get('/products/search', { params: { q: query } })
       return {
         success: true,
         data: response.data || [],
@@ -197,6 +203,47 @@ export const productApi = {
         data: [],
         error: error.message,
       }
+    }
+  },
+
+  // Warehouse product management for publishing
+  getWarehouseProducts: async (): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await apiClient.get('/products/warehouse/list')
+      return response.data
+    } catch (error: any) {
+      return {
+        success: false,
+        data: [],
+        error: error.message,
+      }
+    }
+  },
+
+  publishProduct: async (data: any): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.post('/products/warehouse/publish', data)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi đăng bán sản phẩm')
+    }
+  },
+
+  updatePublishedProduct: async (productId: number, data: any): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.put(`/products/warehouse/publish/${productId}`, data)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi cập nhật sản phẩm')
+    }
+  },
+
+  unpublishProduct: async (productId: number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.delete(`/products/warehouse/unpublish/${productId}`)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi gỡ sản phẩm')
     }
   },
 }
@@ -366,6 +413,19 @@ export const inventoryApi = {
       return response.data
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Lỗi khi hủy phiếu')
+    }
+  },
+
+  getStocks: async (): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await apiClient.get('/inventory/stock')
+      return response.data
+    } catch (error: any) {
+      return {
+        success: false,
+        data: [],
+        error: error.message,
+      }
     }
   },
 }

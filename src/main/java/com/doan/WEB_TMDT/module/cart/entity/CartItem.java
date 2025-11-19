@@ -1,9 +1,9 @@
 package com.doan.WEB_TMDT.module.cart.entity;
 
 import com.doan.WEB_TMDT.module.product.entity.Product;
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.*;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "cart_items")
@@ -18,12 +18,11 @@ public class CartItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cart_id", nullable = false)
-    @JsonBackReference
     private Cart cart;
     
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
     
@@ -33,6 +32,15 @@ public class CartItem {
     @Column(nullable = false)
     private Double price; // Giá tại thời điểm thêm vào giỏ
     
+    @Column(nullable = false)
+    private LocalDateTime addedAt;
+    
+    @PrePersist
+    protected void onCreate() {
+        addedAt = LocalDateTime.now();
+    }
+    
+    @Transient
     public Double getSubtotal() {
         return price * quantity;
     }

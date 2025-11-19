@@ -528,4 +528,45 @@ public class InventoryServiceImpl implements InventoryService {
         return ApiResponse.success("Đã hủy phiếu xuất thành công", eo);
     }
 
+    @Override
+    public ApiResponse getStocks() {
+        List<InventoryStock> stocks = inventoryStockRepository.findAll();
+        
+        // Map to DTO to include warehouse product info
+        List<Map<String, Object>> stockData = stocks.stream().map(stock -> {
+            Map<String, Object> data = new HashMap<>();
+            data.put("id", stock.getId());
+            data.put("onHand", stock.getOnHand());
+            data.put("reserved", stock.getReserved());
+            data.put("damaged", stock.getDamaged());
+            data.put("sellable", stock.getSellable());
+            data.put("available", stock.getAvailable());
+            
+            if (stock.getWarehouseProduct() != null) {
+                WarehouseProduct wp = stock.getWarehouseProduct();
+                Map<String, Object> productInfo = new HashMap<>();
+                productInfo.put("id", wp.getId());
+                productInfo.put("sku", wp.getSku());
+                productInfo.put("internalName", wp.getInternalName());
+                productInfo.put("description", wp.getDescription());
+                productInfo.put("techSpecsJson", wp.getTechSpecsJson());
+                productInfo.put("lastImportDate", wp.getLastImportDate());
+                
+                if (wp.getSupplier() != null) {
+                    Map<String, Object> supplierInfo = new HashMap<>();
+                    supplierInfo.put("id", wp.getSupplier().getId());
+                    supplierInfo.put("name", wp.getSupplier().getName());
+                    supplierInfo.put("taxCode", wp.getSupplier().getTaxCode());
+                    productInfo.put("supplier", supplierInfo);
+                }
+                
+                data.put("warehouseProduct", productInfo);
+            }
+            
+            return data;
+        }).toList();
+        
+        return ApiResponse.success("Danh sách tồn kho", stockData);
+    }
+
 }
