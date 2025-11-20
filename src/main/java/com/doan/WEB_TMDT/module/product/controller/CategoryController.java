@@ -40,7 +40,11 @@ public class CategoryController {
     // Product Manager & Admin endpoints
     @PostMapping
     @PreAuthorize("hasAnyAuthority('PRODUCT_MANAGER', 'ADMIN')")
-    public ApiResponse create(@Valid @RequestBody CreateCategoryRequest request) {
+    public ApiResponse create(@Valid @RequestBody CreateCategoryRequest request, 
+                              org.springframework.security.core.Authentication authentication) {
+        System.out.println("=== CREATE CATEGORY ===");
+        System.out.println("User: " + (authentication != null ? authentication.getName() : "null"));
+        System.out.println("Authorities: " + (authentication != null ? authentication.getAuthorities() : "null"));
         return categoryService.createCategory(request);
     }
 
@@ -55,5 +59,24 @@ public class CategoryController {
     public ApiResponse delete(@PathVariable Long id) {
         categoryService.delete(id);
         return ApiResponse.success("Xóa danh mục thành công");
+    }
+    
+    // Test endpoint để kiểm tra authorities
+    @GetMapping("/test-auth")
+    public ApiResponse testAuth(org.springframework.security.core.Authentication authentication) {
+        if (authentication == null) {
+            return ApiResponse.error("Not authenticated");
+        }
+        
+        java.util.Map<String, Object> info = new java.util.HashMap<>();
+        info.put("name", authentication.getName());
+        info.put("authorities", authentication.getAuthorities().toString());
+        info.put("authenticated", authentication.isAuthenticated());
+        
+        System.out.println("=== TEST AUTH ===");
+        System.out.println("User: " + authentication.getName());
+        System.out.println("Authorities: " + authentication.getAuthorities());
+        
+        return ApiResponse.success("Auth info", info);
     }
 }

@@ -19,6 +19,7 @@ public class ProductWithSpecsDTO {
     private String description;
     private String imageUrl;
     private Long stockQuantity;
+    private Long categoryId;
     private String categoryName;
     
     // Thông số kỹ thuật dạng Map để dễ hiển thị

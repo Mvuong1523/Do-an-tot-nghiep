@@ -22,24 +22,28 @@ public class ProductController {
 
     @GetMapping
     public ApiResponse getAll() {
-        return ApiResponse.success("Danh sách sản phẩm", productService.getAll());
+        List<Product> products = productService.getAll();
+        // Trả về danh sách sản phẩm kèm thông số
+        List<ProductWithSpecsDTO> productsWithSpecs = products.stream()
+                .map(productService::toProductWithSpecs)
+                .collect(java.util.stream.Collectors.toList());
+        return ApiResponse.success("Danh sách sản phẩm", productsWithSpecs);
     }
 
     @GetMapping("/{id}")
     public ApiResponse getById(@PathVariable Long id) {
         return productService.getById(id)
-                .map(product -> ApiResponse.success("Thông tin sản phẩm", product))
+                .map(product -> {
+                    ProductWithSpecsDTO dto = productService.toProductWithSpecs(product);
+                    return ApiResponse.success("Thông tin sản phẩm", dto);
+                })
                 .orElse(ApiResponse.error("Không tìm thấy sản phẩm"));
     }
 
     @GetMapping("/{id}/with-specs")
     public ApiResponse getByIdWithSpecs(@PathVariable Long id) {
-        return productService.getById(id)
-                .map(product -> {
-                    ProductWithSpecsDTO dto = productService.toProductWithSpecs(product);
-                    return ApiResponse.success("Thông tin sản phẩm kèm thông số", dto);
-                })
-                .orElse(ApiResponse.error("Không tìm thấy sản phẩm"));
+        // Giờ endpoint này giống với /{id}, có thể deprecated
+        return getById(id);
     }
 
     // ===== Quản lý đăng bán sản phẩm từ kho (PRODUCT_MANAGER & ADMIN) =====

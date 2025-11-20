@@ -36,6 +36,9 @@ public class Product {
     private String imageUrl;
 
     private Long stockQuantity;
+    
+    @Column(name = "tech_specs_json", columnDefinition = "TEXT")
+    private String techSpecsJson;
 
     @OneToOne
     @JoinColumn(name = "product_detail_id")

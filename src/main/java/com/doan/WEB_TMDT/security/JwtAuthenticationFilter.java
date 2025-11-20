@@ -36,9 +36,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             path.equals("/api/auth/first-change-password") ||
             path.equals("/api/payment/ipn") ||
             path.equals("/api/employee-registration/apply") ||
-            path.startsWith("/api/categories") ||
-            path.startsWith("/api/category") ||
             path.equals("/error")) {
+            chain.doFilter(request, response);
+            return;
+        }
+        
+        // ✅ Cho phép GET public category endpoints (không cần JWT)
+        if (path.startsWith("/api/categories") && request.getMethod().equals("GET")) {
             chain.doFilter(request, response);
             return;
         }
@@ -85,7 +89,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 if (position != null) {
                     authorities.add(new SimpleGrantedAuthority(position.toString()));
                     System.out.println("✅ User position: " + position.toString());
+                } else {
+                    System.out.println("⚠️ No position found in JWT claims");
                 }
+                
+                System.out.println("🔑 Final authorities: " + authorities);
 
                 userDetails.getAuthorities().forEach(a -> {
                     if (authorities.stream().noneMatch(x -> x.getAuthority().equals(a.getAuthority()))) {

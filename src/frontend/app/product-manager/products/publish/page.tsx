@@ -19,12 +19,11 @@ export default function PublishProductPage() {
   const [showPublishModal, setShowPublishModal] = useState(false)
   const [publishForm, setPublishForm] = useState({
     warehouseProductId: 0,
-    displayName: '',
+    name: '',
     description: '',
     price: 0,
     categoryId: 0,
-    imageUrl: '',
-    active: true
+    imageUrl: ''
   })
 
   useEffect(() => {
@@ -72,12 +71,11 @@ export default function PublishProductPage() {
     setSelectedProduct(product)
     setPublishForm({
       warehouseProductId: product.id,
-      displayName: product.internalName || '',
+      name: product.internalName || '',
       description: product.description || '',
       price: 0,
       categoryId: 0,
-      imageUrl: '',
-      active: true
+      imageUrl: ''
     })
     setShowPublishModal(true)
   }
@@ -85,7 +83,7 @@ export default function PublishProductPage() {
   const handleSubmitPublish = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!publishForm.displayName || !publishForm.price || !publishForm.categoryId) {
+    if (!publishForm.name || !publishForm.price || !publishForm.categoryId) {
       toast.error('Vui lòng điền đầy đủ thông tin')
       return
     }
@@ -175,7 +173,33 @@ export default function PublishProductPage() {
                   </div>
 
                   {product.description && (
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-2 min-h-[40px]">{product.description}</p>
+                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">{product.description}</p>
+                  )}
+                  
+                  {/* Thông số kỹ thuật */}
+                  {product.techSpecsJson && (
+                    <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <p className="text-xs font-semibold text-gray-700 mb-2">📋 Thông số kỹ thuật:</p>
+                      <div className="space-y-1">
+                        {(() => {
+                          try {
+                            const specs = typeof product.techSpecsJson === 'string' 
+                              ? JSON.parse(product.techSpecsJson) 
+                              : product.techSpecsJson;
+                            return Object.entries(specs).slice(0, 3).map(([key, value]: [string, any]) => (
+                              <div key={key} className="flex justify-between text-xs">
+                                <span className="text-gray-600">{key}:</span>
+                                <span className="font-medium text-gray-900 truncate ml-2">
+                                  {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                </span>
+                              </div>
+                            ));
+                          } catch (e) {
+                            return <span className="text-xs text-gray-400">Không có thông số</span>;
+                          }
+                        })()}
+                      </div>
+                    </div>
                   )}
                   
                   {product.isPublished ? (
@@ -208,12 +232,12 @@ export default function PublishProductPage() {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Tên hiển thị <span className="text-red-500">*</span>
+                        Tên sản phẩm <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
-                        value={publishForm.displayName}
-                        onChange={(e) => setPublishForm({...publishForm, displayName: e.target.value})}
+                        value={publishForm.name}
+                        onChange={(e) => setPublishForm({...publishForm, name: e.target.value})}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                         required
                       />
@@ -275,18 +299,37 @@ export default function PublishProductPage() {
                       />
                     </div>
 
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id="active"
-                        checked={publishForm.active}
-                        onChange={(e) => setPublishForm({...publishForm, active: e.target.checked})}
-                        className="w-4 h-4 text-red-500 border-gray-300 rounded focus:ring-red-500"
-                      />
-                      <label htmlFor="active" className="ml-2 text-sm text-gray-700">
-                        Kích hoạt ngay
-                      </label>
-                    </div>
+                    {/* Hiển thị thông số kỹ thuật từ WarehouseProduct */}
+                    {selectedProduct?.techSpecsJson && (
+                      <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                        <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
+                          <span className="mr-2">📋</span>
+                          Thông số kỹ thuật (từ kho)
+                        </h3>
+                        <div className="grid grid-cols-2 gap-3 max-h-60 overflow-y-auto">
+                          {(() => {
+                            try {
+                              const specs = typeof selectedProduct.techSpecsJson === 'string' 
+                                ? JSON.parse(selectedProduct.techSpecsJson) 
+                                : selectedProduct.techSpecsJson;
+                              return Object.entries(specs).map(([key, value]: [string, any]) => (
+                                <div key={key} className="bg-white p-2 rounded border border-gray-200">
+                                  <p className="text-xs text-gray-600 mb-1">{key}</p>
+                                  <p className="text-sm font-medium text-gray-900">
+                                    {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
+                                  </p>
+                                </div>
+                              ));
+                            } catch (e) {
+                              return <p className="text-sm text-gray-500 col-span-2">Không có thông số kỹ thuật</p>;
+                            }
+                          })()}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-3">
+                          ℹ️ Thông số này sẽ tự động được liên kết với sản phẩm khi đăng bán
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex space-x-4 mt-6">

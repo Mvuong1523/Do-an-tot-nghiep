@@ -50,7 +50,7 @@ export default function HomePage() {
 
   const filteredProducts = products.filter(product => {
     const matchSearch = product.name?.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchCategory = !selectedCategory || product.category?.id?.toString() === selectedCategory
+    const matchCategory = !selectedCategory || product.categoryId?.toString() === selectedCategory
     return matchSearch && matchCategory
   })
 
@@ -66,88 +66,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <Link href="/" className="flex items-center space-x-2">
-              <div className="w-10 h-10 bg-red-500 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-xl">TM</span>
-              </div>
-              <span className="text-xl font-bold text-gray-900">TechMart</span>
-            </Link>
-
-            {/* Search Bar - Desktop */}
-            <div className="hidden md:flex flex-1 max-w-2xl mx-8">
-              <div className="relative w-full">
-                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Tìm kiếm sản phẩm..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                />
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center space-x-4">
-              {user ? (
-                <>
-                  <Link href="/cart" className="relative p-2 hover:bg-gray-100 rounded-lg">
-                    <FiShoppingCart size={24} />
-                    <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                      0
-                    </span>
-                  </Link>
-                  <Link href="/profile" className="hidden md:block">
-                    <div className="flex items-center space-x-2 px-4 py-2 hover:bg-gray-100 rounded-lg">
-                      <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
-                        <span className="text-white text-sm font-semibold">
-                          {user.fullName?.charAt(0) || user.email?.charAt(0)}
-                        </span>
-                      </div>
-                      <span className="text-sm font-medium">{user.fullName || user.email}</span>
-                    </div>
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <Link href="/login" className="hidden md:block px-4 py-2 text-gray-700 hover:text-red-500">
-                    Đăng nhập
-                  </Link>
-                  <Link href="/register" className="hidden md:block px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
-                    Đăng ký
-                  </Link>
-                </>
-              )}
-              <button
-                onClick={() => setShowMobileMenu(!showMobileMenu)}
-                className="md:hidden p-2 hover:bg-gray-100 rounded-lg"
-              >
-                <FiMenu size={24} />
-              </button>
-            </div>
-          </div>
-
-          {/* Search Bar - Mobile */}
-          <div className="md:hidden pb-4">
-            <div className="relative">
-              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Tìm kiếm sản phẩm..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-              />
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="bg-gray-50">
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">

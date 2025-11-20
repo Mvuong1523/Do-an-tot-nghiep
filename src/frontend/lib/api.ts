@@ -167,6 +167,89 @@ export const categoryApi = {
       throw new Error(error.response?.data?.message || 'Lỗi khi lấy thông tin danh mục')
     }
   },
+
+  getActiveCategories: async (): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await apiClient.get('/categories/active')
+      console.log('Active categories response:', response)
+      
+      if (response.data && response.data.data) {
+        return {
+          success: true,
+          data: Array.isArray(response.data.data) ? response.data.data : [],
+        }
+      }
+      
+      return {
+        success: true,
+        data: Array.isArray(response.data) ? response.data : [],
+      }
+    } catch (error: any) {
+      console.error('Active categories error:', error)
+      return {
+        success: false,
+        data: [],
+        error: error.message,
+      }
+    }
+  },
+
+  getCategoriesTree: async (): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await apiClient.get('/categories/tree')
+      console.log('Categories tree response:', response)
+      
+      if (response.data && response.data.data) {
+        return {
+          success: true,
+          data: Array.isArray(response.data.data) ? response.data.data : [],
+        }
+      }
+      
+      return {
+        success: true,
+        data: Array.isArray(response.data) ? response.data : [],
+      }
+    } catch (error: any) {
+      console.error('Categories tree error:', error)
+      return {
+        success: false,
+        data: [],
+        error: error.message,
+      }
+    }
+  },
+
+  create: async (data: any): Promise<ApiResponse<any>> => {
+    try {
+      console.log('🔑 Creating category with token:', localStorage.getItem('auth_token')?.substring(0, 20) + '...')
+      const response = await apiClient.post('/categories', data)
+      return response.data
+    } catch (error: any) {
+      console.error('❌ Category create error:', error.response?.data)
+      console.error('❌ Status:', error.response?.status)
+      console.error('❌ Headers:', error.response?.headers)
+      throw new Error(error.response?.data?.message || error.response?.data?.error || 'Lỗi khi tạo danh mục')
+    }
+  },
+
+  update: async (id: number, data: any): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.put(`/categories/${id}`, data)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi cập nhật danh mục')
+    }
+  },
+
+  delete: async (id: number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.delete(`/categories/${id}`)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi xóa danh mục')
+    }
+  },
 }
 
 // Product API

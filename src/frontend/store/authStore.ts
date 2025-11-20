@@ -26,6 +26,7 @@ export const useAuthStore = create<AuthStore>((set: any) => ({
   logout: () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('auth_token')
+      localStorage.removeItem('token')
     }
     set({ user: null, isAuthenticated: false, token: null })
   },
@@ -33,6 +34,7 @@ export const useAuthStore = create<AuthStore>((set: any) => ({
   setAuth: (user: User, token: string) => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('auth_token', token)
+      localStorage.setItem('token', token) // Lưu cả 2 key để tương thích
     }
     set({ user, token, isAuthenticated: true })
   },

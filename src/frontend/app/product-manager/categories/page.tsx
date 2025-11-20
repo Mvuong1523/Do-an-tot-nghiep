@@ -27,12 +27,16 @@ export default function CategoriesPage() {
   })
 
   useEffect(() => {
+    console.log('🔍 Auth Check:', { isAuthenticated, user })
+    
     if (!isAuthenticated) {
       toast.error('Vui lòng đăng nhập')
       router.push('/login')
       return
     }
 
+    console.log('👤 User role:', user?.role)
+    
     if (user?.role !== 'PRODUCT_MANAGER' && user?.role !== 'ADMIN') {
       toast.error('Chỉ quản lý sản phẩm mới có quyền truy cập')
       router.push('/')
@@ -44,7 +48,7 @@ export default function CategoriesPage() {
 
   const loadCategories = async () => {
     try {
-      const response = await categoryApi.getTree()
+      const response = await categoryApi.getAll()
       setCategories(response.data || [])
     } catch (error) {
       console.error('Error loading categories:', error)
@@ -89,33 +93,24 @@ export default function CategoriesPage() {
     }
 
     try {
-      const url = editingCategory 
-        ? `/api/categories/${editingCategory.id}`
-        : '/api/categories'
+      console.log('📤 Submitting category:', form)
       
-      const method = editingCategory ? 'PUT' : 'POST'
-      
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(form)
-      })
+      const response = editingCategory 
+        ? await categoryApi.update(editingCategory.id, form)
+        : await categoryApi.create(form)
 
-      const data = await response.json()
+      console.log('📥 Response:', response)
 
-      if (data.success) {
+      if (response.success) {
         toast.success(editingCategory ? 'Cập nhật danh mục thành công!' : 'Tạo danh mục thành công!')
         setShowModal(false)
         loadCategories()
       } else {
-        toast.error(data.message || 'Có lỗi xảy ra')
+        toast.error(response.message || 'Có lỗi xảy ra')
       }
-    } catch (error) {
-      console.error('Error saving category:', error)
-      toast.error('Lỗi khi lưu danh mục')
+    } catch (error: any) {
+      console.error('❌ Error saving category:', error)
+      toast.error(error.message || 'Lỗi khi lưu danh mục')
     }
   }
 
@@ -123,24 +118,17 @@ export default function CategoriesPage() {
     if (!confirm('Bạn có chắc chắn muốn xóa danh mục này?')) return
 
     try {
-      const response = await fetch(`/api/categories/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      })
+      const response = await categoryApi.delete(id)
 
-      const data = await response.json()
-
-      if (data.success) {
+      if (response.success) {
         toast.success('Xóa danh mục thành công!')
         loadCategories()
       } else {
-        toast.error(data.message || 'Có lỗi xảy ra')
+        toast.error(response.message || 'Có lỗi xảy ra')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting category:', error)
-      toast.error('Lỗi khi xóa danh mục')
+      toast.error(error.message || 'Lỗi khi xóa danh mục')
     }
   }
 

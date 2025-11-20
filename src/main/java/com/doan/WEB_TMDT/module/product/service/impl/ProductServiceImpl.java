@@ -64,21 +64,24 @@ public class ProductServiceImpl implements ProductService {
                 .description(product.getDescription())
                 .imageUrl(product.getImageUrl())
                 .stockQuantity(product.getStockQuantity())
+                .categoryId(product.getCategory() != null ? product.getCategory().getId() : null)
                 .categoryName(product.getCategory() != null ? product.getCategory().getName() : null)
                 .build();
 
-        // Lấy specifications từ WarehouseProduct
-        if (product.getWarehouseProduct() != null && 
-            product.getWarehouseProduct().getSpecifications() != null) {
-            
-            Map<String, String> specs = product.getWarehouseProduct()
-                    .getSpecifications()
-                    .stream()
-                    .collect(Collectors.toMap(
-                            ProductSpecification::getSpecKey,
-                            ProductSpecification::getSpecValue
-                    ));
-            dto.setSpecifications(specs);
+        // Lấy specifications từ techSpecsJson của Product
+        if (product.getTechSpecsJson() != null && !product.getTechSpecsJson().isEmpty()) {
+            try {
+                // Parse JSON string thành Map
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                @SuppressWarnings("unchecked")
+                Map<String, String> specs = mapper.readValue(
+                    product.getTechSpecsJson(), 
+                    Map.class
+                );
+                dto.setSpecifications(specs);
+            } catch (Exception e) {
+                System.err.println("Error parsing techSpecsJson: " + e.getMessage());
+            }
         }
 
         return dto;
@@ -200,6 +203,7 @@ public class ProductServiceImpl implements ProductService {
                 .category(category)
                 .warehouseProduct(warehouseProduct)
                 .stockQuantity(stockQuantity)
+                .techSpecsJson(warehouseProduct.getTechSpecsJson()) // Copy thông số từ WarehouseProduct
                 .build();
 
         // 6. Lưu Product

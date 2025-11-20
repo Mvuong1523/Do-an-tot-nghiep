@@ -1,0 +1,22 @@
+### Test login với tài khoản Product Manager
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "product@example.com",
+  "password": "your_password"
+}
+
+### Test tạo category (cần PRODUCT_MANAGER hoặc ADMIN)
+POST http://localhost:8080/api/categories
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "name": "Test Category",
+  "description": "Test description",
+  "active": true
+}
+
+### Test lấy danh sách categories (public)
+GET http://localhost:8080/api/categories
