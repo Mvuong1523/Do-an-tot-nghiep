@@ -566,4 +566,4 @@ products      products        purchase_      orders
 - Export: Đỏ nhạt (#FFCDD2)
 - Shopping: Tím nhạt (#F3E5F5)
 - Orders: Xanh ngọc nhạt (#E0F2F1)
-- Payments: Hồng nhạt (#FCE4EC)
+- Payments: Hồng nhạt (#FCE4EC
