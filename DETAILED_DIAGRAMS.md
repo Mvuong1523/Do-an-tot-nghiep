@@ -776,40 +776,40 @@ classDiagram
 ## 6. Sơ Đồ Triển Khai (Deployment Diagram)
 
 ```mermaid
-graph TB
-    subgraph "Client Devices"
+flowchart TB
+    subgraph Client["Client Devices"]
         Browser[Web Browser]
         Mobile[Mobile Browser]
     end
     
-    subgraph "CDN / Load Balancer"
+    subgraph LBLayer["CDN / Load Balancer"]
         LB[Nginx Load Balancer]
     end
     
-    subgraph "Frontend Servers"
-        FE1[Next.js Server 1<br/>Node.js 18<br/>Port 3000]
-        FE2[Next.js Server 2<br/>Node.js 18<br/>Port 3000]
+    subgraph FEServers["Frontend Servers"]
+        FE1["Next.js Server 1<br/>Node.js 18<br/>Port 3000"]
+        FE2["Next.js Server 2<br/>Node.js 18<br/>Port 3000"]
     end
     
-    subgraph "Backend Servers"
-        BE1[Spring Boot App 1<br/>Java 17<br/>Port 8080]
-        BE2[Spring Boot App 2<br/>Java 17<br/>Port 8080]
+    subgraph BEServers["Backend Servers"]
+        BE1["Spring Boot App 1<br/>Java 17<br/>Port 8080"]
+        BE2["Spring Boot App 2<br/>Java 17<br/>Port 8080"]
     end
     
-    subgraph "Database Cluster"
-        DBM[(MySQL Master<br/>Port 3306)]
-        DBS[(MySQL Slave<br/>Port 3306)]
+    subgraph DBCluster["Database Cluster"]
+        DBM[("MySQL Master<br/>Port 3306")]
+        DBS[("MySQL Slave<br/>Port 3306")]
     end
     
-    subgraph "Cache Layer"
-        Redis[Redis Cluster<br/>Port 6379]
+    subgraph CacheLayer["Cache Layer"]
+        Redis["Redis Cluster<br/>Port 6379"]
     end
     
-    subgraph "External Services"
-        SePay[SePay API<br/>Payment Gateway]
-        GHTK[GHTK API<br/>Shipping Service]
-        Cloudinary[Cloudinary<br/>Image Storage]
-        SMTP[SMTP Server<br/>Email Service]
+    subgraph External["External Services"]
+        SePay["SePay API<br/>Payment Gateway"]
+        GHTK["GHTK API<br/>Shipping Service"]
+        Cloudinary["Cloudinary<br/>Image Storage"]
+        SMTP["SMTP Server<br/>Email Service"]
     end
     
     Browser --> LB
@@ -849,8 +849,8 @@ graph TB
 ### 7.1 Backend Components
 
 ```mermaid
-graph TB
-    subgraph "Presentation Layer"
+flowchart TB
+    subgraph Presentation["Presentation Layer"]
         AuthCtrl[AuthController]
         ProdCtrl[ProductController]
         CartCtrl[CartController]
@@ -859,12 +859,12 @@ graph TB
         InvCtrl[InventoryController]
     end
     
-    subgraph "Security Layer"
+    subgraph Security["Security Layer"]
         JWTFilter[JWT Authentication Filter]
         SecConfig[Security Configuration]
     end
     
-    subgraph "Business Logic Layer"
+    subgraph Business["Business Logic Layer"]
         AuthSvc[AuthService]
         UserSvc[UserService]
         ProdSvc[ProductService]
@@ -876,7 +876,7 @@ graph TB
         SupSvc[SupplierService]
     end
     
-    subgraph "Data Access Layer"
+    subgraph DataAccess["Data Access Layer"]
         UserRepo[UserRepository]
         CustRepo[CustomerRepository]
         EmpRepo[EmployeeRepository]
@@ -889,7 +889,7 @@ graph TB
         SupRepo[SupplierRepository]
     end
     
-    subgraph "External Integration"
+    subgraph External["External Integration"]
         SePay[SePay Client]
         GHTK[GHTK Client]
         Cloud[Cloudinary Client]
@@ -936,8 +936,8 @@ graph TB
 ### 7.2 Frontend Components
 
 ```mermaid
-graph TB
-    subgraph "Pages"
+flowchart TB
+    subgraph Pages["Pages"]
         Home[Home Page]
         Products[Products Page]
         ProductDetail[Product Detail Page]
@@ -949,7 +949,7 @@ graph TB
         WMDash[Warehouse Manager Dashboard]
     end
     
-    subgraph "Components"
+    subgraph Components["Components"]
         Header[Header Component]
         Footer[Footer Component]
         ProductCard[Product Card]
@@ -959,13 +959,13 @@ graph TB
         PaymentQR[Payment QR Code]
     end
     
-    subgraph "State Management"
+    subgraph State["State Management"]
         AuthStore[Auth Store - Zustand]
         CartStore[Cart Store - Zustand]
         ProductStore[Product Store - Zustand]
     end
     
-    subgraph "Services"
+    subgraph Services["Services"]
         API[API Client - Axios]
         AuthService[Auth Service]
         ProductService[Product Service]
@@ -973,7 +973,7 @@ graph TB
         OrderService[Order Service]
     end
     
-    subgraph "Utilities"
+    subgraph Utilities["Utilities"]
         I18n[i18n - Translations]
         Theme[Theme Provider]
         Router[Next.js Router]
@@ -1399,42 +1399,42 @@ flowchart TB
 ## 10. Sơ Đồ Bảo Mật (Security Architecture)
 
 ```mermaid
-graph TB
-    subgraph "Client Layer"
+flowchart TB
+    subgraph ClientLayer["Client Layer"]
         Browser[Browser/Mobile]
     end
     
-    subgraph "Security Gateway"
+    subgraph Gateway["Security Gateway"]
         HTTPS[HTTPS/TLS 1.3]
         CORS[CORS Policy]
         RateLimit[Rate Limiting]
     end
     
-    subgraph "Authentication Layer"
+    subgraph AuthLayer["Authentication Layer"]
         JWTFilter[JWT Filter]
         TokenValidator[Token Validator]
         RefreshToken[Refresh Token Handler]
     end
     
-    subgraph "Authorization Layer"
+    subgraph AuthzLayer["Authorization Layer"]
         RoleCheck[Role-Based Access Control]
         PermCheck[Permission Checker]
         ResourceOwner[Resource Ownership Check]
     end
     
-    subgraph "Application Layer"
+    subgraph AppLayer["Application Layer"]
         Controllers[Controllers]
         Services[Services]
     end
     
-    subgraph "Data Security"
+    subgraph DataSec["Data Security"]
         Encryption[Password Encryption BCrypt]
         SQLInjection[SQL Injection Prevention JPA]
         XSS[XSS Protection]
         CSRF[CSRF Protection]
     end
     
-    subgraph "Audit & Logging"
+    subgraph Audit["Audit & Logging"]
         AuditLog[Audit Logging]
         SecurityLog[Security Event Log]
         ErrorLog[Error Logging]
@@ -1467,30 +1467,30 @@ graph TB
 ## 11. Sơ Đồ Tích Hợp (Integration Diagram)
 
 ```mermaid
-graph TB
-    subgraph "WEB_TMDT System"
+flowchart TB
+    subgraph System["WEB_TMDT System"]
         Backend[Spring Boot Backend]
         Frontend[Next.js Frontend]
     end
     
-    subgraph "Payment Integration"
+    subgraph Payment["Payment Integration"]
         SePay[SePay API]
         SePayWebhook[SePay Webhook Handler]
     end
     
-    subgraph "Shipping Integration"
+    subgraph Shipping["Shipping Integration"]
         GHTK[GHTK API]
         GHTKCalc[Fee Calculator]
         GHTKTrack[Tracking Service]
     end
     
-    subgraph "Storage Integration"
+    subgraph Storage["Storage Integration"]
         Cloudinary[Cloudinary API]
         CloudUpload[Upload Handler]
         CloudTransform[Image Transformation]
     end
     
-    subgraph "Email Integration"
+    subgraph Email["Email Integration"]
         SMTP[SMTP Server]
         EmailTemplate[Email Templates]
         EmailQueue[Email Queue]
