@@ -21,7 +21,7 @@ erDiagram
     
     CUSTOMERS {
         bigint id PK
-        bigint user_id FK_UK
+        bigint user_id FK "UK"
         varchar full_name
         varchar phone UK
         varchar gender
@@ -31,7 +31,7 @@ erDiagram
     
     EMPLOYEES {
         bigint id PK
-        bigint user_id FK_UK
+        bigint user_id FK "UK"
         enum position
         varchar full_name
         varchar phone
@@ -87,7 +87,7 @@ erDiagram
         varchar image_url
         bigint stock_quantity
         text tech_specs_json
-        bigint warehouse_product_id FK_UK
+        bigint warehouse_product_id FK "UK"
     }
     
     %% ==================== INVENTORY MODULE ====================
@@ -128,7 +128,7 @@ erDiagram
     
     INVENTORY_STOCK {
         bigint id PK
-        bigint warehouse_product_id FK_UK
+        bigint warehouse_product_id FK "UK"
         bigint on_hand
         bigint reserved
         bigint damaged
@@ -205,7 +205,7 @@ erDiagram
     
     CARTS {
         bigint id PK
-        bigint user_id FK_UK
+        bigint user_id FK "UK"
         timestamp created_at
         timestamp updated_at
     }
@@ -267,7 +267,7 @@ erDiagram
     PAYMENTS {
         bigint id PK
         varchar payment_code UK
-        bigint order_id FK_UK
+        bigint order_id FK "UK"
         bigint user_id FK
         double amount
         enum method
