@@ -52,4 +52,14 @@ public class InventoryController {
 //    public ApiResponse getStocks() {
 //        return inventoryService.getStocks();
 //    }
+    @PostMapping("/export/sale")
+    public ApiResponse exportForSale(@RequestBody ExportInventoryRequest req) {
+        return inventoryService.exportForSale(req);
+    }
+
+    @PostMapping("/export/warranty")
+    public ApiResponse exportForWarranty(@RequestBody WarrantyExportRequest req) {
+        return inventoryService.exportForWarranty(req);
+    }
+
 }

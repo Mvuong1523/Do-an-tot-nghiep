@@ -2,12 +2,13 @@ package com.doan.WEB_TMDT.module.inventory.service.impl;
 
 import com.doan.WEB_TMDT.common.dto.ApiResponse;
 import com.doan.WEB_TMDT.module.inventory.dto.*;
+
+// ❌ Dòng này đã bị xóa/thay thế vì nó xung đột với ProductDetail của Product module:
+// import com.doan.WEB_TMDT.module.inventory.entity.ProductDetail;
+// Giữ lại
 import com.doan.WEB_TMDT.module.inventory.entity.*;
 import com.doan.WEB_TMDT.module.inventory.repository.*;
 import com.doan.WEB_TMDT.module.inventory.service.InventoryService;
-// ❌ Dòng này đã bị xóa/thay thế vì nó xung đột với ProductDetail của Product module:
-// import com.doan.WEB_TMDT.module.inventory.entity.ProductDetail;
-import com.doan.WEB_TMDT.module.inventory.entity.ProductStatus; // Giữ lại
 
 // 💡 Thêm import entity ProductDetail đúng từ Product module
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,7 @@ public class InventoryServiceImpl implements InventoryService {
     private final ProductDetailRepository productDetailRepository;
     private final InventoryStockRepository inventoryStockRepository;
     private final SupplierRepository supplierRepository;
+    private final ExportOrderItemRepository exportOrderItemRepository;
     private String generateExportCode() {
         return "PX" + LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE)
                 + "-" + String.format("%03d", new Random().nextInt(999));
@@ -312,5 +314,140 @@ public class InventoryServiceImpl implements InventoryService {
 
         return ApiResponse.success("Xuất kho thành công!", exportOrder.getExportCode());
     }
+    @Override
+    @Transactional
+    public ApiResponse exportForSale(ExportInventoryRequest req) {
+
+        if (req.getItems() == null || req.getItems().isEmpty()) {
+            return ApiResponse.error("Danh sách sản phẩm xuất không được để trống");
+        }
+
+        // Tạo phiếu xuất
+        ExportOrder exportOrder = ExportOrder.builder()
+                .exportCode("EX-SALE-" + System.currentTimeMillis())
+                .status(ExportStatus.COMPLETED)
+                .reason("SALE")
+                .note(req.getNote())
+                .createdBy(req.getCreatedBy())
+                .exportDate(LocalDateTime.now())
+                .build();
+
+        List<ExportOrderItem> orderItems = new ArrayList<>();
+
+        for (ExportItemRequest itemReq : req.getItems()) {
+
+            // Tìm warehouseProduct bằng SKU
+            WarehouseProduct wp = warehouseProductRepository.findBySku(itemReq.getProductSku())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy SKU: " + itemReq.getProductSku()));
+
+            // Lấy tồn kho
+            InventoryStock stock = inventoryStockRepository.findByWarehouseProduct_Id(wp.getId())
+                    .orElseThrow(() -> new RuntimeException("Không có tồn kho cho SKU: " + wp.getSku()));
+
+            int exportCount = itemReq.getSerialNumbers().size();
+
+            if (stock.getOnHand() < exportCount) {
+                return ApiResponse.error("Không đủ tồn kho cho SKU: " + wp.getSku());
+            }
+
+            double totalCost = 0;
+
+            // Xử lý từng serial
+            for (String serial : itemReq.getSerialNumbers()) {
+
+                ProductDetail pd = productDetailRepository.findBySerialNumber(serial)
+                        .orElseThrow(() -> new RuntimeException("Serial không tồn tại: " + serial));
+
+                if (pd.getStatus() != ProductStatus.IN_STOCK) {
+                    return ApiResponse.error("Serial " + serial + " không ở trạng thái IN_STOCK");
+                }
+
+                // Cập nhật trạng thái
+                pd.setStatus(ProductStatus.SOLD);
+                pd.setSoldDate(LocalDateTime.now());
+                productDetailRepository.save(pd);
+
+                totalCost += pd.getImportPrice();
+            }
+
+            // Cập nhật tồn kho
+            stock.setOnHand(stock.getOnHand() - exportCount);
+            inventoryStockRepository.save(stock);
+
+            // Ghi dòng xuất kho
+            ExportOrderItem exportItem = ExportOrderItem.builder()
+                    .exportOrder(exportOrder)
+                    .warehouseProduct(wp)
+                    .sku(wp.getSku())
+                    .quantity((long) exportCount)
+                    .serialNumbers(String.join(",", itemReq.getSerialNumbers()))
+                    .totalCost(totalCost)
+                    .build();
+
+            orderItems.add(exportItem);
+        }
+
+        exportOrder.setItems(orderItems);
+        exportOrderRepository.save(exportOrder);
+
+        return ApiResponse.success("Xuất kho bán hàng thành công", exportOrder.getExportCode());
+    }
+
+
+    @Override
+    @Transactional
+    public ApiResponse exportForWarranty(WarrantyExportRequest req) {
+
+        ProductDetail pd = productDetailRepository.findById(req.getProductDetailId())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy serial cần bảo hành"));
+
+        if (pd.getStatus() != ProductStatus.IN_STOCK &&
+            pd.getStatus() != ProductStatus.SOLD) {
+            return ApiResponse.error("Serial không thể xuất bảo hành");
+        }
+
+        WarehouseProduct wp = pd.getWarehouseProduct();
+
+        InventoryStock stock = inventoryStockRepository.findByWarehouseProduct_Id(wp.getId())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tồn kho"));
+
+        if (stock.getOnHand() <= 0) {
+            return ApiResponse.error("Không còn hàng trong kho");
+        }
+
+        // Cập nhật trạng thái serial
+        pd.setStatus(ProductStatus.WARRANTY);
+        productDetailRepository.save(pd);
+
+        // Trừ kho
+        stock.setOnHand(stock.getOnHand() - 1);
+        inventoryStockRepository.save(stock);
+
+        // Tạo phiếu xuất
+        ExportOrder exportOrder = ExportOrder.builder()
+                .exportCode("EX-WARRANTY-" + System.currentTimeMillis())
+                .status(ExportStatus.COMPLETED)
+                .reason("WARRANTY")
+                .note(req.getNote())
+                .exportDate(LocalDateTime.now())
+                .build();
+
+        exportOrderRepository.save(exportOrder);
+
+        // Ghi dòng chi tiết
+        ExportOrderItem item = ExportOrderItem.builder()
+                .exportOrder(exportOrder)
+                .warehouseProduct(wp)
+                .sku(wp.getSku())
+                .quantity(1L)
+                .serialNumbers(pd.getSerialNumber())
+                .totalCost(pd.getImportPrice())
+                .build();
+
+        exportOrderItemRepository.save(item);
+
+        return ApiResponse.success("Xuất kho bảo hành thành công", exportOrder.getExportCode());
+    }
+
 
 }
