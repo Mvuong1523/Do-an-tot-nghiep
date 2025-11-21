@@ -1,0 +1,178 @@
+@startuml System_Architecture
+
+!define RECTANGLE class
+
+title Sơ Đồ Kiến Trúc Hệ Thống - WEB_TMDT
+
+skinparam componentStyle rectangle
+skinparam linetype ortho
+
+' Client Layer
+package "Client Layer" #LightBlue {
+    [Web Browser] as Browser
+    [Mobile Browser] as Mobile
+}
+
+' Load Balancer
+package "Load Balancer" #LightGreen {
+    [Nginx] as LB
+}
+
+' Frontend Layer
+package "Frontend Layer (Next.js)" #LightYellow {
+    [Next.js Server 1\nNode.js 18\nPort 3000] as FE1
+    [Next.js Server 2\nNode.js 18\nPort 3000] as FE2
+}
+
+' Backend Layer
+package "Backend Layer (Spring Boot)" #LightCoral {
+    package "Controllers" {
+        [Auth Controller] as AuthCtrl
+        [Product Controller] as ProdCtrl
+        [Cart Controller] as CartCtrl
+        [Order Controller] as OrderCtrl
+        [Payment Controller] as PayCtrl
+        [Inventory Controller] as InvCtrl
+    }
+    
+    package "Services" {
+        [Auth Service] as AuthSvc
+        [Product Service] as ProdSvc
+        [Cart Service] as CartSvc
+        [Order Service] as OrderSvc
+        [Payment Service] as PaySvc
+        [Inventory Service] as InvSvc
+    }
+    
+    package "Repositories" {
+        [User Repository] as UserRepo
+        [Product Repository] as ProdRepo
+        [Cart Repository] as CartRepo
+        [Order Repository] as OrderRepo
+        [Payment Repository] as PayRepo
+        [Inventory Repository] as InvRepo
+    }
+    
+    package "Security" {
+        [JWT Filter] as JWT
+        [Security Config] as SecConfig
+    }
+}
+
+' Database Layer
+package "Database Layer" #LightGray {
+    database "MySQL Master\nPort 3306" as DBM
+    database "MySQL Slave\nPort 3306" as DBS
+    database "Redis Cache\nPort 6379" as Redis
+}
+
+' External Services
+package "External Services" #Lavender {
+    [SePay API\nPayment Gateway] as SePay
+    [GHTK API\nShipping Service] as GHTK
+    [Cloudinary\nImage Storage] as Cloud
+    [SMTP Server\nEmail Service] as SMTP
+}
+
+' Connections - Client to Load Balancer
+Browser -down-> LB : HTTPS
+Mobile -down-> LB : HTTPS
+
+' Load Balancer to Frontend
+LB -down-> FE1 : HTTP
+LB -down-> FE2 : HTTP
+
+' Frontend to Backend Controllers
+FE1 -down-> AuthCtrl : REST API
+FE1 -down-> ProdCtrl
+FE1 -down-> CartCtrl
+FE1 -down-> OrderCtrl
+FE1 -down-> PayCtrl
+FE1 -down-> InvCtrl
+
+FE2 -down-> AuthCtrl
+FE2 -down-> ProdCtrl
+FE2 -down-> CartCtrl
+FE2 -down-> OrderCtrl
+FE2 -down-> PayCtrl
+FE2 -down-> InvCtrl
+
+' JWT Filter
+JWT -right-> AuthCtrl : Authenticate
+JWT -right-> ProdCtrl
+JWT -right-> CartCtrl
+JWT -right-> OrderCtrl
+JWT -right-> PayCtrl
+JWT -right-> InvCtrl
+
+' Controllers to Services
+AuthCtrl -down-> AuthSvc
+ProdCtrl -down-> ProdSvc
+CartCtrl -down-> CartSvc
+OrderCtrl -down-> OrderSvc
+PayCtrl -down-> PaySvc
+InvCtrl -down-> InvSvc
+
+' Services to Repositories
+AuthSvc -down-> UserRepo
+ProdSvc -down-> ProdRepo
+CartSvc -down-> CartRepo
+OrderSvc -down-> OrderRepo
+PaySvc -down-> PayRepo
+InvSvc -down-> InvRepo
+
+' Repositories to Database
+UserRepo -down-> DBM : Read/Write
+ProdRepo -down-> DBM
+CartRepo -down-> DBM
+OrderRepo -down-> DBM
+PayRepo -down-> DBM
+InvRepo -down-> DBM
+
+UserRepo -down-> DBS : Read Only
+ProdRepo -down-> DBS
+CartRepo -down-> DBS
+OrderRepo -down-> DBS
+PayRepo -down-> DBS
+InvRepo -down-> DBS
+
+' Database Replication
+DBM -right-> DBS : Replication
+
+' Services to Cache
+AuthSvc -down-> Redis : Session Cache
+CartSvc -down-> Redis
+OrderSvc -down-> Redis
+
+' Services to External APIs
+PaySvc -down-> SePay : Payment API
+OrderSvc -down-> GHTK : Shipping API
+ProdSvc -down-> Cloud : Upload Images
+InvSvc -down-> Cloud : Upload Images
+AuthSvc -down-> SMTP : Send Email
+OrderSvc -down-> SMTP : Send Email
+
+note right of JWT
+  JWT Authentication
+  Role-Based Access Control
+  - ADMIN
+  - PRODUCT_MANAGER
+  - WAREHOUSE_MANAGER
+  - CUSTOMER
+end note
+
+note bottom of DBM
+  Master-Slave Replication
+  Master: Read/Write
+  Slave: Read Only
+end note
+
+note bottom of SePay
+  Payment Flow:
+  1. Create Payment
+  2. Generate QR Code
+  3. Webhook Notification
+  4. Update Order Status
+end note
+
+@enduml

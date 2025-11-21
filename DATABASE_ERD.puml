@@ -1,0 +1,364 @@
+@startuml Complete_Database_ERD
+
+!define TABLE entity
+!define PK <color:red><b>PK</b></color>
+!define FK <color:blue><b>FK</b></color>
+!define UK <color:green><b>UK</b></color>
+
+title Sơ Đồ ERD Đầy Đủ - WEB_TMDT Database
+
+skinparam linetype ortho
+
+' ==================== AUTH MODULE ====================
+
+TABLE users {
+    PK id : BIGINT
+    UK email : VARCHAR(255)
+    password : VARCHAR(255)
+    role : ENUM
+    status : ENUM
+    created_at : TIMESTAMP
+}
+
+TABLE customers {
+    PK id : BIGINT
+    FK UK user_id : BIGINT
+    full_name : VARCHAR(255)
+    UK phone : VARCHAR(20)
+    gender : VARCHAR(10)
+    birth_date : DATE
+    address : TEXT
+}
+
+TABLE employees {
+    PK id : BIGINT
+    FK UK user_id : BIGINT
+    position : ENUM
+    full_name : VARCHAR(255)
+    phone : VARCHAR(20)
+    address : TEXT
+    first_login : BOOLEAN
+}
+
+TABLE employee_registrations {
+    PK id : BIGINT
+    UK email : VARCHAR(255)
+    full_name : VARCHAR(255)
+    phone : VARCHAR(20)
+    position : ENUM
+    status : ENUM
+    created_at : TIMESTAMP
+    FK approved_by : BIGINT
+    approved_at : TIMESTAMP
+    FK employee_id : BIGINT
+}
+
+TABLE otp_verifications {
+    PK id : BIGINT
+    FK user_id : BIGINT
+    email : VARCHAR(255)
+    otp_code : VARCHAR(6)
+    created_at : TIMESTAMP
+    expires_at : TIMESTAMP
+    verified : BOOLEAN
+}
+
+' ==================== PRODUCT MODULE ====================
+
+TABLE categories {
+    PK id : BIGINT
+    name : VARCHAR(255)
+    UK slug : VARCHAR(255)
+    description : TEXT
+    image_url : VARCHAR(500)
+    display_order : INT
+    active : BOOLEAN
+    FK parent_id : BIGINT
+}
+
+TABLE products {
+    PK id : BIGINT
+    FK category_id : BIGINT
+    name : VARCHAR(255)
+    price : DOUBLE
+    UK sku : VARCHAR(255)
+    description : TEXT
+    image_url : VARCHAR(500)
+    stock_quantity : BIGINT
+    tech_specs_json : TEXT
+    FK product_detail_id : BIGINT
+    FK UK warehouse_product_id : BIGINT
+}
+
+' ==================== INVENTORY MODULE ====================
+
+TABLE warehouse_products {
+    PK id : BIGINT
+    UK sku : VARCHAR(64)
+    internal_name : VARCHAR(255)
+    tech_specs_json : TEXT
+    description : TEXT
+    FK supplier_id : BIGINT
+    last_import_date : TIMESTAMP
+}
+
+TABLE product_details {
+    PK id : BIGINT
+    FK warehouse_product_id : BIGINT
+    UK serial_number : VARCHAR(255)
+    status : ENUM
+    import_date : TIMESTAMP
+    import_price : DOUBLE
+    FK purchase_order_id : BIGINT
+    FK export_order_id : BIGINT
+    notes : TEXT
+}
+
+TABLE inventory_stock {
+    PK id : BIGINT
+    FK UK warehouse_product_id : BIGINT
+    on_hand : BIGINT
+    reserved : BIGINT
+    damaged : BIGINT
+    last_audit_date : DATE
+}
+
+TABLE product_specifications {
+    PK id : BIGINT
+    FK warehouse_product_id : BIGINT
+    spec_key : VARCHAR(100)
+    spec_value : VARCHAR(500)
+}
+
+TABLE warehouse_product_images {
+    PK id : BIGINT
+    FK warehouse_product_id : BIGINT
+    image_url : VARCHAR(500)
+    display_order : INT
+}
+
+TABLE suppliers {
+    PK id : BIGINT
+    auto_created : BOOLEAN
+    name : VARCHAR(255)
+    contact_name : VARCHAR(255)
+    phone : VARCHAR(20)
+    email : VARCHAR(255)
+    address : TEXT
+    UK tax_code : VARCHAR(50)
+    bank_account : VARCHAR(50)
+    payment_term : TEXT
+    active : BOOLEAN
+}
+
+TABLE purchase_orders {
+    PK id : BIGINT
+    UK po_code : VARCHAR(50)
+    FK supplier_tax_code : VARCHAR(50)
+    order_date : TIMESTAMP
+    received_date : TIMESTAMP
+    status : ENUM
+    created_by : VARCHAR(255)
+    note : TEXT
+}
+
+TABLE purchase_order_items {
+    PK id : BIGINT
+    FK purchase_order_id : BIGINT
+    FK warehouse_product_id : BIGINT
+    quantity : INT
+    unit_price : DOUBLE
+}
+
+TABLE export_orders {
+    PK id : BIGINT
+    UK export_code : VARCHAR(50)
+    export_date : TIMESTAMP
+    created_by : VARCHAR(255)
+    reason : VARCHAR(255)
+    note : TEXT
+    status : ENUM
+}
+
+TABLE export_order_items {
+    PK id : BIGINT
+    FK export_order_id : BIGINT
+    FK product_detail_id : BIGINT
+}
+
+' ==================== CART MODULE ====================
+
+TABLE carts {
+    PK id : BIGINT
+    FK UK user_id : BIGINT
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+TABLE cart_items {
+    PK id : BIGINT
+    FK cart_id : BIGINT
+    FK product_id : BIGINT
+    quantity : INT
+    price : DOUBLE
+    added_at : TIMESTAMP
+}
+
+' ==================== ORDER MODULE ====================
+
+TABLE orders {
+    PK id : BIGINT
+    UK order_code : VARCHAR(50)
+    FK user_id : BIGINT
+    customer_name : VARCHAR(255)
+    customer_phone : VARCHAR(20)
+    customer_email : VARCHAR(255)
+    shipping_address : TEXT
+    note : TEXT
+    subtotal : DOUBLE
+    shipping_fee : DOUBLE
+    discount : DOUBLE
+    total : DOUBLE
+    payment_status : ENUM
+    FK payment_id : BIGINT
+    paid_at : TIMESTAMP
+    status : ENUM
+    created_at : TIMESTAMP
+    confirmed_at : TIMESTAMP
+    shipped_at : TIMESTAMP
+    delivered_at : TIMESTAMP
+    cancelled_at : TIMESTAMP
+    cancel_reason : TEXT
+}
+
+TABLE order_items {
+    PK id : BIGINT
+    FK order_id : BIGINT
+    FK product_id : BIGINT
+    product_name : VARCHAR(255)
+    product_sku : VARCHAR(255)
+    quantity : INT
+    price : DOUBLE
+    subtotal : DOUBLE
+}
+
+' ==================== PAYMENT MODULE ====================
+
+TABLE payments {
+    PK id : BIGINT
+    UK payment_code : VARCHAR(50)
+    FK UK order_id : BIGINT
+    FK user_id : BIGINT
+    amount : DOUBLE
+    method : ENUM
+    status : ENUM
+    sepay_transaction_id : VARCHAR(255)
+    sepay_bank_code : VARCHAR(50)
+    sepay_account_number : VARCHAR(50)
+    sepay_account_name : VARCHAR(255)
+    sepay_content : VARCHAR(500)
+    sepay_qr_code : VARCHAR(500)
+    sepay_response : TEXT
+    created_at : TIMESTAMP
+    paid_at : TIMESTAMP
+    expired_at : TIMESTAMP
+    failure_reason : TEXT
+}
+
+' ==================== RELATIONSHIPS ====================
+
+' Auth Module Relationships
+users ||--o| customers : "1:1"
+users ||--o| employees : "1:1"
+users ||--o{ otp_verifications : "1:N"
+employees ||--o{ employee_registrations : "1:N"
+
+' Product Module Relationships
+categories ||--o{ categories : "parent-child\n1:N"
+categories ||--o{ products : "1:N"
+
+' Product-Inventory Relationships
+products }o--|| warehouse_products : "N:1"
+warehouse_products ||--o{ product_details : "1:N"
+warehouse_products ||--|| inventory_stock : "1:1"
+warehouse_products ||--o{ product_specifications : "1:N"
+warehouse_products ||--o{ warehouse_product_images : "1:N"
+warehouse_products }o--|| suppliers : "N:1"
+
+' Purchase Order Relationships
+suppliers ||--o{ purchase_orders : "1:N"
+purchase_orders ||--o{ purchase_order_items : "1:N"
+purchase_order_items }o--|| warehouse_products : "N:1"
+product_details }o--o| purchase_orders : "N:1"
+
+' Export Order Relationships
+export_orders ||--o{ export_order_items : "1:N"
+export_order_items }o--|| product_details : "N:1"
+
+' Cart Relationships
+users ||--|| carts : "1:1"
+carts ||--o{ cart_items : "1:N"
+cart_items }o--|| products : "N:1"
+
+' Order Relationships
+users ||--o{ orders : "1:N"
+orders ||--o{ order_items : "1:N"
+order_items }o--|| products : "N:1"
+
+' Payment Relationships
+orders ||--o| payments : "1:1"
+users ||--o{ payments : "1:N"
+
+note top of users
+  **AUTH MODULE**
+  Quản lý người dùng, phân quyền
+  Roles: ADMIN, PRODUCT_MANAGER,
+  WAREHOUSE_MANAGER, CUSTOMER
+end note
+
+note top of categories
+  **PRODUCT MODULE**
+  Quản lý danh mục & sản phẩm
+  Hỗ trợ phân cấp danh mục
+end note
+
+note top of warehouse_products
+  **INVENTORY MODULE**
+  Quản lý kho hàng, serial tracking
+  Purchase Order, Export Order
+  Inventory Stock Management
+end note
+
+note top of carts
+  **CART MODULE**
+  Giỏ hàng của khách hàng
+  1 User - 1 Cart
+end note
+
+note top of orders
+  **ORDER MODULE**
+  Quản lý đơn hàng
+  Status: PENDING → CONFIRMED →
+  PROCESSING → SHIPPING → DELIVERED
+end note
+
+note top of payments
+  **PAYMENT MODULE**
+  Tích hợp SePay
+  QR Code Payment
+  Webhook Handler
+end note
+
+note bottom of inventory_stock
+  **Công thức tính:**
+  sellable = on_hand - reserved - damaged
+  available = on_hand - reserved
+end note
+
+note bottom of product_details
+  **Serial Tracking:**
+  Status: IN_STOCK, RESERVED,
+  SOLD, DAMAGED, RETURNED
+end note
+
+@enduml
