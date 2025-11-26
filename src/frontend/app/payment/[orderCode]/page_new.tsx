@@ -2,11 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { FiCheckCircle, FiClock, FiCopy, FiRefreshCw, FiX } from 'react-icons/fi'
+import { FiCheckCircle, FiClock, FiCopy, FiRefreshCw } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/store/authStore'
-import { orderApi } from '@/lib/api'
 
 export default function PaymentPage() {
   const params = useParams()
@@ -14,19 +12,14 @@ export default function PaymentPage() {
   const { isAuthenticated } = useAuthStore()
   
   const [payment, setPayment] = useState<any>(null)
-  const [order, setOrder] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [timeLeft, setTimeLeft] = useState(900) // 15 minutes
   const [checking, setChecking] = useState(false)
-  const [cancelling, setCancelling] = useState(false)
   
   const pollingInterval = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
-    // Check both Zustand state and localStorage token
-    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
-    
-    if (!isAuthenticated && !token) {
+    if (!isAuthenticated) {
       toast.error('Vui lòng đăng nhập')
       router.push('/login')
       return
@@ -58,65 +51,50 @@ export default function PaymentPage() {
 
   const loadPaymentInfo = async () => {
     try {
-      const orderCode = params.orderCode as string
+      const token = localStorage.getItem('token')
       
-      // Load order details first
-      const orderResponse = await fetch(`http://localhost:8080/api/orders/code/${orderCode}`, {
+      // Get order info first
+      const orderResponse = await fetch(`http://localhost:8080/api/orders/code/${params.orderCode}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          'Authorization': `Bearer ${token}`
         }
       })
       
-      if (!orderResponse.ok) {
-        throw new Error('Không thể tải thông tin đơn hàng')
+      const orderResult = await orderResponse.json()
+      console.log('Order result:', orderResult)
+      
+      if (!orderResult.success || !orderResult.data) {
+        toast.error('Không tìm thấy đơn hàng')
+        router.push('/orders')
+        return
       }
       
-      const orderData = await orderResponse.json()
-      console.log('Order data:', orderData)
+      const order = orderResult.data
       
-      if (!orderData.success || !orderData.data) {
-        throw new Error('Không tìm thấy đơn hàng')
-      }
-      
-      setOrder(orderData.data)
-      
-      // Load payment info
-      const paymentResponse = await fetch(`http://localhost:8080/api/payment/order/${orderData.data.orderId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
-      })
-      
-      if (!paymentResponse.ok) {
-        throw new Error('Không thể tải thông tin thanh toán')
-      }
-      
-      const paymentData = await paymentResponse.json()
-      console.log('Payment data:', paymentData)
-      
-      if (paymentData.success && paymentData.data) {
-        setPayment(paymentData.data)
+      // Get payment info if exists
+      if (order.paymentId) {
+        const paymentResponse = await fetch(`http://localhost:8080/api/payment/${order.paymentId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
         
-        // Check if already paid
-        if (paymentData.data.status === 'SUCCESS' || paymentData.data.status === 'PAID' || paymentData.data.status === 'COMPLETED') {
-          console.log('✅ Payment already completed! Redirecting...')
-          setTimeout(() => {
-            router.push(`/orders/${orderCode}?success=true`)
-          }, 1000)
-          return
-        }
+        const paymentResult = await paymentResponse.json()
+        console.log('Payment result:', paymentResult)
         
-        // Calculate time left based on expiredAt
-        if (paymentData.data.expiredAt) {
-          const expiredTime = new Date(paymentData.data.expiredAt).getTime()
-          const now = Date.now()
-          const secondsLeft = Math.max(0, Math.floor((expiredTime - now) / 1000))
-          setTimeLeft(secondsLeft)
+        if (paymentResult.success && paymentResult.data) {
+          setPayment(paymentResult.data)
+          
+          // Calculate time left
+          const expiredAt = new Date(paymentResult.data.expiredAt)
+          const now = new Date()
+          const secondsLeft = Math.floor((expiredAt.getTime() - now.getTime()) / 1000)
+          setTimeLeft(Math.max(0, secondsLeft))
         }
       }
-    } catch (error: any) {
-      console.error('Error loading payment info:', error)
-      toast.error(error.message || 'Lỗi khi tải thông tin thanh toán')
+    } catch (error) {
+      console.error('Error loading payment:', error)
+      toast.error('Lỗi khi tải thông tin thanh toán')
       router.push('/orders')
     } finally {
       setLoading(false)
@@ -135,30 +113,20 @@ export default function PaymentPage() {
 
     setChecking(true)
     try {
-      // No auth needed for status endpoint (public)
       const response = await fetch(`http://localhost:8080/api/payment/${payment.paymentCode}/status`)
+      const result = await response.json()
       
-      if (response.ok) {
-        const data = await response.json()
-        console.log('🔍 Payment status check:', data)
-        console.log('🔍 Current status:', data.data?.status)
-        
-        if (data.success && data.data) {
-          setPayment(data.data)
-          
-          // Check if payment is completed
-          if (data.data.status === 'SUCCESS' || data.data.status === 'PAID' || data.data.status === 'COMPLETED') {
-            console.log('✅ Payment SUCCESS detected! Redirecting...')
-            handlePaymentSuccess()
-          } else {
-            console.log('⏳ Payment still pending:', data.data.status)
-          }
+      console.log('Status check:', result)
+      
+      if (result.success && result.data) {
+        if (result.data.status === 'SUCCESS') {
+          handlePaymentSuccess()
+        } else if (result.data.status === 'EXPIRED') {
+          handleExpired()
         }
-      } else {
-        console.error('❌ Status check failed:', response.status)
       }
     } catch (error) {
-      console.error('❌ Error checking payment status:', error)
+      console.error('Error checking payment status:', error)
     } finally {
       setChecking(false)
     }
@@ -204,54 +172,28 @@ export default function PaymentPage() {
     }).format(price)
   }
 
-  const handleCancelOrder = async () => {
-    if (!order) return
-
-    const confirmed = window.confirm(
-      'Bạn có chắc muốn hủy đơn hàng này?\n\n' +
-      'Đơn hàng sẽ bị hủy và không thể khôi phục.'
-    )
-
-    if (!confirmed) return
-
-    setCancelling(true)
-    try {
-      // Stop polling
-      if (pollingInterval.current) {
-        clearInterval(pollingInterval.current)
-      }
-
-      const response = await fetch(`http://localhost:8080/api/orders/${order.orderId}/cancel?reason=${encodeURIComponent('Khách hàng hủy trong quá trình thanh toán')}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        toast.success('Đã hủy đơn hàng')
-        setTimeout(() => {
-          router.push('/orders')
-        }, 1000)
-      } else {
-        toast.error(data.message || 'Không thể hủy đơn hàng')
-      }
-    } catch (error: any) {
-      console.error('Error cancelling order:', error)
-      toast.error('Lỗi khi hủy đơn hàng')
-    } finally {
-      setCancelling(false)
-    }
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
           <p className="mt-4 text-gray-600">Đang tải...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!payment) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">Không tìm thấy thông tin thanh toán</p>
+          <button
+            onClick={() => router.push('/orders')}
+            className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg"
+          >
+            Về trang đơn hàng
+          </button>
         </div>
       </div>
     )
@@ -264,7 +206,7 @@ export default function PaymentPage() {
           {/* Header */}
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold mb-2">Thanh toán đơn hàng</h1>
-            <p className="text-gray-600">Mã đơn hàng: <span className="font-medium">{order.orderCode}</span></p>
+            <p className="text-gray-600">Mã đơn hàng: <span className="font-medium">{params.orderCode}</span></p>
           </div>
 
           {/* Timer */}
@@ -322,7 +264,7 @@ export default function PaymentPage() {
                 <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                   <div>
                     <div className="text-sm text-gray-600">Ngân hàng</div>
-                    <div className="font-medium">{payment.bankCode} - Vietcombank</div>
+                    <div className="font-medium">{payment.bankCode} - ACB</div>
                   </div>
                 </div>
 
@@ -389,41 +331,19 @@ export default function PaymentPage() {
           </div>
 
           {/* Actions */}
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Link
-                href={`/orders/${order.orderCode}`}
-                className="flex-1 text-center px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Xem đơn hàng
-              </Link>
-              <button
-                onClick={checkPaymentStatus}
-                disabled={checking}
-                className="flex-1 px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50"
-              >
-                {checking ? 'Đang kiểm tra...' : 'Kiểm tra thanh toán'}
-              </button>
-              <button
-                onClick={() => window.location.reload()}
-                className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-              >
-                Làm mới trang
-              </button>
-            </div>
-            
-            {/* Cancel Order Button */}
+          <div className="flex flex-col sm:flex-row gap-3">
             <button
-              onClick={handleCancelOrder}
-              disabled={cancelling}
-              className="w-full px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 font-medium"
+              onClick={() => router.push(`/orders/${params.orderCode}`)}
+              className="flex-1 text-center px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50"
             >
-              {cancelling ? 'Đang hủy...' : '❌ Hủy đơn hàng'}
+              Xem đơn hàng
             </button>
-            
-            <p className="text-center text-sm text-gray-500">
-              Nếu bạn không muốn thanh toán, vui lòng nhấn "Hủy đơn hàng"
-            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+            >
+              Làm mới trang
+            </button>
           </div>
 
           {/* Support */}

@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RequestMethod;
 
 @Slf4j
 @RestController
@@ -44,6 +45,16 @@ public class PaymentController {
     }
 
     /**
+     * Lấy thông tin thanh toán theo orderId
+     * Customer only (own payments)
+     */
+    @GetMapping("/order/{orderId}")
+    @PreAuthorize("hasAnyAuthority('CUSTOMER', 'ADMIN')")
+    public ApiResponse getPaymentByOrderId(@PathVariable Long orderId) {
+        return paymentService.getPaymentByOrderId(orderId);
+    }
+
+    /**
      * Kiểm tra trạng thái thanh toán
      * Public (để polling từ frontend)
      */
@@ -73,10 +84,61 @@ public class PaymentController {
         return paymentService.handleSepayWebhook(request);
     }
 
+    /**
+     * Test webhook manually (for development only)
+     * Simulate a successful payment - NO AUTH REQUIRED for easy testing
+     * Support both GET and POST for easy browser testing
+     */
+    @RequestMapping(value = "/test-webhook/{paymentCode}", method = {RequestMethod.GET, RequestMethod.POST})
+    public ApiResponse testWebhook(@PathVariable String paymentCode) {
+        log.info("🧪 Testing webhook for payment: {}", paymentCode);
+        
+        try {
+            // Get payment info first
+            ApiResponse paymentResponse = paymentService.getPaymentByCode(paymentCode);
+            if (!paymentResponse.isSuccess() || paymentResponse.getData() == null) {
+                return ApiResponse.error("Không tìm thấy payment với code: " + paymentCode);
+            }
+            
+            // Extract amount from payment data
+            Object paymentData = paymentResponse.getData();
+            Double amount = 30007.0; // Default
+            
+            // Try to get amount from payment data
+            if (paymentData instanceof java.util.Map) {
+                @SuppressWarnings("unchecked")
+                java.util.Map<String, Object> paymentMap = (java.util.Map<String, Object>) paymentData;
+                Object amountObj = paymentMap.get("amount");
+                if (amountObj instanceof Number) {
+                    amount = ((Number) amountObj).doubleValue();
+                }
+            }
+            
+            // Create a mock webhook request
+            SepayWebhookRequest mockRequest = new SepayWebhookRequest();
+            mockRequest.setContent(paymentCode);
+            mockRequest.setAmount(amount);
+            mockRequest.setTransactionId("TEST_" + System.currentTimeMillis());
+            mockRequest.setAccountNumber("3333315012003");
+            mockRequest.setBankCode("MBBank");
+            mockRequest.setStatus("SUCCESS");
+            
+            log.info("🧪 Mock webhook request: content={}, amount={}", paymentCode, amount);
+            
+            return paymentService.handleSepayWebhook(mockRequest);
+            
+        } catch (Exception e) {
+            log.error("❌ Error testing webhook", e);
+            return ApiResponse.error("Lỗi khi test webhook: " + e.getMessage());
+        }
+    }
+
     // Helper method
     private Long getUserIdFromAuth(Authentication authentication) {
-        // TODO: Extract user ID from authentication
-        // For now, return mock ID
-        return 1L;
+        if (authentication == null || authentication.getName() == null) {
+            throw new RuntimeException("Không tìm thấy thông tin xác thực");
+        }
+        String email = authentication.getName();
+        return paymentService.getUserIdByEmail(email);
     }
 }

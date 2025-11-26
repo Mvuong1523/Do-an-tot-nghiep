@@ -85,6 +85,19 @@ public class OrderServiceImpl implements OrderService {
                 request.getAddress(), request.getWard(), 
                 request.getDistrict(), request.getProvince());
 
+        // Xác định status dựa trên payment method
+        OrderStatus initialStatus;
+        LocalDateTime confirmedTime = null;
+        
+        if ("SEPAY".equals(request.getPaymentMethod())) {
+            // Thanh toán online → PENDING (chờ thanh toán)
+            initialStatus = OrderStatus.PENDING;
+        } else {
+            // COD → CONFIRMED (tự động xác nhận)
+            initialStatus = OrderStatus.CONFIRMED;
+            confirmedTime = LocalDateTime.now();
+        }
+        
         Order order = Order.builder()
                 .orderCode(orderCode)
                 .customer(customer)
@@ -94,9 +107,9 @@ public class OrderServiceImpl implements OrderService {
                 .shippingFee(shippingFee)
                 .discount(discount)
                 .total(total)
-                .status(OrderStatus.CONFIRMED)  // Tự động xác nhận
+                .status(initialStatus)
                 .paymentStatus(PaymentStatus.UNPAID)
-                .confirmedAt(LocalDateTime.now())  // Set thời gian xác nhận
+                .confirmedAt(confirmedTime)
                 .build();
 
         // 6. Create order items and reserve stock

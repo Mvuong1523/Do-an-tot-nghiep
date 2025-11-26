@@ -47,6 +47,16 @@ public class PaymentServiceImpl implements PaymentService {
     @Value("${sepay.api.secret:demo_secret}")
     private String sepaySecretKey;
 
+    @Value("${sepay.amount.multiplier:1}")
+    private double amountMultiplier; // Nhân số tiền nếu cần (0.001 = chia 1000, 1 = giữ nguyên)
+
+    @Override
+    public Long getUserIdByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với email: " + email));
+        return user.getId();
+    }
+
     @Override
     @Transactional
     public ApiResponse createPayment(CreatePaymentRequest request, Long userId) {
@@ -54,7 +64,11 @@ public class PaymentServiceImpl implements PaymentService {
         Order order = orderRepository.findById(request.getOrderId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 
-        if (!order.getUser().getId().equals(userId)) {
+        // Verify ownership through customer
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+        
+        if (!order.getCustomer().getUser().getId().equals(userId)) {
             return ApiResponse.error("Bạn không có quyền thanh toán đơn hàng này");
         }
 
@@ -68,17 +82,13 @@ public class PaymentServiceImpl implements PaymentService {
             return ApiResponse.error("Số tiền thanh toán không khớp với đơn hàng");
         }
 
-        // 4. Get user
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
-
-        // 5. Generate payment code
+        // 4. Generate payment code
         String paymentCode = generatePaymentCode();
 
-        // 6. Generate QR Code URL (SePay format)
+        // 5. Generate QR Code URL (SePay format)
         String qrCodeUrl = generateSepayQrCode(paymentCode, request.getAmount());
 
-        // 7. Create payment
+        // 6. Create payment
         Payment payment = Payment.builder()
                 .paymentCode(paymentCode)
                 .order(order)
@@ -95,12 +105,12 @@ public class PaymentServiceImpl implements PaymentService {
 
         Payment savedPayment = paymentRepository.save(payment);
 
-        // 8. Update order
+        // 7. Update order
         order.setPaymentId(savedPayment.getId());
         order.setPaymentStatus(com.doan.WEB_TMDT.module.order.entity.PaymentStatus.PENDING);
         orderRepository.save(order);
 
-        // 9. Build response
+        // 8. Build response
         PaymentResponse response = PaymentResponse.builder()
                 .paymentId(savedPayment.getId())
                 .paymentCode(savedPayment.getPaymentCode())
@@ -122,6 +132,15 @@ public class PaymentServiceImpl implements PaymentService {
     public ApiResponse getPaymentByCode(String paymentCode) {
         Payment payment = paymentRepository.findByPaymentCode(paymentCode)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy thanh toán"));
+
+        PaymentResponse response = toPaymentResponse(payment);
+        return ApiResponse.success("Thông tin thanh toán", response);
+    }
+
+    @Override
+    public ApiResponse getPaymentByOrderId(Long orderId) {
+        Payment payment = paymentRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy thanh toán cho đơn hàng này"));
 
         PaymentResponse response = toPaymentResponse(payment);
         return ApiResponse.success("Thông tin thanh toán", response);
@@ -257,14 +276,22 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     private String generateSepayQrCode(String content, Double amount) {
-        // SePay QR Code format
+        // VietQR format
         // https://img.vietqr.io/image/[BANK]-[ACCOUNT]-[TEMPLATE].png?amount=[AMOUNT]&addInfo=[CONTENT]
+        // Note: VietQR API expects amount in actual VND (e.g., 30000 = 30,000 VND)
+        long amountInVnd = Math.round(amount * amountMultiplier);
+        
+        log.info("Generating QR code - Original amount: {} VND, Multiplier: {}, Final amount in QR: {} VND", 
+                 amount, amountMultiplier, amountInVnd);
+        
+        // Using 'print' template for better compatibility with banking apps
         return String.format(
-                "https://img.vietqr.io/image/%s-%s-compact.png?amount=%.0f&addInfo=%s",
+                "https://img.vietqr.io/image/%s-%s-print.png?amount=%d&addInfo=%s&accountName=%s",
                 sepayBankCode,
                 sepayAccountNumber,
-                amount,
-                content
+                amountInVnd,
+                content,
+                sepayAccountName.replace(" ", "%20")
         );
     }
 

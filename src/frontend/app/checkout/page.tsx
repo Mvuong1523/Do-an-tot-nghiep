@@ -213,15 +213,13 @@ export default function CheckoutPage() {
     setSubmitting(true)
     try {
       const orderData = {
-        customerName: form.customerName,
-        customerPhone: form.customerPhone,
-        customerEmail: form.customerEmail,
         province: form.province,
         district: form.district,
         ward: form.ward || '', // Phường/xã không bắt buộc
         address: form.address,
         note: form.note,
-        shippingFee: form.shippingFee
+        shippingFee: form.shippingFee,
+        paymentMethod: form.paymentMethod // COD hoặc SEPAY
       }
 
       console.log('Submitting order:', orderData)
@@ -234,6 +232,7 @@ export default function CheckoutPage() {
       
       if (response.success && response.data) {
         const orderId = response.data.orderId || response.data.id
+        const orderCode = response.data.orderCode
         
         if (!orderId) {
           console.error('No order ID in response:', response)
@@ -254,9 +253,48 @@ export default function CheckoutPage() {
           console.error('Error clearing cart:', error)
         }
         
-        // Chuyển đến trang đặt hàng thành công
-        console.log('Redirecting to success page with orderId:', orderId)
-        router.push(`/orders/success?orderId=${orderId}`)
+        // Nếu chọn thanh toán online → Tạo payment
+        if (form.paymentMethod === 'SEPAY') {
+          try {
+            toast.loading('Đang tạo thanh toán...')
+            
+            const paymentResponse = await fetch('http://localhost:8080/api/payment/create', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+              },
+              body: JSON.stringify({
+                orderId: orderId,
+                amount: calculateTotal()
+              })
+            })
+            
+            const paymentResult = await paymentResponse.json()
+            console.log('Payment response:', paymentResult)
+            
+            if (paymentResult.success) {
+              toast.dismiss()
+              toast.success('Chuyển đến trang thanh toán...')
+              // Redirect đến trang payment
+              router.push(`/payment/${orderCode}`)
+            } else {
+              toast.dismiss()
+              toast.error(paymentResult.message || 'Không thể tạo thanh toán')
+              // Vẫn cho xem đơn hàng
+              router.push(`/orders/${orderCode}`)
+            }
+          } catch (error) {
+            console.error('Payment error:', error)
+            toast.dismiss()
+            toast.error('Lỗi khi tạo thanh toán')
+            router.push(`/orders/${orderCode}`)
+          }
+        } else {
+          // COD - Chuyển đến trang success
+          console.log('Redirecting to success page with orderId:', orderId)
+          router.push(`/orders/success?orderId=${orderId}`)
+        }
       } else {
         toast.error(response.message || 'Đặt hàng thất bại')
       }
@@ -430,17 +468,18 @@ export default function CheckoutPage() {
                     </div>
                   </label>
 
-                  <label className="flex items-center p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 opacity-50">
+                  <label className="flex items-center p-4 border border-blue-500 rounded-lg cursor-pointer hover:bg-blue-50">
                     <input
                       type="radio"
                       name="paymentMethod"
-                      value="BANK"
-                      disabled
+                      value="SEPAY"
+                      checked={form.paymentMethod === 'SEPAY'}
+                      onChange={(e) => setForm({...form, paymentMethod: e.target.value})}
                       className="mr-3"
                     />
                     <div>
-                      <p className="font-medium">Chuyển khoản ngân hàng</p>
-                      <p className="text-sm text-gray-600">Đang phát triển...</p>
+                      <p className="font-medium">💳 Chuyển khoản ngân hàng (SePay)</p>
+                      <p className="text-sm text-gray-600">Quét QR Code hoặc chuyển khoản - Xác nhận tự động</p>
                     </div>
                   </label>
                 </div>

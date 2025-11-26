@@ -31,4 +31,7 @@ public class CreateOrderRequest {
     // Phí vận chuyển (đã tính từ frontend)
     @NotNull(message = "Phí vận chuyển không được để trống")
     private Double shippingFee;
+    
+    // Phương thức thanh toán
+    private String paymentMethod; // COD hoặc SEPAY
 }

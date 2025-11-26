@@ -35,7 +35,12 @@ export default function OrderDetailPage() {
 
   const loadOrderDetails = async () => {
     try {
-      const response = await orderApi.getById(orderId)
+      // Check if orderId is numeric or a code
+      const isNumeric = /^\d+$/.test(orderId)
+      const response = isNumeric 
+        ? await orderApi.getById(orderId)
+        : await orderApi.getByCode(orderId)
+      
       console.log('Order detail response:', response)
       
       if (response.success && response.data) {
@@ -165,10 +170,20 @@ export default function OrderDetailPage() {
                 Đặt ngày: {formatDate(order.createdAt)}
               </p>
             </div>
-            <div className="mt-4 md:mt-0">
-              <span className={`px-4 py-2 rounded-lg font-semibold ${getStatusColor(order.status)}`}>
+            <div className="mt-4 md:mt-0 flex flex-col gap-2">
+              <span className={`px-4 py-2 rounded-lg font-semibold text-center ${getStatusColor(order.status)}`}>
                 {getStatusText(order.status)}
               </span>
+              
+              {/* Continue Payment Button - Show if order is pending and payment is unpaid/pending */}
+              {(order.status === 'PENDING' && (order.paymentStatus === 'UNPAID' || order.paymentStatus === 'PENDING')) && (
+                <Link
+                  href={`/payment/${order.orderCode}`}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold text-center hover:bg-blue-700 transition-colors"
+                >
+                  💳 Tiếp tục thanh toán
+                </Link>
+              )}
             </div>
           </div>
           
@@ -184,6 +199,19 @@ export default function OrderDetailPage() {
               </div>
             )}
           </div>
+          
+          {/* Payment Warning */}
+          {(order.status === 'PENDING' && (order.paymentStatus === 'UNPAID' || order.paymentStatus === 'PENDING')) && (
+            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-start">
+                <span className="text-yellow-600 font-bold mr-2">⚠️</span>
+                <div className="text-sm text-yellow-800">
+                  <p className="font-bold mb-1">Đơn hàng đang chờ thanh toán</p>
+                  <p>Vui lòng hoàn tất thanh toán để đơn hàng được xử lý. Nhấn nút "Tiếp tục thanh toán" ở trên để thanh toán ngay.</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Order Items */}

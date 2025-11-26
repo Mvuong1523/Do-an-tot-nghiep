@@ -38,6 +38,7 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/payment/sepay/webhook").permitAll() // SePay webhook
+                        .requestMatchers("/api/payment/test-webhook/**").permitAll() // Test webhook (dev only)
                         .requestMatchers("/api/payment/{paymentCode}/status").permitAll() // Check status
                         .requestMatchers("/api/employee-registration/apply").permitAll()
                         .requestMatchers("/api/test/**").permitAll()

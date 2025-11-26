@@ -374,6 +374,19 @@ export const orderApi = {
       throw new Error(error.response?.data?.message || 'Lỗi khi lấy thông tin đơn hàng')
     }
   },
+
+  getByCode: async (orderCode: string): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get(`/orders/code/${orderCode}`)
+      // Backend trả về {success, message, data}
+      return {
+        success: true,
+        data: response.data?.data || response.data,
+      }
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi lấy thông tin đơn hàng')
+    }
+  },
 }
 
 // Admin Order API
