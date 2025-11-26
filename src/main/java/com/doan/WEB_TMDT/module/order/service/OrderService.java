@@ -5,14 +5,14 @@ import com.doan.WEB_TMDT.module.order.dto.CreateOrderRequest;
 
 public interface OrderService {
     // Helper method
-    Long getUserIdByEmail(String email);
+    Long getCustomerIdByEmail(String email);
     
     // Customer endpoints
-    ApiResponse createOrderFromCart(Long userId, CreateOrderRequest request);
-    ApiResponse getOrderById(Long orderId, Long userId);
-    ApiResponse getOrderByCode(String orderCode, Long userId);
-    ApiResponse getMyOrders(Long userId);
-    ApiResponse cancelOrderByCustomer(Long orderId, Long userId, String reason);
+    ApiResponse createOrderFromCart(Long customerId, CreateOrderRequest request);
+    ApiResponse getOrderById(Long orderId, Long customerId);
+    ApiResponse getOrderByCode(String orderCode, Long customerId);
+    ApiResponse getMyOrders(Long customerId);
+    ApiResponse cancelOrderByCustomer(Long orderId, Long customerId, String reason);
     
     // Admin/Staff endpoints
     ApiResponse getAllOrders(String status, int page, int size);

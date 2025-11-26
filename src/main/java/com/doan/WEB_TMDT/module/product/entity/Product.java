@@ -37,7 +37,9 @@ public class Product {
 
     private String imageUrl;
 
-    private Long stockQuantity;
+    private Long stockQuantity;      // Tồn kho thực tế
+    
+    private Long reservedQuantity;   // Số lượng đang giữ cho đơn hàng
     
     @Column(name = "tech_specs_json", columnDefinition = "TEXT")
     private String techSpecsJson;

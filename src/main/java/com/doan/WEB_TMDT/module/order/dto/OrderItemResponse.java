@@ -14,8 +14,11 @@ public class OrderItemResponse {
     private Long productId;
     private String productName;
     private String productImage;
+    private String productSku;
     private Double price;
     private Integer quantity;
     private Double subtotal;
     private String serialNumber;
+    private Boolean reserved;  // Đã giữ hàng chưa
+    private Boolean exported;  // Đã xuất kho chưa
 }

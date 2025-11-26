@@ -12,7 +12,7 @@ const apiClient = axios.create({
 // Add token to requests if available
 apiClient.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
-    const token = sessionStorage.getItem('auth_token')
+    const token = localStorage.getItem('auth_token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -33,7 +33,7 @@ export const authApi = {
     try {
       const response = await apiClient.post('/auth/login', data)
       if (response.data.token) {
-        sessionStorage.setItem('auth_token', response.data.token)
+        localStorage.setItem('auth_token', response.data.token)
       }
       return response.data
     } catch (error: any) {
@@ -63,7 +63,7 @@ export const authApi = {
     try {
       const response = await apiClient.post('/auth/register/verify-otp', data)
       if (response.data.token) {
-        sessionStorage.setItem('auth_token', response.data.token)
+        localStorage.setItem('auth_token', response.data.token)
       }
       return response.data
     } catch (error: any) {
@@ -72,7 +72,7 @@ export const authApi = {
   },
 
   logout: async (): Promise<void> => {
-    sessionStorage.removeItem('auth_token')
+    localStorage.removeItem('auth_token')
   },
 
   getCurrentUser: async (): Promise<ApiResponse<any>> => {

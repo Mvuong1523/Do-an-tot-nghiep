@@ -24,17 +24,17 @@ public class OrderController {
     public ApiResponse createOrder(
             @Valid @RequestBody CreateOrderRequest request,
             Authentication authentication) {
-        Long userId = getUserIdFromAuth(authentication);
-        return orderService.createOrderFromCart(userId, request);
+        Long customerId = getCustomerIdFromAuth(authentication);
+        return orderService.createOrderFromCart(customerId, request);
     }
 
     /**
-     * Lấy danh sách đơn hàng của user
+     * Lấy danh sách đơn hàng của customer
      */
     @GetMapping
     public ApiResponse getMyOrders(Authentication authentication) {
-        Long userId = getUserIdFromAuth(authentication);
-        return orderService.getMyOrders(userId);
+        Long customerId = getCustomerIdFromAuth(authentication);
+        return orderService.getMyOrders(customerId);
     }
 
     /**
@@ -44,8 +44,8 @@ public class OrderController {
     public ApiResponse getOrderById(
             @PathVariable Long orderId,
             Authentication authentication) {
-        Long userId = getUserIdFromAuth(authentication);
-        return orderService.getOrderById(orderId, userId);
+        Long customerId = getCustomerIdFromAuth(authentication);
+        return orderService.getOrderById(orderId, customerId);
     }
 
     /**
@@ -55,8 +55,8 @@ public class OrderController {
     public ApiResponse getOrderByCode(
             @PathVariable String orderCode,
             Authentication authentication) {
-        Long userId = getUserIdFromAuth(authentication);
-        return orderService.getOrderByCode(orderCode, userId);
+        Long customerId = getCustomerIdFromAuth(authentication);
+        return orderService.getOrderByCode(orderCode, customerId);
     }
 
     /**
@@ -67,16 +67,16 @@ public class OrderController {
             @PathVariable Long orderId,
             @RequestParam(required = false) String reason,
             Authentication authentication) {
-        Long userId = getUserIdFromAuth(authentication);
-        return orderService.cancelOrderByCustomer(orderId, userId, reason);
+        Long customerId = getCustomerIdFromAuth(authentication);
+        return orderService.cancelOrderByCustomer(orderId, customerId, reason);
     }
 
     // Helper method
-    private Long getUserIdFromAuth(Authentication authentication) {
+    private Long getCustomerIdFromAuth(Authentication authentication) {
         if (authentication == null || authentication.getName() == null) {
             throw new RuntimeException("Không tìm thấy thông tin xác thực");
         }
         String email = authentication.getName();
-        return orderService.getUserIdByEmail(email);
+        return orderService.getCustomerIdByEmail(email);
     }
 }

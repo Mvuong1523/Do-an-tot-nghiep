@@ -38,4 +38,10 @@ public class OrderItem {
     private Double subtotal; // price * quantity
     
     private String serialNumber; // Serial nếu là sản phẩm có serial
+    
+    @Column(nullable = false)
+    private Boolean reserved = false; // Đã giữ hàng chưa
+    
+    @Column(nullable = false)
+    private Boolean exported = false; // Đã xuất kho chưa
 }

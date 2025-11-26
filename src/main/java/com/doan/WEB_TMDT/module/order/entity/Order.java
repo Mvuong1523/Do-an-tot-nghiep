@@ -1,6 +1,6 @@
 package com.doan.WEB_TMDT.module.order.entity;
 
-import com.doan.WEB_TMDT.module.auth.entity.User;
+import com.doan.WEB_TMDT.module.auth.entity.Customer;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -23,22 +23,13 @@ public class Order {
     private String orderCode; // Mã đơn hàng: ORD20231119001
     
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @JoinColumn(name = "customer_id", nullable = false)
+    private Customer customer;
     
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items;
     
     // Thông tin giao hàng
-    @Column(nullable = false)
-    private String customerName;
-    
-    @Column(nullable = false)
-    private String customerPhone;
-    
-    @Column(nullable = false)
-    private String customerEmail;
-    
     @Column(nullable = false, columnDefinition = "TEXT")
     private String shippingAddress;
     

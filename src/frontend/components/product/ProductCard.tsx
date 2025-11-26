@@ -7,19 +7,36 @@ import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { useCartStore, Product } from '@/store/cartStore'
 import { useTranslation } from '@/hooks/useTranslation'
+import { cartApi } from '@/lib/api'
 
 interface ProductCardProps {
   product: Product
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
-  const { addToCart, addToWishlist, removeFromWishlist, isInWishlist } = useCartStore()
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useCartStore()
   const { t } = useTranslation()
   const [isLiked, setIsLiked] = useState(isInWishlist(product.id))
+  const [isAdding, setIsAdding] = useState(false)
 
-  const handleAddToCart = () => {
-    addToCart(product)
-    toast.success(t('addedToCart'))
+  const handleAddToCart = async () => {
+    try {
+      setIsAdding(true)
+      const response = await cartApi.addToCart(product.id, 1)
+      
+      if (response.success) {
+        toast.success(t('addedToCart'))
+        // Dispatch event để cập nhật cart count
+        window.dispatchEvent(new Event('cartUpdated'))
+      } else {
+        toast.error('Không thể thêm vào giỏ hàng')
+      }
+    } catch (error: any) {
+      console.error('Error adding to cart:', error)
+      toast.error(error.message || 'Lỗi khi thêm vào giỏ hàng')
+    } finally {
+      setIsAdding(false)
+    }
   }
 
   const handleToggleLike = () => {
@@ -140,9 +157,10 @@ export default function ProductCard({ product }: ProductCardProps) {
         {/* Add to cart button */}
         <button
           onClick={handleAddToCart}
-          className="w-full mt-3 bg-navy-500 text-white py-2 px-4 rounded-lg font-semibold hover:bg-navy-600 transition-colors"
+          disabled={isAdding}
+          className="w-full mt-3 bg-navy-500 text-white py-2 px-4 rounded-lg font-semibold hover:bg-navy-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {t('addToCart')}
+          {isAdding ? 'Đang thêm...' : t('addToCart')}
         </button>
       </div>
     </div>

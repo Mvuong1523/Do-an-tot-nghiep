@@ -1,8 +1,8 @@
 package com.doan.WEB_TMDT.module.cart.service.impl;
 
 import com.doan.WEB_TMDT.common.dto.ApiResponse;
-import com.doan.WEB_TMDT.module.auth.entity.User;
-import com.doan.WEB_TMDT.module.auth.repository.UserRepository;
+import com.doan.WEB_TMDT.module.auth.entity.Customer;
+import com.doan.WEB_TMDT.module.auth.repository.CustomerRepository;
 import com.doan.WEB_TMDT.module.cart.dto.AddToCartRequest;
 import com.doan.WEB_TMDT.module.cart.dto.CartItemResponse;
 import com.doan.WEB_TMDT.module.cart.dto.CartResponse;
@@ -31,27 +31,38 @@ public class CartServiceImpl implements CartService {
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
     private final ProductRepository productRepository;
-    private final UserRepository userRepository;
+    private final CustomerRepository customerRepository;
 
     @Override
-    public Long getUserIdByEmail(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với email: " + email));
-        return user.getId();
+    public Long getCustomerIdByEmail(String email) {
+        Customer customer = customerRepository.findByUserEmail(email)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy khách hàng với email: " + email));
+        return customer.getId();
     }
 
     @Override
-    public ApiResponse getCart(Long userId) {
-        Cart cart = getOrCreateCart(userId);
+    @Transactional(readOnly = true)
+    public ApiResponse getCart(Long customerId) {
+        log.info("Getting cart for customerId: {}", customerId);
+        Cart cart = getOrCreateCart(customerId);
+        log.info("Cart found: id={}, items count={}", cart.getId(), cart.getItems().size());
+        
+        // Log each item
+        cart.getItems().forEach(item -> {
+            log.info("Cart item: id={}, product={}, quantity={}", 
+                item.getId(), item.getProduct().getName(), item.getQuantity());
+        });
+        
         CartResponse response = toCartResponse(cart);
+        log.info("CartResponse: items count={}", response.getItems().size());
         return ApiResponse.success("Giỏ hàng của bạn", response);
     }
 
     @Override
     @Transactional
-    public ApiResponse addToCart(Long userId, AddToCartRequest request) {
+    public ApiResponse addToCart(Long customerId, AddToCartRequest request) {
         // 1. Get or create cart
-        Cart cart = getOrCreateCart(userId);
+        Cart cart = getOrCreateCart(customerId);
 
         // 2. Validate product
         Product product = productRepository.findById(request.getProductId())
@@ -96,9 +107,9 @@ public class CartServiceImpl implements CartService {
 
     @Override
     @Transactional
-    public ApiResponse updateCartItem(Long userId, Long itemId, UpdateCartItemRequest request) {
+    public ApiResponse updateCartItem(Long customerId, Long itemId, UpdateCartItemRequest request) {
         // 1. Get cart
-        Cart cart = getOrCreateCart(userId);
+        Cart cart = getOrCreateCart(customerId);
 
         // 2. Find item
         CartItem item = cartItemRepository.findById(itemId)
@@ -127,9 +138,9 @@ public class CartServiceImpl implements CartService {
 
     @Override
     @Transactional
-    public ApiResponse removeCartItem(Long userId, Long itemId) {
+    public ApiResponse removeCartItem(Long customerId, Long itemId) {
         // 1. Get cart
-        Cart cart = getOrCreateCart(userId);
+        Cart cart = getOrCreateCart(customerId);
 
         // 2. Find item
         CartItem item = cartItemRepository.findById(itemId)
@@ -151,8 +162,8 @@ public class CartServiceImpl implements CartService {
 
     @Override
     @Transactional
-    public ApiResponse clearCart(Long userId) {
-        Cart cart = getOrCreateCart(userId);
+    public ApiResponse clearCart(Long customerId) {
+        Cart cart = getOrCreateCart(customerId);
         cartItemRepository.deleteByCartId(cart.getId());
 
         Cart updatedCart = cartRepository.findById(cart.getId()).orElseThrow();
@@ -162,13 +173,13 @@ public class CartServiceImpl implements CartService {
 
     // Helper methods
 
-    private Cart getOrCreateCart(Long userId) {
-        return cartRepository.findByUserId(userId)
+    private Cart getOrCreateCart(Long customerId) {
+        return cartRepository.findByCustomerId(customerId)
                 .orElseGet(() -> {
-                    User user = userRepository.findById(userId)
-                            .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+                    Customer customer = customerRepository.findById(customerId)
+                            .orElseThrow(() -> new RuntimeException("Không tìm thấy khách hàng"));
                     Cart newCart = Cart.builder()
-                            .user(user)
+                            .customer(customer)
                             .build();
                     return cartRepository.save(newCart);
                 });

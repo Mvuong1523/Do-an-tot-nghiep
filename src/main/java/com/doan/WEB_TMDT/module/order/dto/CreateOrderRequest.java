@@ -14,15 +14,6 @@ import lombok.NoArgsConstructor;
 public class CreateOrderRequest {
     
     // Thông tin giao hàng
-    @NotBlank(message = "Tên người nhận không được để trống")
-    private String customerName;
-    
-    @NotBlank(message = "Số điện thoại không được để trống")
-    private String customerPhone;
-    
-    @NotBlank(message = "Email không được để trống")
-    private String customerEmail;
-    
     @NotBlank(message = "Tỉnh/Thành phố không được để trống")
     private String province;
     

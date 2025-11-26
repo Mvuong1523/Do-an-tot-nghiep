@@ -43,8 +43,8 @@ export const useAuthStore = create<AuthStore>()(
       login: (user: User) => set({ user, isAuthenticated: true }),
       logout: () => {
         if (typeof window !== 'undefined') {
-          sessionStorage.removeItem('auth_token')
-          sessionStorage.removeItem('token')
+          localStorage.removeItem('auth_token')
+          localStorage.removeItem('token')
           // Xóa giỏ hàng khi đăng xuất
           localStorage.removeItem('cart-storage')
         }
@@ -59,15 +59,15 @@ export const useAuthStore = create<AuthStore>()(
             localStorage.removeItem('cart-storage')
           }
           
-          sessionStorage.setItem('auth_token', token)
-          sessionStorage.setItem('token', token) // Lưu cả 2 key để tương thích
+          localStorage.setItem('auth_token', token)
+          localStorage.setItem('token', token) // Lưu cả 2 key để tương thích
         }
         set({ user, token, isAuthenticated: true })
       },
     }),
     {
       name: 'auth-storage',
-      storage: createJSONStorage(() => sessionStorage),
+      storage: createJSONStorage(() => localStorage),
     }
   )
 )

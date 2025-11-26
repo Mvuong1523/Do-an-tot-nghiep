@@ -15,19 +15,29 @@ export default function CartPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    console.log('Cart page - isAuthenticated:', isAuthenticated)
+    
     if (!isAuthenticated) {
+      console.log('Not authenticated, redirecting to login')
       toast.error('Vui lòng đăng nhập')
       router.push('/login')
       return
     }
+    
+    console.log('Loading cart...')
     loadCart()
   }, [isAuthenticated])
 
   const loadCart = async () => {
     try {
       const response = await cartApi.getCart()
+      console.log('Cart API response:', response)
+      console.log('Cart data:', response.data)
+      
       if (response.success) {
         setCart(response.data)
+      } else {
+        console.warn('Cart API returned success=false')
       }
     } catch (error) {
       console.error('Error loading cart:', error)

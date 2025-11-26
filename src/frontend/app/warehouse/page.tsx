@@ -124,9 +124,33 @@ export default function WarehouseDashboard() {
               </div>
             </div>
           </div>
+
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Đơn hàng cần xuất</p>
+                <p className="text-3xl font-bold text-gray-900 mt-2">0</p>
+              </div>
+              <div className="bg-orange-100 p-3 rounded-lg">
+                <FiPackage className="text-orange-600" size={24} />
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Link
+            href="/warehouse/orders"
+            className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-sm p-6 hover:shadow-lg transition-all text-white"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">🛒 Đơn hàng cần xuất</h3>
+              <FiArrowRight />
+            </div>
+            <p className="text-orange-100 text-sm mb-2">Xem đơn hàng đã xác nhận cần xuất kho</p>
+            <div className="text-2xl font-bold">0 đơn hàng</div>
+          </Link>
+
           <Link
             href="/warehouse/inventory"
             className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"

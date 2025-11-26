@@ -1,8 +1,8 @@
 package com.doan.WEB_TMDT.module.order.service.impl;
 
 import com.doan.WEB_TMDT.common.dto.ApiResponse;
-import com.doan.WEB_TMDT.module.auth.entity.User;
-import com.doan.WEB_TMDT.module.auth.repository.UserRepository;
+import com.doan.WEB_TMDT.module.auth.entity.Customer;
+import com.doan.WEB_TMDT.module.auth.repository.CustomerRepository;
 import com.doan.WEB_TMDT.module.cart.entity.Cart;
 import com.doan.WEB_TMDT.module.cart.entity.CartItem;
 import com.doan.WEB_TMDT.module.cart.repository.CartRepository;
@@ -36,24 +36,26 @@ public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
     private final CartRepository cartRepository;
-    private final UserRepository userRepository;
+    private final CustomerRepository customerRepository;
 
     @Override
-    public Long getUserIdByEmail(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với email: " + email));
-        return user.getId();
+    public Long getCustomerIdByEmail(String email) {
+        log.info("OrderService - Getting customerId for email: {}", email);
+        Customer customer = customerRepository.findByUserEmail(email)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy khách hàng với email: " + email));
+        log.info("OrderService - Found customerId: {}", customer.getId());
+        return customer.getId();
     }
 
     @Override
     @Transactional
-    public ApiResponse createOrderFromCart(Long userId, CreateOrderRequest request) {
-        // 1. Get user
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+    public ApiResponse createOrderFromCart(Long customerId, CreateOrderRequest request) {
+        // 1. Get customer
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy khách hàng"));
 
         // 2. Get cart
-        Cart cart = cartRepository.findByUserId(userId)
+        Cart cart = cartRepository.findByCustomerId(customerId)
                 .orElseThrow(() -> new RuntimeException("Giỏ hàng trống"));
 
         if (cart.getItems().isEmpty()) {
@@ -85,10 +87,7 @@ public class OrderServiceImpl implements OrderService {
 
         Order order = Order.builder()
                 .orderCode(orderCode)
-                .user(user)
-                .customerName(request.getCustomerName())
-                .customerPhone(request.getCustomerPhone())
-                .customerEmail(request.getCustomerEmail())
+                .customer(customer)
                 .shippingAddress(fullAddress)
                 .note(request.getNote())
                 .subtotal(subtotal)
@@ -100,10 +99,14 @@ public class OrderServiceImpl implements OrderService {
                 .confirmedAt(LocalDateTime.now())  // Set thời gian xác nhận
                 .build();
 
-        // 6. Create order items
+        // 6. Create order items and reserve stock
         List<OrderItem> orderItems = new ArrayList<>();
         for (CartItem cartItem : cart.getItems()) {
             Product product = cartItem.getProduct();
+            
+            // Reserve stock (giữ hàng)
+            Long currentReserved = product.getReservedQuantity() != null ? product.getReservedQuantity() : 0L;
+            product.setReservedQuantity(currentReserved + cartItem.getQuantity());
             
             OrderItem orderItem = OrderItem.builder()
                     .order(order)
@@ -112,6 +115,8 @@ public class OrderServiceImpl implements OrderService {
                     .price(cartItem.getPrice())
                     .quantity(cartItem.getQuantity())
                     .subtotal(cartItem.getPrice() * cartItem.getQuantity())
+                    .reserved(true)  // Đã giữ hàng
+                    .exported(false) // Chưa xuất kho
                     .build();
             
             orderItems.add(orderItem);
@@ -125,7 +130,7 @@ public class OrderServiceImpl implements OrderService {
         cart.clearItems();
         cartRepository.save(cart);
 
-        log.info("Created order {} for user {}", orderCode, userId);
+        log.info("Created order {} for customer {}", orderCode, customerId);
 
         // 9. Return response
         OrderResponse response = toOrderResponse(savedOrder);
@@ -133,12 +138,12 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public ApiResponse getOrderById(Long orderId, Long userId) {
+    public ApiResponse getOrderById(Long orderId, Long customerId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 
         // Verify ownership
-        if (!order.getUser().getId().equals(userId)) {
+        if (!order.getCustomer().getId().equals(customerId)) {
             return ApiResponse.error("Bạn không có quyền xem đơn hàng này");
         }
 
@@ -147,12 +152,12 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public ApiResponse getOrderByCode(String orderCode, Long userId) {
+    public ApiResponse getOrderByCode(String orderCode, Long customerId) {
         Order order = orderRepository.findByOrderCode(orderCode)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 
         // Verify ownership
-        if (!order.getUser().getId().equals(userId)) {
+        if (!order.getCustomer().getId().equals(customerId)) {
             return ApiResponse.error("Bạn không có quyền xem đơn hàng này");
         }
 
@@ -161,22 +166,37 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public ApiResponse getMyOrders(Long userId) {
-        List<Order> orders = orderRepository.findByUserId(userId);
+    public ApiResponse getMyOrders(Long customerId) {
+        log.info("========== GET MY ORDERS ==========");
+        log.info("Getting orders for customerId: {}", customerId);
+        
+        List<Order> orders = orderRepository.findByCustomerId(customerId);
+        log.info("Found {} orders for customerId: {}", orders.size(), customerId);
+        
+        // Log order details
+        orders.forEach(order -> {
+            log.info("Order: id={}, code={}, customerId={}", 
+                order.getId(), order.getOrderCode(), order.getCustomer().getId());
+        });
+        
         List<OrderResponse> responses = orders.stream()
                 .map(this::toOrderResponse)
                 .collect(Collectors.toList());
+        
+        log.info("Returning {} order responses", responses.size());
+        log.info("========== END GET MY ORDERS ==========");
+        
         return ApiResponse.success("Danh sách đơn hàng", responses);
     }
 
     @Override
     @Transactional
-    public ApiResponse cancelOrderByCustomer(Long orderId, Long userId, String reason) {
+    public ApiResponse cancelOrderByCustomer(Long orderId, Long customerId, String reason) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 
         // Verify ownership
-        if (!order.getUser().getId().equals(userId)) {
+        if (!order.getCustomer().getId().equals(customerId)) {
             return ApiResponse.error("Bạn không có quyền hủy đơn hàng này");
         }
 
@@ -201,7 +221,7 @@ public class OrderServiceImpl implements OrderService {
         order.setCancelReason(reason != null ? reason : "Khách hàng hủy đơn");
         orderRepository.save(order);
 
-        log.info("Cancelled order {} by customer {}", order.getOrderCode(), userId);
+        log.info("Cancelled order {} by customer {}", order.getOrderCode(), customerId);
 
         OrderResponse response = toOrderResponse(order);
         return ApiResponse.success("Đã hủy đơn hàng" + 
@@ -229,14 +249,17 @@ public class OrderServiceImpl implements OrderService {
                 .map(this::toOrderItemResponse)
                 .collect(Collectors.toList());
 
+        Customer customer = order.getCustomer();
+        
         return OrderResponse.builder()
                 .orderId(order.getId())
                 .orderCode(order.getOrderCode())
                 .status(order.getStatus().name())
                 .paymentStatus(order.getPaymentStatus().name())
-                .customerName(order.getCustomerName())
-                .customerPhone(order.getCustomerPhone())
-                .customerEmail(order.getCustomerEmail())
+                .customerId(customer.getId())
+                .customerName(customer.getFullName())
+                .customerPhone(customer.getPhone())
+                .customerEmail(customer.getUser().getEmail())
                 .shippingAddress(order.getShippingAddress())
                 .note(order.getNote())
                 .items(items)
@@ -259,10 +282,13 @@ public class OrderServiceImpl implements OrderService {
                 .productId(item.getProduct().getId())
                 .productName(item.getProductName())
                 .productImage(item.getProduct().getImageUrl())
+                .productSku(item.getProduct().getSku())
                 .price(item.getPrice())
                 .quantity(item.getQuantity())
                 .subtotal(item.getSubtotal())
                 .serialNumber(item.getSerialNumber())
+                .reserved(item.getReserved())
+                .exported(item.getExported())
                 .build();
     }
 

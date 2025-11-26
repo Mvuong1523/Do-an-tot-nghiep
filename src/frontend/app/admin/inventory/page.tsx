@@ -189,6 +189,13 @@ export default function InventoryPage() {
             {(user?.role === 'ADMIN' || user?.role === 'WAREHOUSE') && (
               <>
                 <Link
+                  href="/admin/inventory/orders"
+                  className="flex items-center space-x-2 bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
+                >
+                  <FiPackage />
+                  <span>Đơn hàng cần xuất</span>
+                </Link>
+                <Link
                   href="/admin/inventory/transactions/create?type=IMPORT"
                   className="flex items-center space-x-2 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
                 >

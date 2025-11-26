@@ -18,9 +18,10 @@ public class OrderResponse {
     private String paymentStatus;
     
     // Customer info
-    private String customerName;
-    private String customerPhone;
-    private String customerEmail;
+    private Long customerId;
+    private String customerName;  // Từ Customer entity
+    private String customerPhone; // Từ Customer entity
+    private String customerEmail; // Từ User entity
     private String shippingAddress;
     private String note;
     

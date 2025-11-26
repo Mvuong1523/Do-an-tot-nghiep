@@ -1,6 +1,6 @@
 package com.doan.WEB_TMDT.module.cart.entity;
 
-import com.doan.WEB_TMDT.module.auth.entity.User;
+import com.doan.WEB_TMDT.module.auth.entity.Customer;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -21,8 +21,8 @@ public class Cart {
     private Long id;
     
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false, unique = true)
-    private User user;
+    @JoinColumn(name = "customer_id", nullable = false, unique = true)
+    private Customer customer;
     
     @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

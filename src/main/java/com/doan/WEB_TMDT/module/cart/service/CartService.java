@@ -5,10 +5,10 @@ import com.doan.WEB_TMDT.module.cart.dto.AddToCartRequest;
 import com.doan.WEB_TMDT.module.cart.dto.UpdateCartItemRequest;
 
 public interface CartService {
-    Long getUserIdByEmail(String email);
-    ApiResponse getCart(Long userId);
-    ApiResponse addToCart(Long userId, AddToCartRequest request);
-    ApiResponse updateCartItem(Long userId, Long itemId, UpdateCartItemRequest request);
-    ApiResponse removeCartItem(Long userId, Long itemId);
-    ApiResponse clearCart(Long userId);
+    Long getCustomerIdByEmail(String email);
+    ApiResponse getCart(Long customerId);
+    ApiResponse addToCart(Long customerId, AddToCartRequest request);
+    ApiResponse updateCartItem(Long customerId, Long itemId, UpdateCartItemRequest request);
+    ApiResponse removeCartItem(Long customerId, Long itemId);
+    ApiResponse clearCart(Long customerId);
 }

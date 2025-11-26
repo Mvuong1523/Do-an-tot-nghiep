@@ -16,8 +16,16 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
+  const [mounted, setMounted] = useState(false)
+
+  // Wait for hydration
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
+    if (!mounted) return
+    
     if (!isAuthenticated) {
       toast.error('Vui lòng đăng nhập để xem đơn hàng')
       router.push('/login')
@@ -26,12 +34,17 @@ export default function OrdersPage() {
 
     const loadOrders = async () => {
       try {
+        console.log('Loading orders...')
         const response = await orderApi.getAll()
+        console.log('Orders response:', response)
         
         if (response.success && response.data) {
+          // Backend trả về {success, message, data: [...]}
           const ordersData = Array.isArray(response.data) ? response.data : []
+          console.log('Orders data:', ordersData)
           setOrders(ordersData)
         } else {
+          console.warn('No orders data')
           setOrders([])
         }
       } catch (error) {
@@ -44,7 +57,7 @@ export default function OrdersPage() {
     }
 
     loadOrders()
-  }, [isAuthenticated, router])
+  }, [mounted, isAuthenticated, router])
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('vi-VN', {

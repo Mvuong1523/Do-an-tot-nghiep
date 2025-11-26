@@ -3,92 +3,11 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import ProductCard from '@/components/product/ProductCard'
-import { FiFilter, FiGrid, FiList, FiChevronDown } from 'react-icons/fi'
+import { FiFilter, FiGrid, FiList } from 'react-icons/fi'
 import { useTranslation } from '@/hooks/useTranslation'
+import { productApi } from '@/lib/api'
+import toast from 'react-hot-toast'
 
-// Mock data - sẽ được thay thế bằng API calls
-const products = [
-  {
-    id: 1,
-    name: 'iPhone 16 Pro Max 256GB - Chính hãng VN/A',
-    price: 29990000,
-    originalPrice: 34990000,
-    discount: 14,
-    image: '/images/iphone-16-pro-max.jpg',
-    rating: 4.8,
-    reviews: 1250,
-    badge: 'Hot',
-    category: 'phone',
-    brand: 'Apple'
-  },
-  {
-    id: 2,
-    name: 'Điện thoại Xiaomi POCO C71 4GB/128GB',
-    price: 2490000,
-    originalPrice: undefined,
-    discount: 0,
-    image: '/images/xiaomi-poco-c71.jpg',
-    rating: 4.5,
-    reviews: 890,
-    badge: 'Mới',
-    category: 'phone',
-    brand: 'Xiaomi'
-  },
-  {
-    id: 3,
-    name: 'Điện thoại Xiaomi POCO M6 8GB/256GB',
-    price: 3990000,
-    originalPrice: 5290000,
-    discount: 25,
-    image: '/images/xiaomi-poco-m6.jpg',
-    rating: 4.6,
-    reviews: 567,
-    badge: 'Sale',
-    category: 'phone',
-    brand: 'Xiaomi'
-  },
-  {
-    id: 4,
-    name: 'Điện thoại Xiaomi 15T 12GB/512GB',
-    price: 14990000,
-    originalPrice: undefined,
-    discount: 0,
-    image: '/images/xiaomi-15t.jpg',
-    rating: 4.7,
-    reviews: 234,
-    badge: 'Hot',
-    category: 'phone',
-    brand: 'Xiaomi'
-  },
-  {
-    id: 5,
-    name: 'MacBook Pro 14 inch M3 Pro',
-    price: 45990000,
-    originalPrice: 49990000,
-    discount: 8,
-    image: '/images/macbook-pro-14.jpg',
-    rating: 4.9,
-    reviews: 156,
-    badge: 'Hot',
-    category: 'laptop',
-    brand: 'Apple'
-  },
-  {
-    id: 6,
-    name: 'Samsung Galaxy S24 Ultra 256GB',
-    price: 24990000,
-    originalPrice: 27990000,
-    discount: 11,
-    image: '/images/samsung-s24-ultra.jpg',
-    rating: 4.7,
-    reviews: 678,
-    badge: 'Sale',
-    category: 'phone',
-    brand: 'Samsung'
-  },
-]
-
-const brands = ['Tất cả', 'Apple', 'Samsung', 'Xiaomi', 'OPPO', 'Vivo', 'OnePlus']
 const priceRanges = [
   { label: 'Tất cả', min: 0, max: Infinity },
   { label: 'Dưới 5 triệu', min: 0, max: 5000000 },
@@ -105,16 +24,47 @@ export default function ProductsPage() {
   const [selectedBrand, setSelectedBrand] = useState('Tất cả')
   const [selectedPriceRange, setSelectedPriceRange] = useState('Tất cả')
   const [showFilters, setShowFilters] = useState(false)
-  const [filteredProducts, setFilteredProducts] = useState(products)
+  const [products, setProducts] = useState<any[]>([])
+  const [filteredProducts, setFilteredProducts] = useState<any[]>([])
+  const [brands, setBrands] = useState<string[]>(['Tất cả'])
+  const [loading, setLoading] = useState(true)
 
   const category = searchParams.get('category') || 'all'
 
   useEffect(() => {
-    let filtered = products
+    loadProducts()
+  }, [])
+
+  const loadProducts = async () => {
+    try {
+      setLoading(true)
+      const response = await productApi.getAll()
+      
+      if (response.success && response.data) {
+        const productsData = response.data.data || response.data
+        setProducts(productsData)
+        
+        // Extract unique brands
+        const uniqueBrands = ['Tất cả', ...new Set(productsData.map((p: any) => p.brand).filter(Boolean))]
+        setBrands(uniqueBrands)
+      }
+    } catch (error) {
+      console.error('Error loading products:', error)
+      toast.error('Không thể tải danh sách sản phẩm')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    let filtered = [...products]
 
     // Filter by category
     if (category !== 'all') {
-      filtered = filtered.filter(product => product.category === category)
+      filtered = filtered.filter(product => 
+        product.category?.name?.toLowerCase() === category.toLowerCase() ||
+        product.categoryName?.toLowerCase() === category.toLowerCase()
+      )
     }
 
     // Filter by brand
@@ -139,18 +89,17 @@ export default function ProductsPage() {
         filtered.sort((a, b) => b.price - a.price)
         break
       case 'rating':
-        filtered.sort((a, b) => b.rating - a.rating)
+        filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0))
         break
       case 'newest':
         filtered.sort((a, b) => b.id - a.id)
         break
       default:
-        // Keep original order
         break
     }
 
     setFilteredProducts(filtered)
-  }, [category, selectedBrand, selectedPriceRange, sortBy])
+  }, [products, category, selectedBrand, selectedPriceRange, sortBy])
 
   const getCategoryTitle = () => {
     switch (category) {
@@ -168,6 +117,17 @@ export default function ProductsPage() {
     }
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Đang tải sản phẩm...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
@@ -182,7 +142,7 @@ export default function ProductsPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">{getCategoryTitle()}</h1>
           <p className="text-gray-600">
-            {t('noProductsFound')}: {filteredProducts.length} {t('allProducts').toLowerCase()}
+            Tìm thấy: {filteredProducts.length} sản phẩm
           </p>
         </div>
 
@@ -191,7 +151,7 @@ export default function ProductsPage() {
           <div className="lg:w-64">
             <div className="bg-white rounded-lg p-6 sticky top-24">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-900">{t('filterBy')}</h3>
+                <h3 className="font-semibold text-gray-900">Bộ lọc</h3>
                 <button
                   onClick={() => setShowFilters(!showFilters)}
                   className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
@@ -203,7 +163,7 @@ export default function ProductsPage() {
               <div className={`space-y-6 ${showFilters ? 'block' : 'hidden lg:block'}`}>
                 {/* Brand Filter */}
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-3">{t('brand')}</h4>
+                  <h4 className="font-medium text-gray-900 mb-3">Thương hiệu</h4>
                   <div className="space-y-2">
                     {brands.map((brand) => (
                       <label key={brand} className="flex items-center">
@@ -223,7 +183,7 @@ export default function ProductsPage() {
 
                 {/* Price Range Filter */}
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-3">{t('priceRange')}</h4>
+                  <h4 className="font-medium text-gray-900 mb-3">Khoảng giá</h4>
                   <div className="space-y-2">
                     {priceRanges.map((range) => (
                       <label key={range.label} className="flex items-center">
@@ -251,17 +211,17 @@ export default function ProductsPage() {
               <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
                 {/* Sort Options */}
                 <div className="flex items-center space-x-4">
-                  <span className="text-sm text-gray-600">{t('sortBy')}:</span>
+                  <span className="text-sm text-gray-600">Sắp xếp:</span>
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
                     className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
                   >
-                    <option value="default">{t('sortDefault')}</option>
-                    <option value="price-low">{t('sortPriceLow')}</option>
-                    <option value="price-high">{t('sortPriceHigh')}</option>
-                    <option value="rating">{t('sortRating')}</option>
-                    <option value="newest">{t('sortNewest')}</option>
+                    <option value="default">Mặc định</option>
+                    <option value="price-low">Giá thấp đến cao</option>
+                    <option value="price-high">Giá cao đến thấp</option>
+                    <option value="rating">Đánh giá cao nhất</option>
+                    <option value="newest">Mới nhất</option>
                   </select>
                 </div>
 

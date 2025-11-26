@@ -18,22 +18,14 @@ export default function CheckoutPage() {
   const [form, setForm] = useState({
     customerName: '',
     customerPhone: '',
-<<<<<<< HEAD
     customerEmail: '',
-=======
-    customerEmail: user?.email || '',
->>>>>>> c97449e86e53c97d2ae9d42d7f3828bdaba1d7cb
     province: '',
     district: '',
     ward: '',
     address: '',
     note: '',
-<<<<<<< HEAD
     paymentMethod: 'COD',
     shippingFee: 30000 // Phí ship mặc định
-=======
-    shippingFee: 0
->>>>>>> c97449e86e53c97d2ae9d42d7f3828bdaba1d7cb
   })
   const [shippingMethod, setShippingMethod] = useState<'internal' | 'ghtk'>('internal')
 
@@ -163,7 +155,6 @@ export default function CheckoutPage() {
     }
   }
 
-<<<<<<< HEAD
   // Lấy danh sách quận/huyện dựa trên tỉnh đã chọn
   const availableDistricts = useMemo(() => {
     if (!form.province) return []
@@ -171,10 +162,7 @@ export default function CheckoutPage() {
     return province?.districts || []
   }, [form.province])
 
-  const calculateTotal = () => {
-=======
   const calculateSubtotal = () => {
->>>>>>> c97449e86e53c97d2ae9d42d7f3828bdaba1d7cb
     return items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
   }
 
@@ -212,11 +200,7 @@ export default function CheckoutPage() {
     e.preventDefault()
     
     if (!form.customerName || !form.customerPhone || !form.customerEmail || 
-<<<<<<< HEAD
         !form.province || !form.district || !form.address) {
-=======
-        !form.province || !form.district || !form.ward || !form.address) {
->>>>>>> c97449e86e53c97d2ae9d42d7f3828bdaba1d7cb
       toast.error('Vui lòng điền đầy đủ thông tin')
       return
     }
@@ -234,11 +218,7 @@ export default function CheckoutPage() {
         customerEmail: form.customerEmail,
         province: form.province,
         district: form.district,
-<<<<<<< HEAD
         ward: form.ward || '', // Phường/xã không bắt buộc
-=======
-        ward: form.ward,
->>>>>>> c97449e86e53c97d2ae9d42d7f3828bdaba1d7cb
         address: form.address,
         note: form.note,
         shippingFee: form.shippingFee
@@ -264,6 +244,15 @@ export default function CheckoutPage() {
         
         // Xóa quickBuyOrder nếu có
         sessionStorage.removeItem('quickBuyOrder')
+        
+        // Xóa giỏ hàng trên backend
+        try {
+          await cartApi.clearCart()
+          // Dispatch event để cập nhật cart count
+          window.dispatchEvent(new Event('cartUpdated'))
+        } catch (error) {
+          console.error('Error clearing cart:', error)
+        }
         
         // Chuyển đến trang đặt hàng thành công
         console.log('Redirecting to success page with orderId:', orderId)
@@ -348,16 +337,11 @@ export default function CheckoutPage() {
                     </div>
                   </div>
 
-<<<<<<< HEAD
                   <div className="grid grid-cols-2 gap-4">
-=======
-                  <div className="grid grid-cols-3 gap-4">
->>>>>>> c97449e86e53c97d2ae9d42d7f3828bdaba1d7cb
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Tỉnh/Thành phố <span className="text-red-500">*</span>
                       </label>
-<<<<<<< HEAD
                       <select
                         value={form.province}
                         onChange={(e) => setForm({...form, province: e.target.value, district: '', ward: ''})}
@@ -371,32 +355,12 @@ export default function CheckoutPage() {
                           </option>
                         ))}
                       </select>
-=======
-                      <input
-                        type="text"
-                        value={form.province}
-                        onChange={(e) => setForm({...form, province: e.target.value})}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Hà Nội"
-                        required
-                      />
-                      {form.province && (
-                        <p className="text-xs mt-1">
-                          {shippingMethod === 'internal' ? (
-                            <span className="text-green-600">✓ Miễn phí ship nội thành HN</span>
-                          ) : (
-                            <span className="text-blue-600">📦 Giao qua GHTK: {formatPrice(form.shippingFee)}</span>
-                          )}
-                        </p>
-                      )}
->>>>>>> c97449e86e53c97d2ae9d42d7f3828bdaba1d7cb
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Quận/Huyện <span className="text-red-500">*</span>
                       </label>
-<<<<<<< HEAD
                       <select
                         value={form.district}
                         onChange={(e) => setForm({...form, district: e.target.value, ward: ''})}
@@ -411,30 +375,6 @@ export default function CheckoutPage() {
                           </option>
                         ))}
                       </select>
-=======
-                      <input
-                        type="text"
-                        value={form.district}
-                        onChange={(e) => setForm({...form, district: e.target.value})}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Cầu Giấy"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Phường/Xã <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={form.ward}
-                        onChange={(e) => setForm({...form, ward: e.target.value})}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Dịch Vọng"
-                        required
-                      />
->>>>>>> c97449e86e53c97d2ae9d42d7f3828bdaba1d7cb
                     </div>
                   </div>
 
@@ -442,17 +382,10 @@ export default function CheckoutPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Địa chỉ cụ thể <span className="text-red-500">*</span>
                     </label>
-<<<<<<< HEAD
                     <input
                       type="text"
                       value={form.address}
                       onChange={(e) => setForm({...form, address: e.target.value})}
-=======
-                    <textarea
-                      value={form.address}
-                      onChange={(e) => setForm({...form, address: e.target.value})}
-                      rows={2}
->>>>>>> c97449e86e53c97d2ae9d42d7f3828bdaba1d7cb
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Số nhà, tên đường..."
                       required

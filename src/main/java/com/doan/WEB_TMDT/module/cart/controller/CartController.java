@@ -19,12 +19,12 @@ public class CartController {
     private final CartService cartService;
 
     /**
-     * Lấy giỏ hàng của user
+     * Lấy giỏ hàng của customer
      */
     @GetMapping
     public ApiResponse getCart(Authentication authentication) {
-        Long userId = getUserIdFromAuth(authentication);
-        return cartService.getCart(userId);
+        Long customerId = getCustomerIdFromAuth(authentication);
+        return cartService.getCart(customerId);
     }
 
     /**
@@ -34,8 +34,16 @@ public class CartController {
     public ApiResponse addToCart(
             @Valid @RequestBody AddToCartRequest request,
             Authentication authentication) {
-        Long userId = getUserIdFromAuth(authentication);
-        return cartService.addToCart(userId, request);
+        System.out.println("========== ADD TO CART REQUEST ==========");
+        System.out.println("Product ID: " + request.getProductId());
+        System.out.println("Quantity: " + request.getQuantity());
+        
+        Long customerId = getCustomerIdFromAuth(authentication);
+        System.out.println("Customer ID from auth: " + customerId);
+        
+        ApiResponse response = cartService.addToCart(customerId, request);
+        System.out.println("========== ADD TO CART RESPONSE ==========");
+        return response;
     }
 
     /**
@@ -46,8 +54,8 @@ public class CartController {
             @PathVariable Long itemId,
             @Valid @RequestBody UpdateCartItemRequest request,
             Authentication authentication) {
-        Long userId = getUserIdFromAuth(authentication);
-        return cartService.updateCartItem(userId, itemId, request);
+        Long customerId = getCustomerIdFromAuth(authentication);
+        return cartService.updateCartItem(customerId, itemId, request);
     }
 
     /**
@@ -57,8 +65,8 @@ public class CartController {
     public ApiResponse removeCartItem(
             @PathVariable Long itemId,
             Authentication authentication) {
-        Long userId = getUserIdFromAuth(authentication);
-        return cartService.removeCartItem(userId, itemId);
+        Long customerId = getCustomerIdFromAuth(authentication);
+        return cartService.removeCartItem(customerId, itemId);
     }
 
     /**
@@ -66,16 +74,18 @@ public class CartController {
      */
     @DeleteMapping
     public ApiResponse clearCart(Authentication authentication) {
-        Long userId = getUserIdFromAuth(authentication);
-        return cartService.clearCart(userId);
+        Long customerId = getCustomerIdFromAuth(authentication);
+        return cartService.clearCart(customerId);
     }
 
     // Helper method
-    private Long getUserIdFromAuth(Authentication authentication) {
+    private Long getCustomerIdFromAuth(Authentication authentication) {
         if (authentication == null || authentication.getName() == null) {
             throw new RuntimeException("Không tìm thấy thông tin xác thực");
         }
         String email = authentication.getName();
-        return cartService.getUserIdByEmail(email);
+        Long customerId = cartService.getCustomerIdByEmail(email);
+        System.out.println("🔍 CartController - Email from token: " + email + ", CustomerId: " + customerId);
+        return customerId;
     }
 }
