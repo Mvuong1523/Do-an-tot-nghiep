@@ -72,8 +72,10 @@ public class CartController {
 
     // Helper method
     private Long getUserIdFromAuth(Authentication authentication) {
-        // TODO: Extract user ID from authentication
-        // For now, return mock ID
-        return 1L;
+        if (authentication == null || authentication.getName() == null) {
+            throw new RuntimeException("Không tìm thấy thông tin xác thực");
+        }
+        String email = authentication.getName();
+        return cartService.getUserIdByEmail(email);
     }
 }

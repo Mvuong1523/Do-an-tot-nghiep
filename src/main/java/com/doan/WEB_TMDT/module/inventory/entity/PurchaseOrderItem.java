@@ -26,7 +26,7 @@ public class PurchaseOrderItem {
     @JsonBackReference
     private PurchaseOrder purchaseOrder;
 
-    @Column(unique = true, nullable = false, length = 64)
+    @Column(nullable = false, length = 64)
     private String sku;
 
     @ManyToOne(optional = false)

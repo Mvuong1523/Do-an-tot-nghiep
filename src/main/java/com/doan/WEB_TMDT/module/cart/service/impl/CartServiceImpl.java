@@ -34,6 +34,13 @@ public class CartServiceImpl implements CartService {
     private final UserRepository userRepository;
 
     @Override
+    public Long getUserIdByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với email: " + email));
+        return user.getId();
+    }
+
+    @Override
     public ApiResponse getCart(Long userId) {
         Cart cart = getOrCreateCart(userId);
         CartResponse response = toCartResponse(cart);

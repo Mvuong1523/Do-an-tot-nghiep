@@ -86,9 +86,18 @@ export default function ImportListPage() {
 
   return (
     <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Danh sách phiếu nhập kho</h1>
-        <p className="text-gray-600 mt-1">Quản lý tất cả phiếu nhập hàng vào kho</p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Danh sách phiếu nhập kho</h1>
+          <p className="text-gray-600 mt-1">Quản lý tất cả phiếu nhập hàng vào kho</p>
+        </div>
+        <Link
+          href="/admin/inventory/transactions/create?type=IMPORT"
+          className="bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition-colors flex items-center space-x-2 font-semibold"
+        >
+          <span>+</span>
+          <span>Tạo phiếu nhập</span>
+        </Link>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm p-4 mb-6">

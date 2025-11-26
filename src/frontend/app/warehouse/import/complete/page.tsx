@@ -80,28 +80,47 @@ export default function CompleteImportPage() {
       const allSerials: any[] = []
       let hasError = false
 
+      // Group serials by SKU (backend expects format: {productSku, serialNumbers[]})
+      const serialsBySku: Record<string, string[]> = {}
+      
       selectedOrder.items.forEach((item: any) => {
         const serials = serialInputs[item.id] || []
         if (serials.some(s => !s.trim())) {
-          toast.error(`Vui lòng nhập đầy đủ serial cho ${item.productName}`)
+          toast.error(`Vui lòng nhập đầy đủ serial cho ${item.warehouseProduct?.internalName || item.sku}`)
           hasError = true
           return
         }
 
-        serials.forEach(serial => {
-          allSerials.push({
-            warehouseProductId: item.warehouseProductId,
-            serialNumber: serial.trim()
-          })
+        const sku = item.sku || item.warehouseProduct?.sku
+        if (!sku) {
+          toast.error('Không tìm thấy SKU cho sản phẩm')
+          hasError = true
+          return
+        }
+
+        serialsBySku[sku] = serials.map(s => s.trim())
+      })
+
+      // Convert to array format backend expects
+      Object.entries(serialsBySku).forEach(([sku, serialNumbers]) => {
+        allSerials.push({
+          productSku: sku,
+          serialNumbers: serialNumbers
         })
       })
 
       if (hasError) return
 
       // Gọi API hoàn thiện phiếu
-      const response = await inventoryApi.completePurchaseOrder({
-        purchaseOrderId: selectedOrder.id,
+      console.log('Completing PO:', {
+        poId: selectedOrder.id,
         serials: allSerials
+      })
+
+      const response = await inventoryApi.completePurchaseOrder({
+        poId: selectedOrder.id,
+        serials: allSerials,
+        receivedDate: new Date().toISOString()
       })
 
       if (response.success) {

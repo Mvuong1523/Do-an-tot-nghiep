@@ -29,7 +29,7 @@ public class CreateOrderRequest {
     @NotBlank(message = "Quận/Huyện không được để trống")
     private String district;
     
-    @NotBlank(message = "Phường/Xã không được để trống")
+    // Phường/Xã không bắt buộc (có thể để trống)
     private String ward;
     
     @NotBlank(message = "Địa chỉ cụ thể không được để trống")

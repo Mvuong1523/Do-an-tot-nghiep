@@ -14,6 +14,8 @@ export default function ImportDetailPage() {
   const { user, isAuthenticated } = useAuthStore()
   const [order, setOrder] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [isCompleting, setIsCompleting] = useState(false)
+  const [serialInputs, setSerialInputs] = useState<Record<number, string[]>>({})
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -39,6 +41,13 @@ export default function ImportDetailPage() {
         console.log('Order data:', response.data)
         console.log('Order items:', response.data.items)
         setOrder(response.data)
+        
+        // Initialize serial inputs for each item
+        const initialSerials: Record<number, string[]> = {}
+        response.data.items?.forEach((item: any) => {
+          initialSerials[item.id] = Array(item.quantity).fill('')
+        })
+        setSerialInputs(initialSerials)
       } else {
         toast.error('Không tìm thấy phiếu nhập')
         router.push('/warehouse/import/list')
@@ -49,6 +58,69 @@ export default function ImportDetailPage() {
       router.push('/warehouse/import/list')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleSerialChange = (itemId: number, index: number, value: string) => {
+    setSerialInputs(prev => ({
+      ...prev,
+      [itemId]: prev[itemId].map((s, i) => i === index ? value : s)
+    }))
+  }
+
+  const handleCompleteImport = async () => {
+    try {
+      // Validate all serials are filled
+      for (const item of order.items) {
+        const serials = serialInputs[item.id] || []
+        if (serials.some(s => !s.trim())) {
+          toast.error(`Vui lòng nhập đầy đủ serial cho sản phẩm: ${item.warehouseProduct?.internalName}`)
+          return
+        }
+        
+        // Check for duplicates within item
+        const uniqueSerials = new Set(serials)
+        if (uniqueSerials.size !== serials.length) {
+          toast.error(`Serial bị trùng trong sản phẩm: ${item.warehouseProduct?.internalName}`)
+          return
+        }
+      }
+
+      setIsCompleting(true)
+
+      // Prepare data - Backend expects: { productSku: string, serialNumbers: string[] }[]
+      const serialsByProduct = order.items.map((item: any) => {
+        const serials = serialInputs[item.id] || []
+        console.log('Item:', item)
+        console.log('SKU:', item.sku)
+        console.log('Serials:', serials)
+        return {
+          productSku: item.sku,
+          serialNumbers: serials.map(s => s.trim())
+        }
+      })
+
+      console.log('Request data:', {
+        poId: order.id,
+        serials: serialsByProduct
+      })
+
+      const response = await inventoryApi.completePurchaseOrder({
+        poId: order.id,
+        serials: serialsByProduct
+      })
+
+      if (response.success) {
+        toast.success('Hoàn thiện phiếu nhập thành công!')
+        loadOrderDetail() // Reload to show updated data
+      } else {
+        toast.error(response.message || 'Có lỗi xảy ra')
+      }
+    } catch (error: any) {
+      console.error('Error completing import:', error)
+      toast.error(error.response?.data?.message || 'Lỗi khi hoàn thiện phiếu nhập')
+    } finally {
+      setIsCompleting(false)
     }
   }
 
@@ -218,6 +290,11 @@ export default function ImportDetailPage() {
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">Danh sách sản phẩm</h2>
+            {order.status === 'CREATED' && (
+              <p className="text-sm text-amber-600 mt-2">
+                ⚠️ Vui lòng nhập serial number cho từng sản phẩm ở cột Serial Numbers
+              </p>
+            )}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -256,7 +333,7 @@ export default function ImportDetailPage() {
                     </td>
                     <td className="px-6 py-4">
                       {item.warehouseProduct?.techSpecsJson && item.warehouseProduct.techSpecsJson !== '{}' ? (
-                        <div className="text-xs">
+                        <div className="text-xs min-w-[300px] max-w-md">
                           {(() => {
                             try {
                               const specs = JSON.parse(item.warehouseProduct.techSpecsJson)
@@ -264,13 +341,21 @@ export default function ImportDetailPage() {
                               if (entries.length === 0) return <span className="text-gray-400">-</span>
                               
                               return (
-                                <div className="space-y-1">
-                                  {entries.map(([key, value]: [string, any], idx: number) => (
-                                    <div key={idx} className="flex items-start">
-                                      <span className="text-gray-500 capitalize min-w-[100px]">{key.replace(/_/g, ' ')}:</span>
-                                      <span className="text-gray-900 font-medium ml-2">{String(value)}</span>
-                                    </div>
-                                  ))}
+                                <div className="bg-gray-50 rounded p-2 max-h-40 overflow-y-auto">
+                                  <table className="w-full text-xs">
+                                    <tbody>
+                                      {entries.map(([key, value]: [string, any], idx: number) => (
+                                        <tr key={idx} className="border-b border-gray-200 last:border-0">
+                                          <td className="py-1.5 pr-3 text-gray-600 font-medium capitalize whitespace-nowrap align-top">
+                                            {key.replace(/_/g, ' ')}
+                                          </td>
+                                          <td className="py-1.5 text-gray-900">
+                                            {String(value)}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
                                 </div>
                               )
                             } catch {
@@ -283,30 +368,43 @@ export default function ImportDetailPage() {
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      {item.productDetails && item.productDetails.length > 0 ? (
-                        <div className="space-y-1 max-h-40 overflow-y-auto">
-                          {item.productDetails.map((detail: any, idx: number) => (
-                            <div key={detail.id} className="flex items-center space-x-2">
-                              <span className="text-xs text-gray-400">{idx + 1}.</span>
-                              <span className="text-xs font-mono font-semibold text-blue-600">{detail.serialNumber}</span>
-                              <span className={`px-1.5 py-0.5 text-xs rounded ${
-                                detail.status === 'IN_STOCK' ? 'bg-green-100 text-green-700' :
-                                detail.status === 'SOLD' ? 'bg-blue-100 text-blue-700' :
-                                detail.status === 'DAMAGED' ? 'bg-red-100 text-red-700' :
-                                'bg-gray-100 text-gray-700'
-                              }`}>
-                                {detail.status === 'IN_STOCK' ? 'Kho' :
-                                 detail.status === 'SOLD' ? 'Bán' :
-                                 detail.status === 'DAMAGED' ? 'Hỏng' :
-                                 detail.status}
-                              </span>
-                            </div>
+                      {order.status === 'CREATED' ? (
+                        <div className="space-y-2 min-w-[200px]">
+                          {Array.from({ length: item.quantity }).map((_, idx) => (
+                            <input
+                              key={idx}
+                              type="text"
+                              value={serialInputs[item.id]?.[idx] || ''}
+                              onChange={(e) => handleSerialChange(item.id, idx, e.target.value)}
+                              placeholder={`Serial #${idx + 1}`}
+                              className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-red-500 focus:border-transparent font-mono"
+                            />
                           ))}
                         </div>
                       ) : (
-                        <span className="text-xs text-gray-400 italic">
-                          {order.status === 'CREATED' ? 'Chưa nhập' : '-'}
-                        </span>
+                        item.productDetails && item.productDetails.length > 0 ? (
+                          <div className="space-y-1 max-h-40 overflow-y-auto">
+                            {item.productDetails.map((detail: any, idx: number) => (
+                              <div key={detail.id} className="flex items-center space-x-2">
+                                <span className="text-xs text-gray-400">{idx + 1}.</span>
+                                <span className="text-xs font-mono font-semibold text-blue-600">{detail.serialNumber}</span>
+                                <span className={`px-1.5 py-0.5 text-xs rounded ${
+                                  detail.status === 'IN_STOCK' ? 'bg-green-100 text-green-700' :
+                                  detail.status === 'SOLD' ? 'bg-blue-100 text-blue-700' :
+                                  detail.status === 'DAMAGED' ? 'bg-red-100 text-red-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {detail.status === 'IN_STOCK' ? 'Kho' :
+                                   detail.status === 'SOLD' ? 'Bán' :
+                                   detail.status === 'DAMAGED' ? 'Hỏng' :
+                                   detail.status}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">Chưa nhập</span>
+                        )
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
@@ -343,13 +441,23 @@ export default function ImportDetailPage() {
         {/* Thao tác */}
         {order.status === 'CREATED' && (
           <div className="bg-white rounded-lg shadow-sm p-6">
-            <Link
-              href="/warehouse/import/complete"
-              className="w-full bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition-colors flex items-center justify-center space-x-2 font-semibold"
+            <button
+              onClick={handleCompleteImport}
+              disabled={isCompleting}
+              className="w-full bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition-colors flex items-center justify-center space-x-2 font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
-              <FiPackage />
-              <span>Hoàn thiện phiếu nhập</span>
-            </Link>
+              {isCompleting ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <span>Đang xử lý...</span>
+                </>
+              ) : (
+                <>
+                  <FiPackage />
+                  <span>Hoàn thiện phiếu nhập hàng</span>
+                </>
+              )}
+            </button>
           </div>
         )}
       </div>

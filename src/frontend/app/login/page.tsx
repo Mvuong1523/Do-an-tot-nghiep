@@ -10,10 +10,12 @@ import { FcGoogle } from "react-icons/fc"
 import Logo from "@/components/layout/Logo"
 import { authApi } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
+import { useCartStore } from '@/store/cartStore'
 
 const LoginPage = () => {
   const router = useRouter()
   const setAuth = useAuthStore((state) => state.setAuth)
+  const { clearCart, setUserId } = useCartStore()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -47,12 +49,18 @@ const LoginPage = () => {
           actualRole = response.data.position
         }
 
+        // Xóa giỏ hàng cũ và set userId mới
+        clearCart()
+        setUserId(response.data.userId)
+
         // Lưu thông tin đăng nhập
         setAuth(
           {
             id: response.data.userId,
             email: response.data.email,
             fullName: response.data.fullName,
+            phone: response.data.phone,
+            address: response.data.address,
             role: actualRole,
             status: response.data.status,
           },
@@ -71,6 +79,9 @@ const LoginPage = () => {
             break
           case 'PRODUCT_MANAGER':
             router.push('/product-manager')
+            break
+          case 'SALE':
+            router.push('/sales')
             break
           case 'CUSTOMER':
           default:

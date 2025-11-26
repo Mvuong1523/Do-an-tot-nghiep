@@ -6,6 +6,7 @@ import com.doan.WEB_TMDT.module.inventory.entity.POStatus;
 import com.doan.WEB_TMDT.module.inventory.entity.ExportStatus;
 
 public interface InventoryService {
+    ApiResponse getAllSuppliers();
     ApiResponse getOrCreateSupplier(CreateSupplierRequest req);
     ApiResponse createPurchaseOrder(CreatePORequest req);
     ApiResponse completePurchaseOrder(CompletePORequest req);

@@ -39,6 +39,12 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     @Override
+    public ApiResponse getAllSuppliers() {
+        List<Supplier> suppliers = supplierRepository.findAll();
+        return ApiResponse.success("Danh sách nhà cung cấp", suppliers);
+    }
+
+    @Override
     public  ApiResponse getOrCreateSupplier(CreateSupplierRequest req){
 
         if (req.getTaxCode() != null) {

@@ -66,6 +66,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/products/warehouse/**").hasAnyAuthority("PRODUCT_MANAGER", "ADMIN")
                         .requestMatchers("/api/products/publish").hasAnyAuthority("PRODUCT_MANAGER", "ADMIN")
                         
+                        // Admin order management (ADMIN + SALES_STAFF)
+                        .requestMatchers("/api/admin/orders/**").hasAnyAuthority("ADMIN", "SALES")
+                        
                         // Admin only endpoints
                         .requestMatchers("/api/employee-registration/list").hasAuthority("ADMIN")
                         .requestMatchers("/api/employee-registration/pending").hasAuthority("ADMIN")

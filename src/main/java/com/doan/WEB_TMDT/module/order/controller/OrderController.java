@@ -60,7 +60,7 @@ public class OrderController {
     }
 
     /**
-     * Hủy đơn hàng
+     * Hủy đơn hàng (Customer)
      */
     @PutMapping("/{orderId}/cancel")
     public ApiResponse cancelOrder(
@@ -68,13 +68,15 @@ public class OrderController {
             @RequestParam(required = false) String reason,
             Authentication authentication) {
         Long userId = getUserIdFromAuth(authentication);
-        return orderService.cancelOrder(orderId, userId, reason);
+        return orderService.cancelOrderByCustomer(orderId, userId, reason);
     }
 
     // Helper method
     private Long getUserIdFromAuth(Authentication authentication) {
-        // TODO: Extract user ID from authentication
-        // For now, return mock ID
-        return 1L;
+        if (authentication == null || authentication.getName() == null) {
+            throw new RuntimeException("Không tìm thấy thông tin xác thực");
+        }
+        String email = authentication.getName();
+        return orderService.getUserIdByEmail(email);
     }
 }

@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { FiPlus, FiTrash2, FiSave, FiX } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/store/authStore'
+import { inventoryApi } from '@/lib/api'
 
 interface TransactionItem {
   sku: string
@@ -48,7 +49,12 @@ export default function CreateTransactionPage() {
     techSpecs: '',
     note: ''
   })
+  const [techSpecRows, setTechSpecRows] = useState<Array<{key: string, value: string}>>([
+    { key: '', value: '' }
+  ])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [suppliers, setSuppliers] = useState<any[]>([])
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string>('')
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -63,7 +69,96 @@ export default function CreateTransactionPage() {
       router.push('/')
       return
     }
+
+    // Load suppliers
+    loadSuppliers()
   }, [isAuthenticated, user, router])
+
+  const loadSuppliers = async () => {
+    try {
+      const response = await inventoryApi.getSuppliers()
+      console.log('Suppliers response:', response)
+      if (response.success) {
+        setSuppliers(response.data || [])
+        console.log('Loaded suppliers:', response.data?.length || 0)
+      }
+    } catch (error) {
+      console.error('Error loading suppliers:', error)
+      toast.error('Không thể tải danh sách nhà cung cấp')
+    }
+  }
+
+  const handleSupplierChange = (supplierId: string) => {
+    setSelectedSupplierId(supplierId)
+    
+    if (supplierId) {
+      const supplier = suppliers.find(s => s.id.toString() === supplierId)
+      console.log('Selected supplier:', supplier)
+      
+      if (supplier) {
+        const newFormData = {
+          ...formData,
+          supplierName: supplier.name || '',
+          supplierContactName: supplier.contactName || supplier.contactPerson || '',
+          supplierTaxCode: supplier.taxCode || '',
+          supplierPhone: supplier.phone || '',
+          supplierEmail: supplier.email || '',
+          supplierAddress: supplier.address || '',
+          supplierBankAccount: supplier.bankAccount || '',
+          supplierPaymentTerm: supplier.paymentTerm || ''
+        }
+        console.log('New form data:', newFormData)
+        setFormData(newFormData)
+        toast.success(`Đã điền thông tin: ${supplier.name}`)
+      } else {
+        toast.error('Không tìm thấy nhà cung cấp')
+      }
+    } else {
+      // Clear form if "Nhập mới" is selected
+      setFormData({
+        ...formData,
+        supplierName: '',
+        supplierContactName: '',
+        supplierTaxCode: '',
+        supplierPhone: '',
+        supplierEmail: '',
+        supplierAddress: '',
+        supplierBankAccount: '',
+        supplierPaymentTerm: ''
+      })
+    }
+  }
+
+  // Convert tech spec rows to JSON
+  const techSpecsToJson = (): string => {
+    const specs: Record<string, string> = {}
+    
+    techSpecRows.forEach(row => {
+      if (row.key.trim() && row.value.trim()) {
+        // Giữ nguyên key, chỉ trim và lowercase
+        const key = row.key.trim().toLowerCase()
+        specs[key] = row.value.trim()
+      }
+    })
+    
+    return Object.keys(specs).length > 0 ? JSON.stringify(specs) : '{}'
+  }
+
+  const addTechSpecRow = () => {
+    setTechSpecRows([...techSpecRows, { key: '', value: '' }])
+  }
+
+  const removeTechSpecRow = (index: number) => {
+    if (techSpecRows.length > 1) {
+      setTechSpecRows(techSpecRows.filter((_, i) => i !== index))
+    }
+  }
+
+  const updateTechSpecRow = (index: number, field: 'key' | 'value', value: string) => {
+    const newRows = [...techSpecRows]
+    newRows[index][field] = value
+    setTechSpecRows(newRows)
+  }
 
   const handleAddProduct = () => {
     if (!newItem.sku || !newItem.productName) {
@@ -88,9 +183,14 @@ export default function CreateTransactionPage() {
       return
     }
 
-    setItems([...items, { ...newItem }])
+    // Convert tech specs to JSON
+    const techSpecsJson = techSpecsToJson()
     
-    // Reset form
+    console.log('Adding product with techSpecs:', techSpecsJson)
+    
+    setItems([...items, { ...newItem, techSpecs: techSpecsJson }])
+    
+    // Reset form and tech spec rows
     setNewItem({
       sku: '',
       productName: '',
@@ -100,9 +200,40 @@ export default function CreateTransactionPage() {
       techSpecs: '',
       note: ''
     })
+    setTechSpecRows([{ key: '', value: '' }])
     
     setShowProductModal(false)
     toast.success('Đã thêm sản phẩm')
+  }
+
+  const handleOpenProductModal = () => {
+    // Reset form when opening modal
+    setNewItem({
+      sku: '',
+      productName: '',
+      quantity: 1,
+      price: 0,
+      warrantyMonths: 12,
+      techSpecs: '',
+      note: ''
+    })
+    setTechSpecRows([{ key: '', value: '' }])
+    setShowProductModal(true)
+  }
+
+  const handleCloseProductModal = () => {
+    // Reset form when closing modal
+    setNewItem({
+      sku: '',
+      productName: '',
+      quantity: 1,
+      price: 0,
+      warrantyMonths: 12,
+      techSpecs: '',
+      note: ''
+    })
+    setTechSpecRows([{ key: '', value: '' }])
+    setShowProductModal(false)
   }
 
   const handleRemoveItem = (sku: string) => {
@@ -130,8 +261,6 @@ export default function CreateTransactionPage() {
     try {
       if (type === 'IMPORT') {
         // Gọi API tạo phiếu nhập kho
-        const { inventoryApi } = await import('@/lib/api')
-        
         const poCode = `PO-${Date.now()}`
         
         const response = await inventoryApi.createPurchaseOrder({
@@ -228,6 +357,27 @@ export default function CreateTransactionPage() {
                 <div className="space-y-4">
                   {type === 'IMPORT' && (
                     <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Chọn nhà cung cấp
+                        </label>
+                        <select
+                          value={selectedSupplierId}
+                          onChange={(e) => handleSupplierChange(e.target.value)}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white"
+                        >
+                          <option value="">-- Nhập thông tin mới --</option>
+                          {suppliers.map(supplier => (
+                            <option key={supplier.id} value={supplier.id}>
+                              {supplier.name} ({supplier.taxCode})
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Chọn nhà cung cấp có sẵn hoặc nhập mới
+                        </p>
+                      </div>
+
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Tên nhà cung cấp *
@@ -337,19 +487,6 @@ export default function CreateTransactionPage() {
                           />
                         </div>
                       </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Số hóa đơn
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.invoiceNumber}
-                          onChange={(e) => setFormData({...formData, invoiceNumber: e.target.value})}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                          placeholder="Nhập số hóa đơn"
-                        />
-                      </div>
                     </>
                   )}
 
@@ -362,7 +499,7 @@ export default function CreateTransactionPage() {
                       onChange={(e) => setFormData({...formData, note: e.target.value})}
                       rows={3}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                      placeholder="Nhập ghi chú (không bắt buộc)"
+                      placeholder="Nhập ghi chú"
                     />
                   </div>
                 </div>
@@ -374,7 +511,7 @@ export default function CreateTransactionPage() {
                   <h2 className="text-xl font-bold text-gray-900">Danh sách sản phẩm</h2>
                   <button
                     type="button"
-                    onClick={() => setShowProductModal(true)}
+                    onClick={handleOpenProductModal}
                     className="flex items-center space-x-2 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
                   >
                     <FiPlus />
@@ -387,7 +524,7 @@ export default function CreateTransactionPage() {
                     <p className="text-gray-500">Chưa có sản phẩm nào</p>
                     <button
                       type="button"
-                      onClick={() => setShowProductModal(true)}
+                      onClick={handleOpenProductModal}
                       className="mt-4 text-red-500 hover:text-red-600 font-medium"
                     >
                       Thêm sản phẩm đầu tiên
@@ -499,9 +636,9 @@ export default function CreateTransactionPage() {
             <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
               <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-xl font-bold text-gray-900">Chọn sản phẩm</h3>
+                  <h3 className="text-xl font-bold text-gray-900">Thêm sản phẩm</h3>
                   <button
-                    onClick={() => setShowProductModal(false)}
+                    onClick={handleCloseProductModal}
                     className="text-gray-400 hover:text-gray-600"
                   >
                     <FiX size={24} />
@@ -520,7 +657,7 @@ export default function CreateTransactionPage() {
                       value={newItem.sku}
                       onChange={(e) => setNewItem({...newItem, sku: e.target.value})}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                      placeholder="Nhập mã SKU (VD: IP16PM-256)"
+                      placeholder="Nhập mã SKU"
                     />
                   </div>
 
@@ -588,16 +725,115 @@ export default function CreateTransactionPage() {
 
                   {/* Tech Specs */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Thông số kỹ thuật
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={newItem.techSpecs}
-                      onChange={(e) => setNewItem({...newItem, techSpecs: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                      placeholder="VD: RAM: 8GB, ROM: 256GB, Màn hình: 6.7 inch..."
-                    />
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Thông số kỹ thuật
+                      </label>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const text = await navigator.clipboard.readText()
+                              const lines = text.split('\n').filter(line => line.trim())
+                              const newRows = lines.map(line => {
+                                const parts = line.split(/\t|:/).map(s => s.trim())
+                                return {
+                                  key: parts[0] || '',
+                                  value: parts[1] || ''
+                                }
+                              }).filter(row => row.key && row.value)
+                              
+                              if (newRows.length > 0) {
+                                setTechSpecRows(newRows)
+                                toast.success(`Đã paste ${newRows.length} thông số`)
+                              } else {
+                                toast.error('Không tìm thấy dữ liệu hợp lệ. Định dạng: Tên: Giá trị hoặc Tên[Tab]Giá trị')
+                              }
+                            } catch (error) {
+                              toast.error('Không thể đọc clipboard. Vui lòng cho phép truy cập clipboard.')
+                            }
+                          }}
+                          className="text-xs text-blue-500 hover:text-blue-600 font-medium"
+                        >
+                          📋 Paste từ clipboard
+                        </button>
+                        <button
+                          type="button"
+                          onClick={addTechSpecRow}
+                          className="text-xs text-red-500 hover:text-red-600 font-medium flex items-center space-x-1"
+                        >
+                          <FiPlus size={14} />
+                          <span>Thêm dòng</span>
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <p className="text-xs text-gray-500 mb-2">
+                      💡 Copy từ Excel/Google Sheets hoặc text có định dạng "Tên: Giá trị" rồi click "Paste từ clipboard"
+                    </p>
+                    
+                    <div className="border border-gray-300 rounded-lg overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-600">Tên thông số</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-600">Giá trị</th>
+                            <th className="px-3 py-2 w-10"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {techSpecRows.map((row, index) => (
+                            <tr key={index}>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="text"
+                                  value={row.key}
+                                  onChange={(e) => updateTechSpecRow(index, 'key', e.target.value)}
+                                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-red-500"
+                                />
+                              </td>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="text"
+                                  value={row.value}
+                                  onChange={(e) => updateTechSpecRow(index, 'value', e.target.value)}
+                                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-red-500"
+                                />
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                {techSpecRows.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeTechSpecRow(index)}
+                                    className="text-red-500 hover:text-red-600"
+                                  >
+                                    <FiTrash2 size={14} />
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    
+                    {/* Preview */}
+                    {techSpecRows.some(row => row.key.trim() && row.value.trim()) && (
+                      <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-xs font-semibold text-blue-900 mb-1">Preview JSON:</p>
+                        <div className="text-xs text-blue-800 space-y-1">
+                          {techSpecRows
+                            .filter(row => row.key.trim() && row.value.trim())
+                            .map((row, index) => (
+                              <div key={index} className="flex items-center space-x-2">
+                                <span className="font-medium">{row.key.toLowerCase()}:</span>
+                                <span>{row.value}</span>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Note */}
@@ -637,7 +873,7 @@ export default function CreateTransactionPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setShowProductModal(false)}
+                    onClick={handleCloseProductModal}
                     className="flex-1 bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
                   >
                     Hủy

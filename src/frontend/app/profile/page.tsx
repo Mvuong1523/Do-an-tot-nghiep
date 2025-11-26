@@ -30,6 +30,7 @@ export default function ProfilePage() {
       return
     }
 
+    // Lấy thông tin từ authStore (đã có từ login response)
     if (user) {
       setFormData({
         fullName: user.fullName || '',
@@ -54,11 +55,29 @@ export default function ProfilePage() {
     e.preventDefault()
     
     try {
-      // TODO: Call API to update profile
-      toast.success('Cập nhật thông tin thành công!')
-      setIsEditing(false)
-    } catch (error) {
-      toast.error('Lỗi khi cập nhật thông tin')
+      const { customerApi } = await import('@/lib/api')
+      const response = await customerApi.updateProfile(formData)
+      
+      if (response.success) {
+        toast.success('Cập nhật thông tin thành công!')
+        setIsEditing(false)
+        
+        // Cập nhật authStore với thông tin mới
+        const { setUser } = useAuthStore.getState()
+        setUser({
+          ...user!,
+          fullName: formData.fullName,
+          phone: formData.phone,
+          address: formData.address,
+          gender: formData.gender,
+          birthDate: formData.birthDate,
+        })
+      } else {
+        toast.error(response.message || 'Có lỗi xảy ra')
+      }
+    } catch (error: any) {
+      console.error('Error updating profile:', error)
+      toast.error(error.message || 'Lỗi khi cập nhật thông tin')
     }
   }
 

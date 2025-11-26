@@ -32,7 +32,7 @@ public class AuthServiceImpl implements AuthService {
     // -----------------------------------------------------------
     @Override
     public ApiResponse sendOtp(RegisterRequest request) {
-        System.out.println("=== SEND OTP START ===");
+        System.out.println("=== SEND OTP ===");
         System.out.println("Email: " + request.getEmail());
         System.out.println("Phone: " + request.getPhone());
         System.out.println("Full Name: " + request.getFullName());
@@ -88,7 +88,7 @@ public class AuthServiceImpl implements AuthService {
             return ApiResponse.error("Không thể gửi email OTP. Vui lòng thử lại sau!");
         }
 
-        System.out.println("=== SEND OTP END ===");
+        System.out.println("=== OTP SENT  ===");
         return ApiResponse.success("Mã OTP đã được gửi đến email của bạn!");
     }
 

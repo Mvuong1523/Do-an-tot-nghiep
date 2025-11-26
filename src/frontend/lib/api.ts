@@ -12,7 +12,7 @@ const apiClient = axios.create({
 // Add token to requests if available
 apiClient.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('auth_token')
+    const token = sessionStorage.getItem('auth_token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -33,7 +33,7 @@ export const authApi = {
     try {
       const response = await apiClient.post('/auth/login', data)
       if (response.data.token) {
-        localStorage.setItem('auth_token', response.data.token)
+        sessionStorage.setItem('auth_token', response.data.token)
       }
       return response.data
     } catch (error: any) {
@@ -63,7 +63,7 @@ export const authApi = {
     try {
       const response = await apiClient.post('/auth/register/verify-otp', data)
       if (response.data.token) {
-        localStorage.setItem('auth_token', response.data.token)
+        sessionStorage.setItem('auth_token', response.data.token)
       }
       return response.data
     } catch (error: any) {
@@ -72,7 +72,7 @@ export const authApi = {
   },
 
   logout: async (): Promise<void> => {
-    localStorage.removeItem('auth_token')
+    sessionStorage.removeItem('auth_token')
   },
 
   getCurrentUser: async (): Promise<ApiResponse<any>> => {
@@ -222,7 +222,7 @@ export const categoryApi = {
 
   create: async (data: any): Promise<ApiResponse<any>> => {
     try {
-      console.log('🔑 Creating category with token:', localStorage.getItem('auth_token')?.substring(0, 20) + '...')
+      console.log('🔑 Creating category with token:', sessionStorage.getItem('auth_token')?.substring(0, 20) + '...')
       const response = await apiClient.post('/categories', data)
       return response.data
     } catch (error: any) {
@@ -348,9 +348,10 @@ export const orderApi = {
   getAll: async (params?: any): Promise<ApiResponse<any[]>> => {
     try {
       const response = await apiClient.get('/orders', { params })
+      // Backend trả về {success, message, data}, nên cần lấy response.data.data
       return {
         success: true,
-        data: response.data || [],
+        data: response.data?.data || response.data || [],
       }
     } catch (error: any) {
       return {
@@ -364,12 +365,67 @@ export const orderApi = {
   getById: async (id: string | number): Promise<ApiResponse<any>> => {
     try {
       const response = await apiClient.get(`/orders/${id}`)
+      // Backend trả về {success, message, data}, nên cần lấy response.data.data
       return {
         success: true,
-        data: response.data,
+        data: response.data?.data || response.data,
       }
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Lỗi khi lấy thông tin đơn hàng')
+    }
+  },
+}
+
+// Admin Order API
+export const adminOrderApi = {
+  getAll: async (status?: string): Promise<ApiResponse<any[]>> => {
+    try {
+      const params = status ? { status } : {}
+      const response = await apiClient.get('/admin/orders', { params })
+      return {
+        success: true,
+        data: response.data?.data || response.data || [],
+      }
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi tải đơn hàng')
+    }
+  },
+
+  confirmOrder: async (orderId: number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.put(`/admin/orders/${orderId}/confirm`)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi xác nhận đơn hàng')
+    }
+  },
+
+  updateStatus: async (orderId: number, status: string): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.put(`/admin/orders/${orderId}/status`, null, {
+        params: { status }
+      })
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi cập nhật trạng thái')
+    }
+  },
+
+  markAsShipping: async (orderId: number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.put(`/admin/orders/${orderId}/shipping`)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi cập nhật trạng thái')
+    }
+  },
+
+  markAsDelivered: async (orderId: number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.put(`/admin/orders/${orderId}/delivered`)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi cập nhật trạng thái')
     }
   },
 }
@@ -386,6 +442,27 @@ export const contactApi = {
   },
 }
 
+// Customer API
+export const customerApi = {
+  getProfile: async (): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get('/customer/profile')
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi tải thông tin khách hàng')
+    }
+  },
+  
+  updateProfile: async (data: any): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.put('/customer/profile', data)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi cập nhật thông tin')
+    }
+  },
+}
+
 // Inventory API
 export const inventoryApi = {
   createPurchaseOrder: async (data: any): Promise<ApiResponse<any>> => {
@@ -394,6 +471,15 @@ export const inventoryApi = {
       return response.data
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Lỗi khi tạo đơn nhập hàng')
+    }
+  },
+
+  getSuppliers: async (): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await apiClient.get('/inventory/suppliers')
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi tải danh sách nhà cung cấp')
     }
   },
 

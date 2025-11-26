@@ -27,6 +27,12 @@ public class InventoryController {
         return inventoryService.createPurchaseOrder(req);
     }
     // ===== Suppliers =====
+    @GetMapping("/suppliers")
+    @PreAuthorize("hasAnyAuthority('WAREHOUSE', 'ADMIN')")
+    public ApiResponse getAllSuppliers() {
+        return inventoryService.getAllSuppliers();
+    }
+
     @PostMapping("/suppliers")
     @PreAuthorize("hasAnyAuthority('WAREHOUSE', 'ADMIN')")
     public ApiResponse createSupplier(@Valid @RequestBody CreateSupplierRequest req) {

@@ -38,6 +38,9 @@ export default function TransactionDetailPage() {
         ? await inventoryApi.getPurchaseOrderDetail(numericId)
         : await inventoryApi.getExportOrderDetail(numericId)
       
+      console.log('API Response:', response.data)
+      console.log('Transaction ID:', response.data?.id)
+      
       setTransaction({ ...response.data, type: isPO ? 'IMPORT' : 'EXPORT' })
       
       // Initialize serial inputs for purchase orders
@@ -89,14 +92,26 @@ export default function TransactionDetailPage() {
     }
 
     try {
-      await inventoryApi.completePurchaseOrder({
-        poId: transaction.id,
+      // Validate transaction.id
+      if (!transaction.id) {
+        toast.error('Không tìm thấy ID phiếu nhập')
+        console.error('Transaction object:', transaction)
+        return
+      }
+
+      const requestData = {
+        poId: Number(transaction.id), // Ensure it's a number
         serials: allSerials,
         receivedDate: new Date().toISOString()
-      })
+      }
+
+      console.log('Sending complete request:', requestData)
+      
+      await inventoryApi.completePurchaseOrder(requestData)
       toast.success('Hoàn tất nhập hàng thành công!')
       loadTransactionDetail()
     } catch (error: any) {
+      console.error('Error completing order:', error)
       toast.error(error.message || 'Lỗi khi hoàn tất đơn hàng')
     }
   }

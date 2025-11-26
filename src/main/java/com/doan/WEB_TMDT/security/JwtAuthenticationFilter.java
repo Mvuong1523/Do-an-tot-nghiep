@@ -35,6 +35,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             path.equals("/api/auth/register/verify-otp") ||
             path.equals("/api/auth/first-change-password") ||
             path.equals("/api/payment/ipn") ||
+            path.startsWith("/api/payment/sepay/webhook") ||
+            path.matches("/api/payment/[^/]+/status") ||
             path.equals("/api/employee-registration/apply") ||
             path.equals("/error")) {
             chain.doFilter(request, response);

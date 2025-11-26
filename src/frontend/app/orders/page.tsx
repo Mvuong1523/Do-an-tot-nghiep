@@ -26,17 +26,18 @@ export default function OrdersPage() {
 
     const loadOrders = async () => {
       try {
-        // TODO: Khi backend có Order API, gọi API thay vì đọc localStorage
-        // const response = await orderApi.getAll()
-        // if (response.success && response.data) {
-        //   setOrders(response.data)
-        // }
-
-        // Tạm thời đọc từ localStorage
-        const storedOrders = JSON.parse(localStorage.getItem('orders') || '[]')
-        setOrders(storedOrders)
+        const response = await orderApi.getAll()
+        
+        if (response.success && response.data) {
+          const ordersData = Array.isArray(response.data) ? response.data : []
+          setOrders(ordersData)
+        } else {
+          setOrders([])
+        }
       } catch (error) {
+        console.error('Error loading orders:', error)
         toast.error('Lỗi khi tải đơn hàng')
+        setOrders([])
       } finally {
         setLoading(false)
       }
@@ -113,9 +114,11 @@ export default function OrdersPage() {
     }
   }
 
-  const filteredOrders = filter === 'all' 
-    ? orders 
-    : orders.filter(order => order.status.toLowerCase() === filter)
+  const filteredOrders = Array.isArray(orders) 
+    ? (filter === 'all' 
+        ? orders 
+        : orders.filter(order => order.status?.toUpperCase() === filter.toUpperCase()))
+    : []
 
   if (loading) {
     return (
@@ -186,74 +189,44 @@ export default function OrdersPage() {
         ) : (
           <div className="space-y-4">
             {filteredOrders.map((order) => (
-              <div key={order.id} className="bg-white rounded-lg shadow-sm overflow-hidden">
-                {/* Order Header */}
-                <div className="p-6 border-b border-gray-200">
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-                    <div className="flex items-center space-x-4 mb-4 md:mb-0">
-                      {getStatusIcon(order.status)}
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <span className="font-semibold text-gray-900">
-                            Đơn hàng #{order.id}
-                          </span>
-                          <span className={`px-2 py-1 text-xs font-semibold rounded ${getStatusColor(order.status)}`}>
-                            {getStatusText(order.status)}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-600 mt-1">
-                          Đặt ngày: {formatDate(order.createdAt || new Date().toISOString())}
-                        </p>
+              <div key={order.orderId} className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                  {/* Left: Order Info */}
+                  <div className="flex items-center space-x-4 flex-1">
+                    {getStatusIcon(order.status)}
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <span className="font-bold text-gray-900 text-lg">
+                          {order.orderCode}
+                        </span>
+                        <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.status)}`}>
+                          {getStatusText(order.status)}
+                        </span>
                       </div>
+                      <p className="text-sm text-gray-600">
+                        {formatDate(order.createdAt || new Date().toISOString())}
+                      </p>
                     </div>
+                  </div>
+
+                  {/* Center: Total */}
+                  <div className="text-center md:text-right">
+                    <p className="text-sm text-gray-600 mb-1">Tổng tiền</p>
+                    <p className="text-2xl font-bold text-red-600">
+                      {formatPrice(order.total || 0)}
+                    </p>
+                  </div>
+
+                  {/* Right: Action Button */}
+                  <div>
                     <Link
-                      href={`/orders/${order.id}`}
-                      className="inline-flex items-center text-red-500 hover:text-red-600 font-medium"
+                      href={`/orders/${order.orderId}`}
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
                     >
                       <FiEye className="mr-2" />
                       Xem chi tiết
                     </Link>
                   </div>
-                </div>
-
-                {/* Order Items */}
-                <div className="p-6">
-                  <div className="space-y-4">
-                    {order.items && order.items.map((item: any, index: number) => (
-                      <div key={index} className="flex items-center space-x-4">
-                        <div className="w-20 h-20 bg-gray-100 rounded-lg flex-shrink-0"></div>
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-900">
-                            {item.productName || `Sản phẩm #${item.productId}`}
-                          </h4>
-                          <p className="text-sm text-gray-600">Số lượng: {item.quantity || 1}</p>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-semibold text-gray-900">
-                            {formatPrice(item.price || 0)}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Order Total */}
-                  <div className="mt-6 pt-6 border-t border-gray-200">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Tổng cộng:</span>
-                      <span className="text-2xl font-bold text-red-500">
-                        {formatPrice(order.totalAmount || 0)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Shipping Address */}
-                  {order.shippingAddress && (
-                    <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                      <h5 className="font-semibold text-gray-900 mb-2">Địa chỉ giao hàng:</h5>
-                      <p className="text-gray-700">{order.shippingAddress}</p>
-                    </div>
-                  )}
                 </div>
               </div>
             ))}

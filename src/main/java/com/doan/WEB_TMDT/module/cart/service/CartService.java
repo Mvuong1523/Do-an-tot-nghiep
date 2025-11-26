@@ -5,6 +5,7 @@ import com.doan.WEB_TMDT.module.cart.dto.AddToCartRequest;
 import com.doan.WEB_TMDT.module.cart.dto.UpdateCartItemRequest;
 
 public interface CartService {
+    Long getUserIdByEmail(String email);
     ApiResponse getCart(Long userId);
     ApiResponse addToCart(Long userId, AddToCartRequest request);
     ApiResponse updateCartItem(Long userId, Long itemId, UpdateCartItemRequest request);

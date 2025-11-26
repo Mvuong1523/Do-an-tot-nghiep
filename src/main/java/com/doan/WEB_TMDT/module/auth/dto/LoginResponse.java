@@ -12,6 +12,8 @@ public class LoginResponse {
     private Long   userId;
     private String email;
     private String fullName;
+    private String phone;
+    private String address;
     private String role;
     private String position; // WAREHOUSE, PRODUCT_MANAGER, etc.
     private String status;

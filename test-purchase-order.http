@@ -1,0 +1,228 @@
+### =====================================================
+### TEST API TẠO PHIẾU NHẬP KHO (PURCHASE ORDER)
+### =====================================================
+
+### 1. Đăng nhập để lấy token
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@webtmdt.com",
+  "password": "admin123"
+}
+
+### 2. Tạo Supplier mới (Nhà cung cấp)
+POST http://localhost:8080/api/inventory/suppliers
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "Công ty TNHH Điện Thoại Việt",
+  "contactName": "Nguyễn Văn A",
+  "phone": "0901234567",
+  "email": "contact@dienthoaiviet.com",
+  "address": "123 Đường ABC, Quận 1, TP.HCM",
+  "taxCode": "0123456789",
+  "bankAccount": "1234567890",
+  "paymentTerm": "Thanh toán trong 30 ngày",
+  "active": true
+}
+
+### 3. Tạo Phiếu Nhập Kho - Mẫu 1: iPhone 14 và Samsung S23
+POST http://localhost:8080/api/inventory/purchase-orders
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "createdBy": "admin@webtmdt.com",
+  "poCode": "PO-2024-005",
+  "supplier": {
+    "name": "Công ty TNHH Điện Thoại Việt",
+    "contactName": "Nguyễn Văn A",
+    "phone": "0901234567",
+    "email": "contact@dienthoaiviet.com",
+    "address": "123 Đường ABC, Quận 1, TP.HCM",
+    "taxCode": "0123456789",
+    "bankAccount": "1234567890",
+    "paymentTerm": "Thanh toán trong 30 ngày",
+    "active": true
+  },
+  "items": [
+    {
+      "sku": "IP14-128-BLK",
+      "quantity": 5,
+      "internalName": "iPhone 14 128GB Black",
+      "techSpecsJson": "{\"ram\":\"6GB\",\"storage\":\"128GB\",\"screen\":\"6.1 inch\",\"chip\":\"A15 Bionic\"}",
+      "unitCost": 18000000,
+      "warrantyMonths": 12,
+      "note": "iPhone 14 đen - lô 1"
+    },
+    {
+      "sku": "SS-S23-256-WHT",
+      "quantity": 3,
+      "internalName": "Samsung Galaxy S23 256GB White",
+      "techSpecsJson": "{\"ram\":\"8GB\",\"storage\":\"256GB\",\"screen\":\"6.1 inch\",\"chip\":\"Snapdragon 8 Gen 2\"}",
+      "unitCost": 20000000,
+      "warrantyMonths": 12,
+      "note": "Samsung S23 trắng"
+    }
+  ],
+  "note": "Đơn nhập hàng iPhone và Samsung"
+}
+
+### 4. Tạo Phiếu Nhập Kho - Mẫu 2: Xiaomi 13
+POST http://localhost:8080/api/inventory/purchase-orders
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "createdBy": "admin@webtmdt.com",
+  "poCode": "PO-2024-006",
+  "supplier": {
+    "name": "Công ty CP Phân Phối Điện Tử",
+    "contactName": "Trần Thị B",
+    "phone": "0912345678",
+    "email": "info@dientu.com",
+    "address": "456 Đường XYZ, Quận 3, TP.HCM",
+    "taxCode": "0987654321",
+    "bankAccount": "0987654321",
+    "paymentTerm": "Thanh toán ngay",
+    "active": true
+  },
+  "items": [
+    {
+      "sku": "XM-13-128-BLU",
+      "quantity": 10,
+      "internalName": "Xiaomi 13 128GB Blue",
+      "techSpecsJson": "{\"ram\":\"8GB\",\"storage\":\"128GB\",\"screen\":\"6.36 inch\",\"chip\":\"Snapdragon 8 Gen 2\"}",
+      "unitCost": 12000000,
+      "warrantyMonths": 18,
+      "note": "Xiaomi 13 xanh"
+    }
+  ],
+  "note": "Đơn nhập hàng Xiaomi"
+}
+
+### 5. Tạo Phiếu Nhập Kho - Mẫu 3: Samsung A54
+POST http://localhost:8080/api/inventory/purchase-orders
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "createdBy": "admin@webtmdt.com",
+  "poCode": "PO-2024-007",
+  "supplier": {
+    "name": "Công ty TNHH Thương Mại Apple",
+    "contactName": "Lê Văn C",
+    "phone": "0923456789",
+    "email": "sales@apple.vn",
+    "address": "789 Đường DEF, Quận 7, TP.HCM",
+    "taxCode": "1122334455",
+    "bankAccount": "1122334455",
+    "paymentTerm": "Thanh toán trong 15 ngày",
+    "active": true
+  },
+  "items": [
+    {
+      "sku": "SS-A54-128-BLK",
+      "quantity": 15,
+      "internalName": "Samsung Galaxy A54 128GB Black",
+      "techSpecsJson": "{\"ram\":\"8GB\",\"storage\":\"128GB\",\"screen\":\"6.4 inch\",\"chip\":\"Exynos 1380\"}",
+      "unitCost": 8500000,
+      "warrantyMonths": 12,
+      "note": "Samsung A54 đen"
+    }
+  ],
+  "note": "Đơn nhập Samsung A54"
+}
+
+### 6. Tạo Phiếu Nhập Kho - Mẫu 4: Mix nhiều sản phẩm
+POST http://localhost:8080/api/inventory/purchase-orders
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "createdBy": "admin@webtmdt.com",
+  "poCode": "PO-2024-008",
+  "supplier": {
+    "name": "Công ty TNHH Điện Thoại Việt",
+    "contactName": "Nguyễn Văn A",
+    "phone": "0901234567",
+    "email": "contact@dienthoaiviet.com",
+    "address": "123 Đường ABC, Quận 1, TP.HCM",
+    "taxCode": "0123456789",
+    "bankAccount": "1234567890",
+    "paymentTerm": "Thanh toán trong 30 ngày",
+    "active": true
+  },
+  "items": [
+    {
+      "sku": "IP14-256-WHT",
+      "quantity": 7,
+      "internalName": "iPhone 14 256GB White",
+      "techSpecsJson": "{\"ram\":\"6GB\",\"storage\":\"256GB\",\"screen\":\"6.1 inch\",\"chip\":\"A15 Bionic\"}",
+      "unitCost": 22000000,
+      "warrantyMonths": 12,
+      "note": "iPhone 14 trắng 256GB"
+    },
+    {
+      "sku": "IP13-128-BLK",
+      "quantity": 5,
+      "internalName": "iPhone 13 128GB Black",
+      "techSpecsJson": "{\"ram\":\"4GB\",\"storage\":\"128GB\",\"screen\":\"6.1 inch\",\"chip\":\"A15 Bionic\"}",
+      "unitCost": 15000000,
+      "warrantyMonths": 12,
+      "note": "iPhone 13 đen"
+    },
+    {
+      "sku": "SS-S22-128-BLU",
+      "quantity": 8,
+      "internalName": "Samsung Galaxy S22 128GB Blue",
+      "techSpecsJson": "{\"ram\":\"8GB\",\"storage\":\"128GB\",\"screen\":\"6.1 inch\",\"chip\":\"Snapdragon 8 Gen 1\"}",
+      "unitCost": 16000000,
+      "warrantyMonths": 12,
+      "note": "Samsung S22 xanh"
+    }
+  ],
+  "note": "Đơn nhập hàng tổng hợp tháng 12"
+}
+
+### 7. Lấy danh sách tất cả Purchase Orders
+GET http://localhost:8080/api/inventory/purchase-orders
+Authorization: Bearer {{token}}
+
+### 8. Lấy chi tiết Purchase Order theo ID
+GET http://localhost:8080/api/inventory/purchase-orders/1
+Authorization: Bearer {{token}}
+
+### 9. Nhập kho (Import) Purchase Order với Serial
+POST http://localhost:8080/api/inventory/purchase-orders/1/import
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "items": [
+    {
+      "poItemId": 1,
+      "serials": [
+        "IP14BLK001",
+        "IP14BLK002",
+        "IP14BLK003",
+        "IP14BLK004",
+        "IP14BLK005"
+      ]
+    },
+    {
+      "poItemId": 2,
+      "serials": [
+        "SSS23WHT001",
+        "SSS23WHT002",
+        "SSS23WHT003"
+      ]
+    }
+  ]
+}
+
+### 10. Lấy danh sách Suppliers
+GET http://localhost:8080/api/inventory/suppliers
+Authorization: Bearer {{token}}

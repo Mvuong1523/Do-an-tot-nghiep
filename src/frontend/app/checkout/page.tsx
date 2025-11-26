@@ -1,25 +1,31 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { FiShoppingCart, FiMapPin, FiCreditCard } from 'react-icons/fi'
-import { cartApi, orderApi } from '@/lib/api'
+import { cartApi, orderApi, customerApi } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
 import toast from 'react-hot-toast'
+import { vietnamProvinces } from '@/lib/vietnamLocations'
 
 export default function CheckoutPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { user, isAuthenticated } = useAuthStore()
+  const { isAuthenticated, user } = useAuthStore()
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [items, setItems] = useState<any[]>([])
   const [form, setForm] = useState({
-    fullName: '',
-    phone: '',
+    customerName: '',
+    customerPhone: '',
+    customerEmail: '',
+    province: '',
+    district: '',
+    ward: '',
     address: '',
     note: '',
-    paymentMethod: 'COD'
+    paymentMethod: 'COD',
+    shippingFee: 30000 // Phí ship mặc định
   })
 
   useEffect(() => {
@@ -28,8 +34,60 @@ export default function CheckoutPage() {
       router.push('/login')
       return
     }
+    
+    loadCustomerProfile()
     loadOrderData()
   }, [isAuthenticated])
+
+  const loadCustomerProfile = async () => {
+    console.log('🔍 Loading customer profile...')
+    console.log('Current user from authStore:', user)
+    
+    try {
+      const response = await customerApi.getProfile()
+      console.log('✅ Customer profile API response:', response)
+      
+      if (response.success && response.data) {
+        const profile = response.data
+        console.log('📋 Profile data:', profile)
+        
+        const newFormData = {
+          ...form,
+          customerName: profile.fullName || user?.fullName || '',
+          customerPhone: profile.phone || '',
+          customerEmail: user?.email || '',
+          address: profile.address || '',
+          province: profile.province || '',
+          district: profile.district || '',
+          ward: profile.ward || ''
+        }
+        
+        console.log('📝 Setting form with data:', newFormData)
+        setForm(newFormData)
+        
+        toast.success('Đã tải thông tin khách hàng')
+      } else {
+        console.warn('⚠️ API response not successful or no data')
+      }
+    } catch (error: any) {
+      console.error('❌ Error loading customer profile:', error)
+      console.error('Error details:', error.response?.data)
+      
+      toast.error('Không thể tải thông tin khách hàng')
+      
+      // Fallback to user info from authStore
+      if (user) {
+        console.log('🔄 Fallback to authStore user data')
+        const customerInfo = user.customer || user
+        setForm(prev => ({
+          ...prev,
+          customerName: customerInfo.fullName || user.fullName || user.name || '',
+          customerPhone: customerInfo.phone || user.phone || '',
+          customerEmail: user.email || ''
+        }))
+      }
+    }
+  }
 
   const loadOrderData = async () => {
     try {
@@ -48,14 +106,44 @@ export default function CheckoutPage() {
       } else {
         // Từ giỏ hàng - Lấy từ API
         const response = await cartApi.getCart()
+        console.log('Cart response:', response)
+        
         if (response.success && response.data?.items) {
-          setItems(response.data.items.map((item: any) => ({
-            productId: item.product.id,
-            productName: item.product.name,
-            price: item.price,
-            quantity: item.quantity,
-            imageUrl: item.product.imageUrl
-          })))
+          const mappedItems = response.data.items.map((item: any) => {
+            console.log('Processing item:', item)
+            
+            // Backend có thể trả về product ở nhiều cấu trúc khác nhau
+            const product = item.product || item
+            
+            // Kiểm tra xem có thông tin sản phẩm không
+            if (!product.id && !product.productId) {
+              console.error('Item missing product ID:', item)
+              return null
+            }
+            
+            return {
+              productId: product.id || product.productId || item.productId,
+              productName: product.name || product.productName || item.productName || 'Sản phẩm',
+              price: item.price || product.price || 0,
+              quantity: item.quantity || 1,
+              imageUrl: product.imageUrl || product.image || item.imageUrl || ''
+            }
+          }).filter(Boolean) // Loại bỏ null items
+          
+          console.log('Mapped items:', mappedItems)
+          console.log('Items count:', mappedItems.length)
+          
+          setItems(mappedItems)
+          
+          if (mappedItems.length === 0) {
+            console.warn('No items after mapping!')
+            toast.error('Giỏ hàng trống - Kiểm tra console để debug')
+            // Tạm thời comment để xem log
+            // router.push('/cart')
+          }
+        } else {
+          toast.error('Không thể tải giỏ hàng')
+          router.push('/cart')
         }
       }
     } catch (error) {
@@ -65,6 +153,13 @@ export default function CheckoutPage() {
       setLoading(false)
     }
   }
+
+  // Lấy danh sách quận/huyện dựa trên tỉnh đã chọn
+  const availableDistricts = useMemo(() => {
+    if (!form.province) return []
+    const province = vietnamProvinces.find(p => p.name === form.province)
+    return province?.districts || []
+  }, [form.province])
 
   const calculateTotal = () => {
     return items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
@@ -80,7 +175,8 @@ export default function CheckoutPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!form.fullName || !form.phone || !form.address) {
+    if (!form.customerName || !form.customerPhone || !form.customerEmail || 
+        !form.province || !form.district || !form.address) {
       toast.error('Vui lòng điền đầy đủ thông tin')
       return
     }
@@ -93,28 +189,41 @@ export default function CheckoutPage() {
     setSubmitting(true)
     try {
       const orderData = {
-        customerName: form.fullName,
-        customerPhone: form.phone,
-        shippingAddress: form.address,
+        customerName: form.customerName,
+        customerPhone: form.customerPhone,
+        customerEmail: form.customerEmail,
+        province: form.province,
+        district: form.district,
+        ward: form.ward || '', // Phường/xã không bắt buộc
+        address: form.address,
         note: form.note,
-        paymentMethod: form.paymentMethod,
-        items: items.map(item => ({
-          productId: item.productId,
-          quantity: item.quantity,
-          price: item.price
-        }))
+        shippingFee: form.shippingFee
       }
+
+      console.log('Submitting order:', orderData)
 
       const response = await orderApi.create(orderData)
       
-      if (response.success) {
-        toast.success('Đặt hàng thành công!')
+      console.log('Order response:', response)
+      console.log('Order data:', response.data)
+      console.log('Order ID:', response.data?.id)
+      
+      if (response.success && response.data) {
+        const orderId = response.data.orderId || response.data.id
+        
+        if (!orderId) {
+          console.error('No order ID in response:', response)
+          toast.error('Đặt hàng thành công nhưng không nhận được mã đơn hàng')
+          router.push('/orders')
+          return
+        }
         
         // Xóa quickBuyOrder nếu có
         sessionStorage.removeItem('quickBuyOrder')
         
-        // Chuyển đến trang đơn hàng
-        router.push(`/orders/${response.data.id}`)
+        // Chuyển đến trang đặt hàng thành công
+        console.log('Redirecting to success page with orderId:', orderId)
+        router.push(`/orders/success?orderId=${orderId}`)
       } else {
         toast.error(response.message || 'Đặt hàng thất bại')
       }
@@ -160,35 +269,92 @@ export default function CheckoutPage() {
                     </label>
                     <input
                       type="text"
-                      value={form.fullName}
-                      onChange={(e) => setForm({...form, fullName: e.target.value})}
+                      value={form.customerName}
+                      onChange={(e) => setForm({...form, customerName: e.target.value})}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     />
                   </div>
 
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Số điện thoại <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="tel"
+                        value={form.customerPhone}
+                        onChange={(e) => setForm({...form, customerPhone: e.target.value})}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Email <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        value={form.customerEmail}
+                        onChange={(e) => setForm({...form, customerEmail: e.target.value})}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Tỉnh/Thành phố <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={form.province}
+                        onChange={(e) => setForm({...form, province: e.target.value, district: '', ward: ''})}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      >
+                        <option value="">Chọn tỉnh/thành</option>
+                        {vietnamProvinces.map((province) => (
+                          <option key={province.code} value={province.name}>
+                            {province.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Quận/Huyện <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={form.district}
+                        onChange={(e) => setForm({...form, district: e.target.value, ward: ''})}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                        disabled={!form.province}
+                      >
+                        <option value="">Chọn quận/huyện</option>
+                        {availableDistricts.map((district) => (
+                          <option key={district.code} value={district.name}>
+                            {district.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Số điện thoại <span className="text-red-500">*</span>
+                      Địa chỉ cụ thể <span className="text-red-500">*</span>
                     </label>
                     <input
-                      type="tel"
-                      value={form.phone}
-                      onChange={(e) => setForm({...form, phone: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Địa chỉ giao hàng <span className="text-red-500">*</span>
-                    </label>
-                    <textarea
+                      type="text"
                       value={form.address}
                       onChange={(e) => setForm({...form, address: e.target.value})}
-                      rows={3}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Số nhà, tên đường..."
                       required
                     />
                   </div>

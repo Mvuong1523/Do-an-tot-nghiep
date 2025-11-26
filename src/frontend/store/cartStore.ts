@@ -24,6 +24,7 @@ export interface CartItem extends Product {
 interface CartStore {
   items: CartItem[]
   wishlist: number[] // Array of product IDs
+  userId?: string // Track which user owns this cart
   addToCart: (product: Product) => void
   removeFromCart: (productId: number) => void
   updateQuantity: (productId: number, quantity: number) => void
@@ -33,6 +34,7 @@ interface CartStore {
   isInWishlist: (productId: number) => boolean
   getCartCount: () => number
   getCartTotal: () => number
+  setUserId: (userId?: string) => void
 }
 
 export const useCartStore = create<CartStore>()(
@@ -40,6 +42,11 @@ export const useCartStore = create<CartStore>()(
     (set, get) => ({
       items: [],
       wishlist: [],
+      userId: undefined,
+
+      setUserId: (userId?: string) => {
+        set({ userId })
+      },
 
       addToCart: (product: Product) => {
         const items = get().items
@@ -114,7 +121,8 @@ export const useCartStore = create<CartStore>()(
       name: 'cart-storage',
       partialize: (state) => ({ 
         items: state.items, 
-        wishlist: state.wishlist 
+        wishlist: state.wishlist,
+        userId: state.userId
       }),
     }
   )

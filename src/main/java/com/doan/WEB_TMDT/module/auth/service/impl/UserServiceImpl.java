@@ -102,12 +102,16 @@ public class UserServiceImpl implements UserService {
         String token = jwtService.generateToken(user.getEmail(), claims);
         System.out.println("✅ Token generated: " + token.substring(0, 20) + "...");
 
-        // Get fullName and position
+        // Get fullName, phone, address and position
         String fullName = null;
+        String phone = null;
+        String address = null;
         String position = null;
         
         if (user.getCustomer() != null) {
             fullName = user.getCustomer().getFullName();
+            phone = user.getCustomer().getPhone();
+            address = user.getCustomer().getAddress();
         } else if (user.getEmployee() != null) {
             fullName = user.getEmployee().getFullName();
             position = user.getEmployee().getPosition() != null ? 
@@ -119,6 +123,8 @@ public class UserServiceImpl implements UserService {
                 user.getId(),
                 user.getEmail(),
                 fullName,
+                phone,
+                address,
                 user.getRole().name(),
                 position,
                 user.getStatus().name()
