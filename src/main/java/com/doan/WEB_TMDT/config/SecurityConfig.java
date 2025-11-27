@@ -112,7 +112,17 @@ public class SecurityConfig {
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
+        
+        // Webhook configuration - allow all origins for webhook endpoints
+        CorsConfiguration webhookConfig = new CorsConfiguration();
+        webhookConfig.setAllowedOriginPatterns(Arrays.asList("*")); // Allow all origins for webhooks
+        webhookConfig.setAllowedMethods(Arrays.asList("POST", "GET", "OPTIONS"));
+        webhookConfig.setAllowedHeaders(Arrays.asList("*"));
+        webhookConfig.setAllowCredentials(false); // No credentials needed for webhooks
+        
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/api/payment/sepay/webhook", webhookConfig);
+        source.registerCorsConfiguration("/api/payment/test-webhook/**", webhookConfig);
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }

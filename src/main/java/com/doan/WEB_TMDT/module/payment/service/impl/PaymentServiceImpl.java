@@ -161,15 +161,27 @@ public class PaymentServiceImpl implements PaymentService {
         log.info("Received SePay webhook: {}", request);
 
         try {
-            // 1. Verify signature
+            // 1. Quick validation - reject if content doesn't contain "PAY"
+            String content = request.getContent();
+            if (content == null || !content.contains("PAY")) {
+                log.warn("Webhook rejected - content doesn't contain payment code: {}", content);
+                return ApiResponse.error("Nội dung không chứa mã thanh toán");
+            }
+
+            // 2. Verify signature
             if (!verifySignature(request)) {
                 log.error("Invalid signature from SePay webhook");
                 return ApiResponse.error("Chữ ký không hợp lệ");
             }
 
-            // 2. Find payment by content (paymentCode)
-            Payment payment = paymentRepository.findByPaymentCode(request.getContent())
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy thanh toán với mã: " + request.getContent()));
+            // 3. Extract payment code from content (may have extra text like "PAY202511277791 FT2533..")
+            String paymentCode = extractPaymentCode(content);
+            
+            log.info("Extracted payment code: {} from content: {}", paymentCode, content);
+
+            // 3. Find payment by payment code
+            Payment payment = paymentRepository.findByPaymentCode(paymentCode)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy thanh toán với mã: " + paymentCode));
 
             // 3. Check if already processed
             if (payment.getStatus() == PaymentStatus.SUCCESS) {
@@ -303,6 +315,27 @@ public class PaymentServiceImpl implements PaymentService {
 
         // For demo, always return true
         return true;
+    }
+
+    /**
+     * Extract payment code from transaction content
+     * Content may be: "PAY202511277791" or "PAY202511277791 FT2533.."
+     */
+    private String extractPaymentCode(String content) {
+        if (content == null || content.isEmpty()) {
+            return content;
+        }
+        
+        // Tìm xâu con bắt đầu bằng "PAY"
+        int index = content.indexOf("PAY");
+        if (index != -1) {
+            // Lấy từ vị trí PAY, tối đa 15 ký tự (PAY + 12 số)
+            int endIndex = Math.min(index + 15, content.length());
+            String extracted = content.substring(index, endIndex).split("\\s+")[0];
+            return extracted;
+        }
+        
+        return content.trim();
     }
 
     private PaymentResponse toPaymentResponse(Payment payment) {

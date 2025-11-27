@@ -33,7 +33,6 @@ export default function PaymentPage() {
     }
 
     loadPaymentInfo()
-    startPolling()
 
     return () => {
       if (pollingInterval.current) {
@@ -41,6 +40,21 @@ export default function PaymentPage() {
       }
     }
   }, [isAuthenticated, params.orderCode])
+
+  // Start polling only after payment is loaded
+  useEffect(() => {
+    if (payment && !pollingInterval.current) {
+      console.log('✅ Payment loaded, starting polling for:', payment.paymentCode)
+      startPolling()
+    }
+
+    return () => {
+      if (pollingInterval.current) {
+        clearInterval(pollingInterval.current)
+        pollingInterval.current = null
+      }
+    }
+  }, [payment])
 
   useEffect(() => {
     // Countdown timer
@@ -124,14 +138,20 @@ export default function PaymentPage() {
   }
 
   const startPolling = () => {
+    console.log('🚀 Starting polling - will check every 5 seconds')
     // Poll every 5 seconds to check payment status
     pollingInterval.current = setInterval(async () => {
+      console.log('⏰ Polling tick - checking payment status...')
       await checkPaymentStatus()
     }, 5000)
   }
 
   const checkPaymentStatus = async () => {
-    if (checking || !payment) return
+    console.log('🔎 checkPaymentStatus called - checking:', checking, 'payment:', payment?.paymentCode)
+    if (checking || !payment) {
+      console.log('⚠️ Skipping check - checking:', checking, 'payment exists:', !!payment)
+      return
+    }
 
     setChecking(true)
     try {

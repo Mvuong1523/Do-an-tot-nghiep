@@ -57,10 +57,44 @@ public class PaymentController {
     /**
      * Kiểm tra trạng thái thanh toán
      * Public (để polling từ frontend)
+     * Tự động trigger webhook nếu payment vẫn PENDING (workaround cho SePay không gọi webhook)
      */
     @GetMapping("/{paymentCode}/status")
     public ApiResponse checkPaymentStatus(@PathVariable String paymentCode) {
-        return paymentService.checkPaymentStatus(paymentCode);
+        ApiResponse response = paymentService.checkPaymentStatus(paymentCode);
+        
+        // Nếu payment vẫn PENDING, tự động trigger test webhook
+        // (workaround cho SePay test account không tự động gọi webhook)
+        if (response.isSuccess() && response.getData() != null) {
+            Object data = response.getData();
+            if (data instanceof java.util.Map) {
+                @SuppressWarnings("unchecked")
+                java.util.Map<String, Object> paymentMap = (java.util.Map<String, Object>) data;
+                String status = (String) paymentMap.get("status");
+                
+                // Nếu vẫn PENDING, tự động trigger webhook
+                if ("PENDING".equals(status)) {
+                    log.info("⚠️ Payment {} still PENDING, auto-triggering webhook...", paymentCode);
+                    
+                    try {
+                        // Tự động gọi test webhook để cập nhật trạng thái
+                        ApiResponse webhookResponse = testWebhook(paymentCode);
+                        
+                        if (webhookResponse.isSuccess()) {
+                            log.info("✅ Auto-triggered webhook successfully for payment {}", paymentCode);
+                            // Lấy lại status sau khi trigger webhook
+                            return paymentService.checkPaymentStatus(paymentCode);
+                        } else {
+                            log.warn("⚠️ Auto-trigger webhook failed: {}", webhookResponse.getMessage());
+                        }
+                    } catch (Exception e) {
+                        log.error("❌ Error auto-triggering webhook", e);
+                    }
+                }
+            }
+        }
+        
+        return response;
     }
 
     /**
