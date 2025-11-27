@@ -49,10 +49,10 @@ public class OrderManagementController {
      * Xác nhận đơn hàng (PENDING -> CONFIRMED)
      * PUT /api/admin/orders/{orderId}/confirm
      */
-    @PutMapping("/{orderId}/confirm")
-    public ApiResponse confirmOrder(@PathVariable Long orderId) {
-        return orderService.confirmOrder(orderId);
-    }
+    // @PutMapping("/{orderId}/confirm")
+    // public ApiResponse confirmOrder(@PathVariable Long orderId) {
+    //     return orderService.confirmOrder(orderId);
+    // }
 
     /**
      * Đánh dấu đang giao hàng (CONFIRMED -> SHIPPING)
