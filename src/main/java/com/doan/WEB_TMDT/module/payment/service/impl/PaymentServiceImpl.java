@@ -198,10 +198,10 @@ public class PaymentServiceImpl implements PaymentService {
             payment.setSepayResponse(request.toString());
             paymentRepository.save(payment);
 
-            // 7. Update order
+            // 7. Update order: PENDING_PAYMENT → CONFIRMED (tự động xác nhận, chờ chuẩn bị hàng)
             Order order = payment.getOrder();
             order.setPaymentStatus(com.doan.WEB_TMDT.module.order.entity.PaymentStatus.PAID);
-            order.setPaidAt(LocalDateTime.now());
+            // Note: paidAt được lưu trong Payment entity, không cần lưu trong Order
             order.setStatus(com.doan.WEB_TMDT.module.order.entity.OrderStatus.CONFIRMED);
             order.setConfirmedAt(LocalDateTime.now());
             orderRepository.save(order);
@@ -249,7 +249,7 @@ public class PaymentServiceImpl implements PaymentService {
 
             // Update order
             Order order = payment.getOrder();
-            if (order.getStatus() == com.doan.WEB_TMDT.module.order.entity.OrderStatus.PENDING) {
+            if (order.getStatus() == com.doan.WEB_TMDT.module.order.entity.OrderStatus.PENDING_PAYMENT) {
                 order.setStatus(com.doan.WEB_TMDT.module.order.entity.OrderStatus.CANCELLED);
                 order.setCancelledAt(now);
                 order.setCancelReason("Hết hạn thanh toán");

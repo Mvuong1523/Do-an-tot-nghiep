@@ -116,6 +116,7 @@ export default function OrderManagementPage() {
 
   const getStatusText = (status: string) => {
     switch (status?.toUpperCase()) {
+      case 'PENDING_PAYMENT': return 'Chờ thanh toán'
       case 'PENDING': return 'Chờ xác nhận'
       case 'CONFIRMED': return 'Đã xác nhận'
       case 'SHIPPING': return 'Đang giao'
@@ -127,6 +128,7 @@ export default function OrderManagementPage() {
 
   const getStatusColor = (status: string) => {
     switch (status?.toUpperCase()) {
+      case 'PENDING_PAYMENT': return 'bg-orange-100 text-orange-800'
       case 'PENDING': return 'bg-yellow-100 text-yellow-800'
       case 'CONFIRMED': return 'bg-blue-100 text-blue-800'
       case 'SHIPPING': return 'bg-purple-100 text-purple-800'
@@ -138,6 +140,7 @@ export default function OrderManagementPage() {
 
   const getStatusIcon = (status: string) => {
     switch (status?.toUpperCase()) {
+      case 'PENDING_PAYMENT': return <FiClock className="text-orange-600" size={20} />
       case 'PENDING': return <FiClock className="text-yellow-600" size={20} />
       case 'CONFIRMED': return <FiCheck className="text-blue-600" size={20} />
       case 'SHIPPING': return <FiTruck className="text-purple-600" size={20} />
@@ -211,7 +214,7 @@ export default function OrderManagementPage() {
         <div className="flex overflow-x-auto">
           {[
             { key: 'ALL', label: 'Tất cả', count: orders.length },
-            { key: 'PENDING', label: 'Chờ xác nhận' },
+            { key: 'PENDING_PAYMENT', label: 'Chờ thanh toán' },
             { key: 'CONFIRMED', label: 'Đã xác nhận' },
             { key: 'SHIPPING', label: 'Đang giao' },
             { key: 'DELIVERED', label: 'Đã giao' },

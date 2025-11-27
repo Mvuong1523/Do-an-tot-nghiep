@@ -124,10 +124,10 @@ export default function PaymentPage() {
   }
 
   const startPolling = () => {
-    // Poll every 3 seconds to check payment status
+    // Poll every 5 seconds to check payment status
     pollingInterval.current = setInterval(async () => {
       await checkPaymentStatus()
-    }, 3000)
+    }, 5000)
   }
 
   const checkPaymentStatus = async () => {
@@ -231,10 +231,13 @@ export default function PaymentPage() {
       const data = await response.json()
 
       if (data.success) {
-        toast.success('Đã hủy đơn hàng')
+        // Đơn PENDING_PAYMENT sẽ bị xóa khỏi DB
+        toast.success('✅ Đã hủy đơn hàng!', {
+          duration: 3000,
+        })
         setTimeout(() => {
           router.push('/orders')
-        }, 1000)
+        }, 2000)
       } else {
         toast.error(data.message || 'Không thể hủy đơn hàng')
       }
@@ -252,6 +255,19 @@ export default function PaymentPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
           <p className="mt-4 text-gray-600">Đang tải...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show cancelling overlay
+  if (cancelling) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center bg-white p-8 rounded-lg shadow-lg">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-red-500 mx-auto"></div>
+          <p className="mt-4 text-xl font-semibold text-gray-900">Đang hủy đơn hàng...</p>
+          <p className="mt-2 text-gray-600">Vui lòng đợi trong giây lát</p>
         </div>
       </div>
     )

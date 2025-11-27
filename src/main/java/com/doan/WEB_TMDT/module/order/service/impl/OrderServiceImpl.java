@@ -90,10 +90,10 @@ public class OrderServiceImpl implements OrderService {
         LocalDateTime confirmedTime = null;
         
         if ("SEPAY".equals(request.getPaymentMethod())) {
-            // Thanh toán online → PENDING (chờ thanh toán)
-            initialStatus = OrderStatus.PENDING;
+            // Thanh toán online → PENDING_PAYMENT (chờ thanh toán)
+            initialStatus = OrderStatus.PENDING_PAYMENT;
         } else {
-            // COD → CONFIRMED (tự động xác nhận)
+            // COD → CONFIRMED (tự động xác nhận, chờ chuẩn bị hàng)
             initialStatus = OrderStatus.CONFIRMED;
             confirmedTime = LocalDateTime.now();
         }
@@ -109,6 +109,7 @@ public class OrderServiceImpl implements OrderService {
                 .total(total)
                 .status(initialStatus)
                 .paymentStatus(PaymentStatus.UNPAID)
+                .paymentMethod(request.getPaymentMethod()) // Lưu phương thức thanh toán
                 .confirmedAt(confirmedTime)
                 .build();
 
@@ -213,7 +214,7 @@ public class OrderServiceImpl implements OrderService {
             return ApiResponse.error("Bạn không có quyền hủy đơn hàng này");
         }
 
-        // Chỉ cho phép hủy khi chưa giao hàng (CONFIRMED hoặc SHIPPING)
+        // Chỉ cho phép hủy khi chưa giao hàng
         if (order.getStatus() == OrderStatus.DELIVERED) {
             return ApiResponse.error("Không thể hủy đơn hàng đã giao thành công");
         }
@@ -222,13 +223,31 @@ public class OrderServiceImpl implements OrderService {
             return ApiResponse.error("Đơn hàng đã bị hủy trước đó");
         }
 
+        // Nếu đang chờ thanh toán (PENDING_PAYMENT) → XÓA KHỎI DB
+        if (order.getStatus() == OrderStatus.PENDING_PAYMENT) {
+            log.info("Deleting order {} (PENDING_PAYMENT) by customer {}", order.getOrderCode(), customerId);
+            
+            // Giải phóng stock đã reserve
+            for (OrderItem item : order.getItems()) {
+                Product product = item.getProduct();
+                Long currentReserved = product.getReservedQuantity() != null ? product.getReservedQuantity() : 0L;
+                product.setReservedQuantity(Math.max(0, currentReserved - item.getQuantity()));
+            }
+            
+            // Xóa đơn hàng
+            orderRepository.delete(order);
+            
+            return ApiResponse.success("Đã hủy đơn hàng");
+        }
+
+        // Nếu đã CONFIRMED trở đi → Chuyển sang CANCELLED (lưu lại)
         // Check payment status - nếu đã thanh toán thì cần hoàn tiền
         if (order.getPaymentStatus() == PaymentStatus.PAID) {
             // TODO: Tích hợp API hoàn tiền
             log.warn("Order {} đã thanh toán, cần xử lý hoàn tiền", order.getOrderCode());
         }
 
-        // Cancel order
+        // Cancel order (chuyển status sang CANCELLED)
         order.setStatus(OrderStatus.CANCELLED);
         order.setCancelledAt(LocalDateTime.now());
         order.setCancelReason(reason != null ? reason : "Khách hàng hủy đơn");
@@ -269,6 +288,7 @@ public class OrderServiceImpl implements OrderService {
                 .orderCode(order.getOrderCode())
                 .status(order.getStatus().name())
                 .paymentStatus(order.getPaymentStatus().name())
+                .paymentMethod(order.getPaymentMethod())
                 .customerId(customer.getId())
                 .customerName(customer.getFullName())
                 .customerPhone(customer.getPhone())
@@ -332,25 +352,25 @@ public class OrderServiceImpl implements OrderService {
         return ApiResponse.success("Danh sách đơn hàng", responses);
     }
 
-    @Override
-    @Transactional
-    public ApiResponse confirmOrder(Long orderId) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
+    // @Override
+    // @Transactional
+    // public ApiResponse confirmOrder(Long orderId) {
+    //     Order order = orderRepository.findById(orderId)
+    //             .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 
-        if (order.getStatus() != OrderStatus.PENDING) {
-            return ApiResponse.error("Chỉ có thể xác nhận đơn hàng ở trạng thái chờ xác nhận");
-        }
+    //     if (order.getStatus() != OrderStatus.PENDING) {
+    //         return ApiResponse.error("Chỉ có thể xác nhận đơn hàng ở trạng thái chờ xác nhận");
+    //     }
 
-        order.setStatus(OrderStatus.CONFIRMED);
-        order.setConfirmedAt(LocalDateTime.now());
-        orderRepository.save(order);
+    //     order.setStatus(OrderStatus.CONFIRMED);
+    //     order.setConfirmedAt(LocalDateTime.now());
+    //     orderRepository.save(order);
 
-        log.info("Confirmed order {}", order.getOrderCode());
+    //     log.info("Confirmed order {}", order.getOrderCode());
 
-        OrderResponse response = toOrderResponse(order);
-        return ApiResponse.success("Đã xác nhận đơn hàng", response);
-    }
+    //     OrderResponse response = toOrderResponse(order);
+    //     return ApiResponse.success("Đã xác nhận đơn hàng", response);
+    // }
 
     @Override
     @Transactional
@@ -452,7 +472,7 @@ public class OrderServiceImpl implements OrderService {
         List<Order> allOrders = orderRepository.findAll();
         
         long totalOrders = allOrders.size();
-        long pendingOrders = allOrders.stream().filter(o -> o.getStatus() == OrderStatus.PENDING).count();
+        long pendingOrders = allOrders.stream().filter(o -> o.getStatus() == OrderStatus.PENDING_PAYMENT).count();
         long confirmedOrders = allOrders.stream().filter(o -> o.getStatus() == OrderStatus.CONFIRMED).count();
         long shippingOrders = allOrders.stream().filter(o -> o.getStatus() == OrderStatus.SHIPPING).count();
         long deliveredOrders = allOrders.stream().filter(o -> o.getStatus() == OrderStatus.DELIVERED).count();

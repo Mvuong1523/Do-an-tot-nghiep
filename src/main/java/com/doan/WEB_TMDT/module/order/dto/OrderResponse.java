@@ -16,6 +16,7 @@ public class OrderResponse {
     private String orderCode;
     private String status;
     private String paymentStatus;
+    private String paymentMethod; // COD, SEPAY, VNPAY, etc.
     
     // Customer info
     private Long customerId;

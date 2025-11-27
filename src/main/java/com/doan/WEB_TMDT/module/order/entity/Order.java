@@ -53,9 +53,12 @@ public class Order {
     @Column(nullable = false)
     private PaymentStatus paymentStatus;
     
+    @Column(length = 20)
+    private String paymentMethod; // COD, SEPAY, VNPAY, etc.
+    
     private Long paymentId; // Reference đến Payment entity
     
-    private LocalDateTime paidAt; // Thời gian thanh toán
+    // Note: paidAt được lấy từ Payment entity (nếu có)
     
     // Trạng thái đơn hàng
     @Enumerated(EnumType.STRING)
@@ -79,7 +82,7 @@ public class Order {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         if (status == null) {
-            status = OrderStatus.PENDING;
+            status = OrderStatus.PENDING_PAYMENT; // Default cho đơn online
         }
         if (paymentStatus == null) {
             paymentStatus = PaymentStatus.UNPAID;

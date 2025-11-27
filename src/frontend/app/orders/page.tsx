@@ -78,8 +78,12 @@ export default function OrdersPage() {
 
   const getStatusIcon = (status: string) => {
     switch (status.toLowerCase()) {
+      case 'pending_payment':
+        return <FiClock className="text-orange-500" size={20} />
       case 'pending':
         return <FiClock className="text-yellow-500" size={20} />
+      case 'confirmed':
+        return <FiPackage className="text-blue-500" size={20} />
       case 'processing':
         return <FiPackage className="text-blue-500" size={20} />
       case 'shipping':
@@ -95,8 +99,12 @@ export default function OrdersPage() {
 
   const getStatusText = (status: string) => {
     switch (status.toLowerCase()) {
+      case 'pending_payment':
+        return 'Chờ thanh toán'
       case 'pending':
         return 'Chờ xác nhận'
+      case 'confirmed':
+        return 'Đã xác nhận'
       case 'processing':
         return 'Đang xử lý'
       case 'shipping':
@@ -112,8 +120,12 @@ export default function OrdersPage() {
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
+      case 'pending_payment':
+        return 'bg-orange-100 text-orange-800'
       case 'pending':
         return 'bg-yellow-100 text-yellow-800'
+      case 'confirmed':
+        return 'bg-blue-100 text-blue-800'
       case 'processing':
         return 'bg-blue-100 text-blue-800'
       case 'shipping':
@@ -161,8 +173,8 @@ export default function OrdersPage() {
           <div className="flex overflow-x-auto">
             {[
               { key: 'all', label: 'Tất cả' },
-              { key: 'pending', label: 'Chờ xác nhận' },
-              { key: 'processing', label: 'Đang xử lý' },
+              { key: 'pending_payment', label: 'Chờ thanh toán' },
+              { key: 'confirmed', label: 'Đã xác nhận' },
               { key: 'shipping', label: 'Đang giao' },
               { key: 'delivered', label: 'Đã giao' },
               { key: 'cancelled', label: 'Đã hủy' },

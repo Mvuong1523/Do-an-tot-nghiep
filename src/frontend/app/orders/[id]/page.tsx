@@ -83,10 +83,12 @@ export default function OrderDetailPage() {
 
   const getStatusText = (status: string) => {
     switch (status?.toUpperCase()) {
+      case 'PENDING_PAYMENT':
+        return 'Chờ thanh toán'
       case 'PENDING':
         return 'Chờ xác nhận'
       case 'CONFIRMED':
-        return 'Đã xác nhận'
+        return 'Đã xác nhận - Đang chuẩn bị hàng'
       case 'PROCESSING':
         return 'Đang xử lý'
       case 'SHIPPING':
@@ -102,6 +104,8 @@ export default function OrderDetailPage() {
 
   const getStatusColor = (status: string) => {
     switch (status?.toUpperCase()) {
+      case 'PENDING_PAYMENT':
+        return 'bg-orange-100 text-orange-800'
       case 'PENDING':
         return 'bg-yellow-100 text-yellow-800'
       case 'CONFIRMED':
@@ -175,8 +179,8 @@ export default function OrderDetailPage() {
                 {getStatusText(order.status)}
               </span>
               
-              {/* Continue Payment Button - Show if order is pending and payment is unpaid/pending */}
-              {(order.status === 'PENDING' && (order.paymentStatus === 'UNPAID' || order.paymentStatus === 'PENDING')) && (
+              {/* Continue Payment Button - Show if order is PENDING_PAYMENT */}
+              {(order.status === 'PENDING_PAYMENT' && (order.paymentStatus === 'UNPAID' || order.paymentStatus === 'PENDING')) && (
                 <Link
                   href={`/payment/${order.orderCode}`}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold text-center hover:bg-blue-700 transition-colors"
@@ -201,7 +205,7 @@ export default function OrderDetailPage() {
           </div>
           
           {/* Payment Warning */}
-          {(order.status === 'PENDING' && (order.paymentStatus === 'UNPAID' || order.paymentStatus === 'PENDING')) && (
+          {(order.status === 'PENDING_PAYMENT' && (order.paymentStatus === 'UNPAID' || order.paymentStatus === 'PENDING')) && (
             <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <div className="flex items-start">
                 <span className="text-yellow-600 font-bold mr-2">⚠️</span>
