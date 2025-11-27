@@ -37,6 +37,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final CartRepository cartRepository;
     private final CustomerRepository customerRepository;
+    private final com.doan.WEB_TMDT.module.payment.service.PaymentService paymentService;
 
     @Override
     public Long getCustomerIdByEmail(String email) {
@@ -232,6 +233,16 @@ public class OrderServiceImpl implements OrderService {
                 Product product = item.getProduct();
                 Long currentReserved = product.getReservedQuantity() != null ? product.getReservedQuantity() : 0L;
                 product.setReservedQuantity(Math.max(0, currentReserved - item.getQuantity()));
+            }
+            
+            // Xóa payment trước (nếu có) để tránh foreign key constraint
+            if (order.getPaymentId() != null) {
+                try {
+                    paymentService.deletePaymentByOrderId(order.getId());
+                    log.info("Deleted payment for order {}", order.getOrderCode());
+                } catch (Exception e) {
+                    log.warn("Could not delete payment for order {}: {}", order.getOrderCode(), e.getMessage());
+                }
             }
             
             // Xóa đơn hàng

@@ -167,6 +167,23 @@ public class PaymentController {
         }
     }
 
+    /**
+     * Manual trigger để expire old payments (Admin only)
+     * Dùng để test hoặc chạy thủ công
+     */
+    @PostMapping("/admin/expire-old-payments")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ApiResponse expireOldPaymentsManual() {
+        log.info("Manual trigger: expireOldPayments");
+        try {
+            paymentService.expireOldPayments();
+            return ApiResponse.success("Đã xử lý các payment hết hạn");
+        } catch (Exception e) {
+            log.error("Error expiring old payments", e);
+            return ApiResponse.error("Lỗi: " + e.getMessage());
+        }
+    }
+
     // Helper method
     private Long getUserIdFromAuth(Authentication authentication) {
         if (authentication == null || authentication.getName() == null) {

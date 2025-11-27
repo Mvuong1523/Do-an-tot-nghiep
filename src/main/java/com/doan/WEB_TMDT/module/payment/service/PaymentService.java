@@ -13,4 +13,5 @@ public interface PaymentService {
     ApiResponse handleSepayWebhook(SepayWebhookRequest request);
     ApiResponse checkPaymentStatus(String paymentCode);
     void expireOldPayments(); // Cron job để hết hạn các payment cũ
+    void deletePaymentByOrderId(Long orderId); // Xóa payment khi hủy order
 }

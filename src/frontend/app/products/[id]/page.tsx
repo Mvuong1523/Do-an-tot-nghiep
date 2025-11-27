@@ -17,6 +17,7 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true)
   const [quantity, setQuantity] = useState(1)
   const [selectedImage, setSelectedImage] = useState(0)
+  const [activeTab, setActiveTab] = useState<'description' | 'specs' | 'reviews'>('description')
 
   useEffect(() => {
     loadProduct()
@@ -309,42 +310,93 @@ export default function ProductDetailPage() {
         <div className="bg-white rounded-lg p-6">
           <div className="border-b mb-6">
             <div className="flex space-x-8">
-              <button className="pb-4 border-b-2 border-blue-600 text-blue-600 font-medium">
+              <button 
+                onClick={() => setActiveTab('description')}
+                className={`pb-4 border-b-2 font-medium transition-colors ${
+                  activeTab === 'description' 
+                    ? 'border-blue-600 text-blue-600' 
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                }`}
+              >
                 Mô tả sản phẩm
               </button>
-              <button className="pb-4 text-gray-600 hover:text-gray-900">
+              <button 
+                onClick={() => setActiveTab('specs')}
+                className={`pb-4 border-b-2 font-medium transition-colors ${
+                  activeTab === 'specs' 
+                    ? 'border-blue-600 text-blue-600' 
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                }`}
+              >
                 Thông số kỹ thuật
               </button>
-              <button className="pb-4 text-gray-600 hover:text-gray-900">
+              <button 
+                onClick={() => setActiveTab('reviews')}
+                className={`pb-4 border-b-2 font-medium transition-colors ${
+                  activeTab === 'reviews' 
+                    ? 'border-blue-600 text-blue-600' 
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                }`}
+              >
                 Đánh giá (0)
               </button>
             </div>
           </div>
 
-          {/* Description */}
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold mb-4">Mô tả sản phẩm</h2>
-            <div className="prose max-w-none text-gray-700">
-              {product.description || 'Chưa có mô tả chi tiết'}
-            </div>
-          </div>
-
-          {/* Specifications */}
-          {Object.keys(specifications).length > 0 && (
-            <div>
-              <h2 className="text-2xl font-bold mb-4">Thông số kỹ thuật</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {Object.entries(specifications).map(([key, value]: [string, any]) => (
-                  <div key={key} className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-600 mb-1">{key}</p>
-                    <p className="font-medium text-gray-900">
-                      {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                    </p>
-                  </div>
-                ))}
+          {/* Tab Content */}
+          <div className="min-h-[300px]">
+            {/* Description Tab */}
+            {activeTab === 'description' && (
+              <div>
+                <h2 className="text-2xl font-bold mb-4">Mô tả sản phẩm</h2>
+                <div className="prose max-w-none text-gray-700">
+                  {product.description || 'Chưa có mô tả chi tiết'}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+
+            {/* Specifications Tab */}
+            {activeTab === 'specs' && (
+              <div>
+                <h2 className="text-2xl font-bold mb-4">Thông số kỹ thuật</h2>
+                {Object.keys(specifications).length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <tbody>
+                        {Object.entries(specifications).map(([key, value]: [string, any], index) => (
+                          <tr 
+                            key={key} 
+                            className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}
+                          >
+                            <td className="px-6 py-4 font-medium text-gray-700 border border-gray-200 w-1/3">
+                              {key}
+                            </td>
+                            <td className="px-6 py-4 text-gray-900 border border-gray-200">
+                              {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-gray-600">Chưa có thông số kỹ thuật</p>
+                )}
+              </div>
+            )}
+
+            {/* Reviews Tab */}
+            {activeTab === 'reviews' && (
+              <div>
+                <h2 className="text-2xl font-bold mb-4">Đánh giá sản phẩm</h2>
+                <div className="text-center py-12">
+                  <FiStar className="mx-auto text-gray-300 mb-4" size={48} />
+                  <p className="text-gray-600">Chưa có đánh giá nào</p>
+                  <p className="text-sm text-gray-500 mt-2">Hãy là người đầu tiên đánh giá sản phẩm này</p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

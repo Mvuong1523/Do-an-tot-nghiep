@@ -272,6 +272,15 @@ public class PaymentServiceImpl implements PaymentService {
         log.info("Expired {} old payments", expiredPayments.size());
     }
 
+    @Override
+    @Transactional
+    public void deletePaymentByOrderId(Long orderId) {
+        paymentRepository.findByOrderId(orderId).ifPresent(payment -> {
+            log.info("Deleting payment {} for order {}", payment.getPaymentCode(), orderId);
+            paymentRepository.delete(payment);
+        });
+    }
+
     // Helper methods
 
     private String generatePaymentCode() {
@@ -288,17 +297,16 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     private String generateSepayQrCode(String content, Double amount) {
-        // VietQR format
-        // https://img.vietqr.io/image/[BANK]-[ACCOUNT]-[TEMPLATE].png?amount=[AMOUNT]&addInfo=[CONTENT]
-        // Note: VietQR API expects amount in actual VND (e.g., 30000 = 30,000 VND)
+        // VietQR format - chỉ hiện mã QR, không có text
+        // Template: qr_only - sạch sẽ, chỉ có mã QR
         long amountInVnd = Math.round(amount * amountMultiplier);
         
         log.info("Generating QR code - Original amount: {} VND, Multiplier: {}, Final amount in QR: {} VND", 
                  amount, amountMultiplier, amountInVnd);
         
-        // Using 'print' template for better compatibility with banking apps
+        // Sử dụng 'qr_only' - chỉ có mã QR, không có thông tin ngân hàng
         return String.format(
-                "https://img.vietqr.io/image/%s-%s-print.png?amount=%d&addInfo=%s&accountName=%s",
+                "https://img.vietqr.io/image/%s-%s-qr_only.jpg?amount=%d&addInfo=%s&accountName=%s",
                 sepayBankCode,
                 sepayAccountNumber,
                 amountInVnd,

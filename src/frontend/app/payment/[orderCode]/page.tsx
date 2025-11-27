@@ -73,20 +73,24 @@ export default function PaymentPage() {
   const loadPaymentInfo = async () => {
     try {
       const orderCode = params.orderCode as string
+      console.log('🔄 Loading payment info for order:', orderCode)
       
       // Load order details first
+      console.log('📡 Fetching order from:', `http://localhost:8080/api/orders/code/${orderCode}`)
       const orderResponse = await fetch(`http://localhost:8080/api/orders/code/${orderCode}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
       })
       
+      console.log('📥 Order response status:', orderResponse.status)
+      
       if (!orderResponse.ok) {
         throw new Error('Không thể tải thông tin đơn hàng')
       }
       
       const orderData = await orderResponse.json()
-      console.log('Order data:', orderData)
+      console.log('✅ Order data:', orderData)
       
       if (!orderData.success || !orderData.data) {
         throw new Error('Không tìm thấy đơn hàng')
@@ -95,18 +99,21 @@ export default function PaymentPage() {
       setOrder(orderData.data)
       
       // Load payment info
+      console.log('📡 Fetching payment for orderId:', orderData.data.orderId)
       const paymentResponse = await fetch(`http://localhost:8080/api/payment/order/${orderData.data.orderId}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
       })
       
+      console.log('📥 Payment response status:', paymentResponse.status)
+      
       if (!paymentResponse.ok) {
         throw new Error('Không thể tải thông tin thanh toán')
       }
       
       const paymentData = await paymentResponse.json()
-      console.log('Payment data:', paymentData)
+      console.log('✅ Payment data:', paymentData)
       
       if (paymentData.success && paymentData.data) {
         setPayment(paymentData.data)
@@ -129,10 +136,11 @@ export default function PaymentPage() {
         }
       }
     } catch (error: any) {
-      console.error('Error loading payment info:', error)
+      console.error('❌ Error loading payment info:', error)
       toast.error(error.message || 'Lỗi khi tải thông tin thanh toán')
       router.push('/orders')
     } finally {
+      console.log('✅ Loading complete, setting loading = false')
       setLoading(false)
     }
   }
@@ -252,7 +260,7 @@ export default function PaymentPage() {
 
       if (data.success) {
         // Đơn PENDING_PAYMENT sẽ bị xóa khỏi DB
-        toast.success('✅ Đã hủy đơn hàng!', {
+        toast.success('Đã hủy đơn hàng!', {
           duration: 3000,
         })
         setTimeout(() => {
@@ -330,35 +338,47 @@ export default function PaymentPage() {
               </div>
             </div>
 
-            {/* QR Code */}
-            <div className="flex justify-center mb-6">
-              <div className="bg-white p-4 rounded-lg border-2 border-gray-200">
-                <img
-                  src={payment.qrCodeUrl}
-                  alt="QR Code"
-                  className="w-64 h-64"
-                />
+            {/* QR Code - Clean & Minimal */}
+            <div className="flex flex-col items-center mb-6">
+              <div className="relative">
+                {/* QR Container - Simple & Clean */}
+                <div className="bg-white p-8 rounded-2xl shadow-xl border-4 border-blue-500">
+                  <img
+                    src={payment.qrCodeUrl}
+                    alt="QR Code Thanh Toán"
+                    className="w-80 h-80 object-contain"
+                    loading="eager"
+                  />
+                </div>
+                
+                {/* Scan instruction */}
+                {/* <div className="mt-4 text-center">
+                  <div className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-full text-base font-medium shadow-lg">
+                    <span className="text-2xl">📱</span>
+                    <span>Quét mã QR để thanh toán</span>
+                  </div>
+                </div> */}
               </div>
             </div>
 
-            <div className="text-center mb-6">
+            {/* <div className="text-center mb-6">
               <div className="inline-flex items-center space-x-2 text-blue-600 bg-blue-50 px-4 py-2 rounded-lg">
                 <FiRefreshCw className={checking ? 'animate-spin' : ''} />
                 <span className="text-sm">
                   {checking ? 'Đang kiểm tra...' : 'Tự động kiểm tra thanh toán'}
                 </span>
               </div>
-            </div>
+            </div> */}
 
             {/* Bank Info */}
             <div className="border-t pt-6">
-              <h3 className="font-bold mb-4 text-center">Hoặc chuyển khoản thủ công</h3>
+              <h3 className="font-bold mb-4 text-center">Chuyển khoản thủ công</h3>
               
               <div className="space-y-3">
                 <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                   <div>
                     <div className="text-sm text-gray-600">Ngân hàng</div>
-                    <div className="font-medium">{payment.bankCode} - Vietcombank</div>
+                    <div className="font-medium">{payment.bankCode}</div>
                   </div>
                 </div>
 
@@ -380,6 +400,19 @@ export default function PaymentPage() {
                     <div className="text-sm text-gray-600">Chủ tài khoản</div>
                     <div className="font-medium">{payment.accountName}</div>
                   </div>
+                </div>
+
+                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <div className="text-sm text-gray-600">Số tiền chuyển khoản</div>
+                    <div className="font-medium">{payment.amount}</div>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(payment.amount, 'số tiền chuyển khoản')}
+                    className="text-blue-500 hover:text-blue-600"
+                  >
+                    <FiCopy size={20} />
+                  </button>
                 </div>
 
                 <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg border border-yellow-200">
@@ -440,12 +473,7 @@ export default function PaymentPage() {
               >
                 {checking ? 'Đang kiểm tra...' : 'Kiểm tra thanh toán'}
               </button>
-              <button
-                onClick={() => window.location.reload()}
-                className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-              >
-                Làm mới trang
-              </button>
+              
             </div>
             
             {/* Cancel Order Button */}
@@ -454,7 +482,7 @@ export default function PaymentPage() {
               disabled={cancelling}
               className="w-full px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 font-medium"
             >
-              {cancelling ? 'Đang hủy...' : '❌ Hủy đơn hàng'}
+              {cancelling ? 'Đang hủy...' : 'Hủy đơn hàng'}
             </button>
             
             <p className="text-center text-sm text-gray-500">
