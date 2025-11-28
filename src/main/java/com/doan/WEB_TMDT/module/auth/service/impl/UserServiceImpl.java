@@ -59,35 +59,81 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public ApiResponse login(LoginRequest request) {
+        System.out.println("=== LOGIN START ===");
+        System.out.println("Email: " + request.getEmail());
+        
         var user = userRepository.findByEmail(request.getEmail()).orElse(null);
-        if (user == null) return ApiResponse.error("Email không tồn tại!");
+        if (user == null) {
+            System.out.println("❌ Email không tồn tại!");
+            return ApiResponse.error("Email không tồn tại!");
+        }
+        
+        System.out.println("✅ User found: " + user.getEmail() + ", Role: " + user.getRole());
+        
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            System.out.println("❌ Mật khẩu không đúng!");
             return ApiResponse.error("Mật khẩu không đúng!");
         }
+        
+        System.out.println("✅ Password matched");
+        
         if (user.getStatus() != Status.ACTIVE) {
+            System.out.println("❌ Tài khoản bị khóa!");
             return ApiResponse.error("Tài khoản đang bị khóa!");
         }
+        
+        System.out.println("✅ Account active");
+        
         if (user.getRole() == Role.EMPLOYEE && user.getEmployee() != null) {
             if (user.getEmployee().isFirstLogin()) {
+                System.out.println("⚠️ First login - require password change");
                 return ApiResponse.success("Đăng nhập lần đầu. Yêu cầu đổi mật khẩu!",
                         Map.of("requireChangePassword", true, "email", user.getEmail()));
             }
         }
+        
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", user.getRole().name());
         if (user.getEmployee() != null && user.getEmployee().getPosition() != null) {
             claims.put("position", user.getEmployee().getPosition().name());
         }
 
+        System.out.println("🔑 Generating JWT token...");
         String token = jwtService.generateToken(user.getEmail(), claims);
+        System.out.println("✅ Token generated: " + token.substring(0, 20) + "...");
 
-        return ApiResponse.success("Đăng nhập thành công!", new LoginResponse(
+        // Get fullName, phone, address and position
+        String fullName = null;
+        String phone = null;
+        String address = null;
+        String position = null;
+        
+        if (user.getCustomer() != null) {
+            fullName = user.getCustomer().getFullName();
+            phone = user.getCustomer().getPhone();
+            address = user.getCustomer().getAddress();
+        } else if (user.getEmployee() != null) {
+            fullName = user.getEmployee().getFullName();
+            position = user.getEmployee().getPosition() != null ? 
+                      user.getEmployee().getPosition().name() : null;
+        }
+        
+        LoginResponse response = new LoginResponse(
                 token,
                 user.getId(),
                 user.getEmail(),
+                fullName,
+                phone,
+                address,
                 user.getRole().name(),
+                position,
                 user.getStatus().name()
-        ));
+        );
+        
+        System.out.println("✅ Login successful! Position: " + position);
+        System.out.println("=== LOGIN END ===");
+        
+        return ApiResponse.success("Đăng nhập thành công!", response);
     }
 
     @Override
@@ -121,15 +167,48 @@ public class UserServiceImpl implements UserService {
 
         Employee emp = user.getEmployee();
 
+        // Kiểm tra mật khẩu hiện tại
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            return ApiResponse.error("Mật khẩu hiện tại không đúng!");
+        }
 
+        // Kiểm tra mật khẩu mới khớp
         if (!request.getNewPassword().equals(request.getConfirmPassword())) {
             return ApiResponse.error("Xác nhận mật khẩu mới không khớp!");
         }
 
+        // Đổi mật khẩu
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-        emp.setFirstLogin(false); // ✅ nhân viên này đã đổi mật khẩu xong
+        emp.setFirstLogin(false); // ✅ Đánh dấu đã đổi mật khẩu
         userRepository.save(user);
 
         return ApiResponse.success("Đổi mật khẩu thành công!");
+    }
+
+    @Override
+    public ApiResponse getCurrentUser(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng!"));
+
+        String fullName = null;
+        String position = null;
+        
+        if (user.getCustomer() != null) {
+            fullName = user.getCustomer().getFullName();
+        } else if (user.getEmployee() != null) {
+            fullName = user.getEmployee().getFullName();
+            position = user.getEmployee().getPosition() != null ? 
+                      user.getEmployee().getPosition().name() : null;
+        }
+
+        Map<String, Object> userData = new HashMap<>();
+        userData.put("id", user.getId());
+        userData.put("email", user.getEmail());
+        userData.put("fullName", fullName);
+        userData.put("role", user.getRole().name());
+        userData.put("position", position);
+        userData.put("status", user.getStatus().name());
+
+        return ApiResponse.success("Lấy thông tin người dùng thành công", userData);
     }
 }

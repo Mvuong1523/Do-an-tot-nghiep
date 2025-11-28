@@ -23,9 +23,13 @@ public class ProductDetail {
     @Column(name = "serial_number", nullable = false, unique = true, length = 64)
     private String serialNumber;
 
-    // giá nhập riêng cho từng máy
+    // giá nhập riêng cho từng máy (giá vốn)
     @Column(nullable = false)
     private Double importPrice;
+
+    // giá bán thực tế (sẽ được cập nhật bởi module Order khi bán hàng)
+    // Dùng để module Accounting tính lợi nhuận sau này
+    private Double salePrice;
 
     // ngày nhập kho
     private LocalDateTime importDate;
@@ -42,6 +46,7 @@ public class ProductDetail {
 
     @ManyToOne
     @JoinColumn(name = "purchase_order_item_id")
+    @com.fasterxml.jackson.annotation.JsonBackReference
     private PurchaseOrderItem purchaseOrderItem;
 
 

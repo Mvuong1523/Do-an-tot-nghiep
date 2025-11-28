@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
@@ -18,17 +18,60 @@ export default function Header() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isLanguageOpen, setIsLanguageOpen] = useState(false)
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
+  const [cartCount, setCartCount] = useState(0)
   
   const { getCartCount } = useCartStore()
   const { currentLanguage, setLanguage } = useLanguageStore()
   const { user, isAuthenticated, logout } = useAuthStore()
   const { t } = useTranslation()
 
+  // Load cart count from API
+  const loadCartCount = async () => {
+    if (!isAuthenticated) {
+      setCartCount(0)
+      return
+    }
+    
+    try {
+      const response = await fetch('http://localhost:8080/api/cart', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      })
+      const data = await response.json()
+      if (data.success && data.data?.items) {
+        const count = data.data.items.reduce((sum: number, item: any) => sum + item.quantity, 0)
+        setCartCount(count)
+      } else {
+        setCartCount(0)
+      }
+    } catch (error) {
+      console.error('Error loading cart count:', error)
+      setCartCount(0)
+    }
+  }
+
+  // Load cart count only on mount and when auth changes
+  useEffect(() => {
+    loadCartCount()
+  }, [isAuthenticated])
+
+  // Listen for custom event to reload cart
+  useEffect(() => {
+    const handleCartUpdate = () => {
+      loadCartCount()
+    }
+    
+    window.addEventListener('cartUpdated', handleCartUpdate)
+    return () => window.removeEventListener('cartUpdated', handleCartUpdate)
+  }, [isAuthenticated])
+
   const handleLogout = () => {
     logout()
     toast.success('Đăng xuất thành công!')
     router.push('/')
     setIsUserMenuOpen(false)
+    setCartCount(0)
   }
 
   const navigationLinks = [
@@ -108,9 +151,9 @@ export default function Header() {
             <Link href="/cart" className="flex items-center space-x-2 bg-white border border-gray-200 rounded-lg px-4 py-2 hover:shadow-md transition-all relative">
               <FiShoppingCart size={18} className="text-gray-600" />
               <span className="text-gray-700 font-medium">{t('cart')}</span>
-              {getCartCount() > 0 && (
+              {cartCount > 0 && (
                 <span className="absolute -top-2 -right-2 bg-navy-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
-                  {getCartCount()}
+                  {cartCount}
                 </span>
               )}
             </Link>

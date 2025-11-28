@@ -1,168 +1,193 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { FiUser, FiMail, FiPhone, FiMapPin, FiCreditCard, FiTruck } from 'react-icons/fi'
-import toast from 'react-hot-toast'
-import { useTranslation } from '@/hooks/useTranslation'
-import { useCartStore } from '@/store/cartStore'
+import { useState, useEffect, useMemo } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { FiShoppingCart, FiMapPin, FiCreditCard } from 'react-icons/fi'
+import { cartApi, orderApi, customerApi } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
-import { orderApi } from '@/lib/api'
-import Image from 'next/image'
+import toast from 'react-hot-toast'
+import { vietnamProvinces } from '@/lib/vietnamLocations'
 
 export default function CheckoutPage() {
   const router = useRouter()
-  const { t } = useTranslation()
-  const { items, clearCart, getCartTotal } = useCartStore()
-  const { user, isAuthenticated } = useAuthStore()
-  
-  const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: '',
+  const searchParams = useSearchParams()
+  const { isAuthenticated, user } = useAuthStore()
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [items, setItems] = useState<any[]>([])
+  const [form, setForm] = useState({
+    customerName: '',
+    customerPhone: '',
+    customerEmail: '',
+    province: '',
     district: '',
     ward: '',
-    paymentMethod: 'cod',
-    notes: ''
+    address: '',
+    note: '',
+    paymentMethod: 'COD',
+    shippingFee: 30000 // Phí ship mặc định
   })
+  const [shippingMethod, setShippingMethod] = useState<'internal' | 'ghtk'>('internal')
 
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [errors, setErrors] = useState<{[key: string]: string}>({})
-
-  // Load user info if authenticated
   useEffect(() => {
     if (!isAuthenticated) {
-      toast.error('Vui lòng đăng nhập để đặt hàng!')
+      toast.error('Vui lòng đăng nhập')
       router.push('/login')
       return
     }
+    
+    loadCustomerProfile()
+    loadOrderData()
+  }, [isAuthenticated])
 
-    if (items.length === 0) {
-      toast.error('Giỏ hàng trống!')
-      router.push('/cart')
-      return
-    }
-
-    // Pre-fill form with user data if available
-    if (user) {
-      setFormData(prev => ({
-        ...prev,
-        email: user.email,
-      }))
-    }
-  }, [isAuthenticated, items.length, user, router])
-
-  const validateForm = () => {
-    const newErrors: {[key: string]: string} = {}
-    
-    // Validate required fields
-    if (!formData.fullName.trim()) {
-      newErrors.fullName = t('fullNameRequired')
-    }
-    
-    if (!formData.email.trim()) {
-      newErrors.email = t('emailRequired')
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = t('emailInvalid')
-    }
-    
-    if (!formData.phone.trim()) {
-      newErrors.phone = t('phoneRequired')
-    } else if (!/^[0-9]{10,11}$/.test(formData.phone.replace(/\s/g, ''))) {
-      newErrors.phone = t('phoneInvalid')
-    }
-    
-    if (!formData.address.trim()) {
-      newErrors.address = t('addressRequired')
-    }
-    
-    if (!formData.city) {
-      newErrors.city = t('cityRequired')
-    }
-    
-    if (!formData.district) {
-      newErrors.district = t('districtRequired')
-    }
-    
-    if (!formData.ward) {
-      newErrors.ward = t('wardRequired')
-    }
-    
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
-    
-    // Clear error when user starts typing
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }))
-    }
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!isAuthenticated || !user) {
-      toast.error('Vui lòng đăng nhập để đặt hàng!')
-      router.push('/login')
-      return
-    }
-
-    if (items.length === 0) {
-      toast.error('Giỏ hàng trống!')
-      return
-    }
-    
-    // Validate form before submitting
-    if (!validateForm()) {
-      toast.error(t('formValidationError'))
-      setIsProcessing(false)
-      return
-    }
-    
-    setIsProcessing(true)
+  const loadCustomerProfile = async () => {
+    console.log('🔍 Loading customer profile...')
+    console.log('Current user from authStore:', user)
     
     try {
-      // TODO: Cần cập nhật khi có Product API để lấy serial number
-      // Hiện tại tạm thời dùng product ID
-      const orderItems = items.map(item => ({
-        productId: item.id,
-        serialNumber: `SN-${item.id}-${Date.now()}`, // Temporary
-        price: item.price,
-      }))
-
-      const shippingAddress = `${formData.address}, ${formData.ward}, ${formData.district}, ${formData.city}`
+      const response = await customerApi.getProfile()
+      console.log('✅ Customer profile API response:', response)
       
-      const response = await orderApi.create({
-        customerId: user.id,
-        items: orderItems,
-        shippingAddress: shippingAddress,
-        note: formData.notes || undefined,
-      })
-
-      if (response.success) {
-        toast.success('Đặt hàng thành công!')
-        clearCart()
-        router.push('/orders')
+      if (response.success && response.data) {
+        const profile = response.data
+        console.log('📋 Profile data:', profile)
+        
+        const newFormData = {
+          ...form,
+          customerName: profile.fullName || user?.fullName || '',
+          customerPhone: profile.phone || '',
+          customerEmail: user?.email || '',
+          address: profile.address || '',
+          province: profile.province || '',
+          district: profile.district || '',
+          ward: profile.ward || ''
+        }
+        
+        console.log('📝 Setting form with data:', newFormData)
+        setForm(newFormData)
+        
+        toast.success('Đã tải thông tin khách hàng')
+      } else {
+        console.warn('⚠️ API response not successful or no data')
       }
     } catch (error: any) {
-      toast.error(error.message || 'Đặt hàng thất bại!')
-    } finally {
-      setIsProcessing(false)
+      console.error('❌ Error loading customer profile:', error)
+      console.error('Error details:', error.response?.data)
+      
+      toast.error('Không thể tải thông tin khách hàng')
+      
+      // Fallback to user info from authStore
+      if (user) {
+        console.log('🔄 Fallback to authStore user data')
+        const customerInfo = user.customer || user
+        setForm(prev => ({
+          ...prev,
+          customerName: customerInfo.fullName || user.fullName || user.name || '',
+          customerPhone: customerInfo.phone || user.phone || '',
+          customerEmail: user.email || ''
+        }))
+      }
     }
   }
+
+  const loadOrderData = async () => {
+    try {
+      const type = searchParams.get('type')
+      
+      if (type === 'quick') {
+        // Mua ngay - Lấy từ sessionStorage
+        const quickBuyData = sessionStorage.getItem('quickBuyOrder')
+        if (quickBuyData) {
+          const data = JSON.parse(quickBuyData)
+          setItems(data.items)
+        } else {
+          toast.error('Không tìm thấy thông tin đơn hàng')
+          router.push('/')
+        }
+      } else {
+        // Từ giỏ hàng - Lấy từ API
+        const response = await cartApi.getCart()
+        console.log('Cart response:', response)
+        
+        if (response.success && response.data?.items) {
+          const mappedItems = response.data.items.map((item: any) => {
+            console.log('Processing item:', item)
+            
+            // Backend có thể trả về product ở nhiều cấu trúc khác nhau
+            const product = item.product || item
+            
+            // Kiểm tra xem có thông tin sản phẩm không
+            if (!product.id && !product.productId) {
+              console.error('Item missing product ID:', item)
+              return null
+            }
+            
+            return {
+              productId: product.id || product.productId || item.productId,
+              productName: product.name || product.productName || item.productName || 'Sản phẩm',
+              price: item.price || product.price || 0,
+              quantity: item.quantity || 1,
+              imageUrl: product.imageUrl || product.image || item.imageUrl || ''
+            }
+          }).filter(Boolean) // Loại bỏ null items
+          
+          console.log('Mapped items:', mappedItems)
+          console.log('Items count:', mappedItems.length)
+          
+          setItems(mappedItems)
+          
+          if (mappedItems.length === 0) {
+            console.warn('No items after mapping!')
+            toast.error('Giỏ hàng trống - Kiểm tra console để debug')
+            // Tạm thời comment để xem log
+            // router.push('/cart')
+          }
+        } else {
+          toast.error('Không thể tải giỏ hàng')
+          router.push('/cart')
+        }
+      }
+    } catch (error) {
+      console.error('Error loading order data:', error)
+      toast.error('Lỗi khi tải thông tin đơn hàng')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Lấy danh sách quận/huyện dựa trên tỉnh đã chọn
+  const availableDistricts = useMemo(() => {
+    if (!form.province) return []
+    const province = vietnamProvinces.find(p => p.name === form.province)
+    return province?.districts || []
+  }, [form.province])
+
+  const calculateSubtotal = () => {
+    return items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+  }
+
+  const calculateTotal = () => {
+    return calculateSubtotal() + form.shippingFee
+  }
+
+  // Tự động tính phí ship khi thay đổi tỉnh
+  useEffect(() => {
+    if (form.province) {
+      const isHanoi = form.province.toLowerCase().includes('hà nội') || 
+                      form.province.toLowerCase().includes('ha noi') ||
+                      form.province.toLowerCase().includes('hanoi')
+      
+      if (isHanoi) {
+        // Nội thành Hà Nội - Miễn phí
+        setShippingMethod('internal')
+        setForm(prev => ({ ...prev, shippingFee: 0 }))
+      } else {
+        // Ngoài Hà Nội - GHTK (tạm tính 30k)
+        setShippingMethod('ghtk')
+        setForm(prev => ({ ...prev, shippingFee: 30000 }))
+      }
+    }
+  }, [form.province])
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('vi-VN', {
@@ -171,353 +196,360 @@ export default function CheckoutPage() {
     }).format(price)
   }
 
-  const subtotal = items.reduce((total, item) => total + (item.price * item.quantity), 0)
-  const shipping = 0 // Free shipping
-  const total = subtotal + shipping
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!form.customerName || !form.customerPhone || !form.customerEmail || 
+        !form.province || !form.district || !form.address) {
+      toast.error('Vui lòng điền đầy đủ thông tin')
+      return
+    }
 
-  if (!isAuthenticated || items.length === 0) {
-    return null // Will redirect in useEffect
+    if (items.length === 0) {
+      toast.error('Không có sản phẩm nào để đặt hàng')
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const orderData = {
+        province: form.province,
+        district: form.district,
+        ward: form.ward || '', // Phường/xã không bắt buộc
+        address: form.address,
+        note: form.note,
+        shippingFee: form.shippingFee,
+        paymentMethod: form.paymentMethod // COD hoặc SEPAY
+      }
+
+      console.log('Submitting order:', orderData)
+
+      const response = await orderApi.create(orderData)
+      
+      console.log('Order response:', response)
+      console.log('Order data:', response.data)
+      console.log('Order ID:', response.data?.id)
+      
+      if (response.success && response.data) {
+        const orderId = response.data.orderId || response.data.id
+        const orderCode = response.data.orderCode
+        
+        if (!orderId) {
+          console.error('No order ID in response:', response)
+          toast.error('Đặt hàng thành công nhưng không nhận được mã đơn hàng')
+          router.push('/orders')
+          return
+        }
+        
+        // Xóa quickBuyOrder nếu có
+        sessionStorage.removeItem('quickBuyOrder')
+        
+        // Xóa giỏ hàng trên backend
+        try {
+          await cartApi.clearCart()
+          // Dispatch event để cập nhật cart count
+          window.dispatchEvent(new Event('cartUpdated'))
+        } catch (error) {
+          console.error('Error clearing cart:', error)
+        }
+        
+        // Nếu chọn thanh toán online → Tạo payment
+        if (form.paymentMethod === 'SEPAY') {
+          try {
+            toast.loading('Đang tạo thanh toán...')
+            
+            const paymentResponse = await fetch('http://localhost:8080/api/payment/create', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+              },
+              body: JSON.stringify({
+                orderId: orderId,
+                amount: calculateTotal()
+              })
+            })
+            
+            const paymentResult = await paymentResponse.json()
+            console.log('Payment response:', paymentResult)
+            
+            if (paymentResult.success) {
+              toast.dismiss()
+              toast.success('Chuyển đến trang thanh toán...')
+              // Redirect đến trang payment
+              router.push(`/payment/${orderCode}`)
+            } else {
+              toast.dismiss()
+              toast.error(paymentResult.message || 'Không thể tạo thanh toán')
+              // Vẫn cho xem đơn hàng
+              router.push(`/orders/${orderCode}`)
+            }
+          } catch (error) {
+            console.error('Payment error:', error)
+            toast.dismiss()
+            toast.error('Lỗi khi tạo thanh toán')
+            router.push(`/orders/${orderCode}`)
+          }
+        } else {
+          // COD - Chuyển đến trang success
+          console.log('Redirecting to success page with orderId:', orderId)
+          router.push(`/orders/success?orderId=${orderId}`)
+        }
+      } else {
+        toast.error(response.message || 'Đặt hàng thất bại')
+      }
+    } catch (error: any) {
+      console.error('Order error:', error)
+      toast.error(error.message || 'Lỗi khi đặt hàng')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Đang tải...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">
-        {/* Breadcrumb */}
-        <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-6">
-          <Link href="/" className="hover:text-red-500">{t('home')}</Link>
-          <span>/</span>
-          <Link href="/cart" className="hover:text-red-500">{t('cart')}</Link>
-          <span>/</span>
-          <span className="text-gray-900">{t('checkoutTitle')}</span>
-        </nav>
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="container mx-auto px-4">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">Thanh toán</h1>
 
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">{t('checkoutTitle')}</h1>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Checkout Form */}
-          <div className="lg:col-span-2">
-            <form id="checkout-form" onSubmit={handleSubmit} className="space-y-8">
-              {/* Contact Information */}
+        <form onSubmit={handleSubmit}>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Form */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Thông tin giao hàng */}
               <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
-                  <FiUser className="mr-2" />
-                  {t('shippingInfo')}
-                </h2>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      {t('fullName')} *
-                    </label>
-                    <input
-                      type="text"
-                      name="fullName"
-                      value={formData.fullName}
-                      onChange={handleInputChange}
-                      required
-                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
-                        errors.fullName ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-red-500'
-                      }`}
-                      placeholder={t('enterFullName')}
-                    />
-                    {errors.fullName && (
-                      <p className="text-red-500 text-sm mt-1">{errors.fullName}</p>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      {t('email')} *
-                    </label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      required
-                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
-                        errors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-red-500'
-                      }`}
-                      placeholder={t('enterEmail')}
-                    />
-                    {errors.email && (
-                      <p className="text-red-500 text-sm mt-1">{errors.email}</p>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      {t('phone')} *
-                    </label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      required
-                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
-                        errors.phone ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-red-500'
-                      }`}
-                      placeholder={t('enterPhone')}
-                    />
-                    {errors.phone && (
-                      <p className="text-red-500 text-sm mt-1">{errors.phone}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Shipping Address */}
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
                   <FiMapPin className="mr-2" />
-                  {t('shippingAddress')}
+                  Thông tin giao hàng
                 </h2>
                 
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      {t('address')} *
+                      Họ và tên <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
-                      name="address"
-                      value={formData.address}
-                      onChange={handleInputChange}
+                      value={form.customerName}
+                      onChange={(e) => setForm({...form, customerName: e.target.value})}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
-                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
-                        errors.address ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-red-500'
-                      }`}
-                      placeholder={t('enterAddress')}
                     />
-                    {errors.address && (
-                      <p className="text-red-500 text-sm mt-1">{errors.address}</p>
-                    )}
                   </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        {t('city')} *
+                        Số điện thoại <span className="text-red-500">*</span>
                       </label>
-                      <select
-                        name="city"
-                        value={formData.city}
-                        onChange={handleInputChange}
+                      <input
+                        type="tel"
+                        value={form.customerPhone}
+                        onChange={(e) => setForm({...form, customerPhone: e.target.value})}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
-                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
-                          errors.city ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-red-500'
-                        }`}
-                      >
-                        <option value="">{t('selectCity')}</option>
-                        <option value="hanoi">Hà Nội</option>
-                        <option value="hcm">TP. Hồ Chí Minh</option>
-                        <option value="danang">Đà Nẵng</option>
-                      </select>
-                      {errors.city && (
-                        <p className="text-red-500 text-sm mt-1">{errors.city}</p>
-                      )}
+                      />
                     </div>
-                    
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        {t('district')} *
+                        Email <span className="text-red-500">*</span>
                       </label>
-                      <select
-                        name="district"
-                        value={formData.district}
-                        onChange={handleInputChange}
+                      <input
+                        type="email"
+                        value={form.customerEmail}
+                        onChange={(e) => setForm({...form, customerEmail: e.target.value})}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
-                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
-                          errors.district ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-red-500'
-                        }`}
-                      >
-                        <option value="">{t('selectDistrict')}</option>
-                        <option value="quan1">Quận 1</option>
-                        <option value="quan2">Quận 2</option>
-                        <option value="quan3">Quận 3</option>
-                      </select>
-                      {errors.district && (
-                        <p className="text-red-500 text-sm mt-1">{errors.district}</p>
-                      )}
+                      />
                     </div>
-                    
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        {t('ward')} *
+                        Tỉnh/Thành phố <span className="text-red-500">*</span>
                       </label>
                       <select
-                        name="ward"
-                        value={formData.ward}
-                        onChange={handleInputChange}
+                        value={form.province}
+                        onChange={(e) => setForm({...form, province: e.target.value, district: '', ward: ''})}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
-                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
-                          errors.ward ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-red-500'
-                        }`}
                       >
-                        <option value="">{t('selectWard')}</option>
-                        <option value="phuong1">Phường 1</option>
-                        <option value="phuong2">Phường 2</option>
-                        <option value="phuong3">Phường 3</option>
+                        <option value="">Chọn tỉnh/thành</option>
+                        {vietnamProvinces.map((province) => (
+                          <option key={province.code} value={province.name}>
+                            {province.name}
+                          </option>
+                        ))}
                       </select>
-                      {errors.ward && (
-                        <p className="text-red-500 text-sm mt-1">{errors.ward}</p>
-                      )}
                     </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Quận/Huyện <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={form.district}
+                        onChange={(e) => setForm({...form, district: e.target.value, ward: ''})}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                        disabled={!form.province}
+                      >
+                        <option value="">Chọn quận/huyện</option>
+                        {availableDistricts.map((district) => (
+                          <option key={district.code} value={district.name}>
+                            {district.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Địa chỉ cụ thể <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={form.address}
+                      onChange={(e) => setForm({...form, address: e.target.value})}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Số nhà, tên đường..."
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Ghi chú
+                    </label>
+                    <textarea
+                      value={form.note}
+                      onChange={(e) => setForm({...form, note: e.target.value})}
+                      rows={2}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Ghi chú thêm về đơn hàng..."
+                    />
                   </div>
                 </div>
               </div>
 
-              {/* Payment Method */}
+              {/* Phương thức thanh toán */}
               <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
                   <FiCreditCard className="mr-2" />
-                  {t('paymentMethod')}
+                  Phương thức thanh toán
                 </h2>
                 
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <label className="flex items-center p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
                     <input
                       type="radio"
                       name="paymentMethod"
-                      value="cod"
-                      checked={formData.paymentMethod === 'cod'}
-                      onChange={handleInputChange}
+                      value="COD"
+                      checked={form.paymentMethod === 'COD'}
+                      onChange={(e) => setForm({...form, paymentMethod: e.target.value})}
                       className="mr-3"
                     />
-                    <div className="flex items-center">
-                      <FiTruck className="mr-3 text-gray-600" size={20} />
-                      <div>
-                        <div className="font-semibold">{t('cod')}</div>
-                        <div className="text-sm text-gray-600">{t('codDescription')}</div>
-                      </div>
+                    <div>
+                      <p className="font-medium">Thanh toán khi nhận hàng (COD)</p>
+                      <p className="text-sm text-gray-600">Thanh toán bằng tiền mặt khi nhận hàng</p>
                     </div>
                   </label>
-                  
-                  <label className="flex items-center p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+
+                  <label className="flex items-center p-4 border border-blue-500 rounded-lg cursor-pointer hover:bg-blue-50">
                     <input
                       type="radio"
                       name="paymentMethod"
-                      value="banking"
-                      checked={formData.paymentMethod === 'banking'}
-                      onChange={handleInputChange}
+                      value="SEPAY"
+                      checked={form.paymentMethod === 'SEPAY'}
+                      onChange={(e) => setForm({...form, paymentMethod: e.target.value})}
                       className="mr-3"
                     />
-                    <div className="flex items-center">
-                      <FiCreditCard className="mr-3 text-gray-600" size={20} />
-                      <div>
-                        <div className="font-semibold">{t('bankTransfer')}</div>
-                        <div className="text-sm text-gray-600">{t('bankTransferDescription')}</div>
-                      </div>
+                    <div>
+                      <p className="font-medium">💳 Chuyển khoản ngân hàng (SePay)</p>
+                      <p className="text-sm text-gray-600">Quét QR Code hoặc chuyển khoản - Xác nhận tự động</p>
                     </div>
                   </label>
                 </div>
               </div>
+            </div>
 
-              {/* Order Notes */}
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-6">{t('orderNotes')}</h2>
-                <textarea
-                  name="notes"
-                  value={formData.notes}
-                  onChange={handleInputChange}
-                  rows={4}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                  placeholder={t('enterNotes')}
-                />
-              </div>
-            </form>
-          </div>
-
-          {/* Order Summary */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm sticky top-24">
-              <div className="p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-6">{t('orderSummary')}</h2>
+            {/* Summary */}
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-lg shadow-sm p-6 sticky top-4">
+                <h2 className="text-xl font-bold text-gray-900 mb-4">Đơn hàng</h2>
                 
-                {/* Order Items */}
-                <div className="space-y-4 mb-6">
-                  {items.map((item) => (
-                    <div key={item.id} className="flex items-center space-x-3">
-                      <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                        <Image
-                          src={item.image || '/images/placeholder.jpg'}
-                          alt={item.name}
-                          width={64}
-                          height={64}
-                          className="w-full h-full object-cover"
-                        />
+                {/* Items */}
+                <div className="space-y-3 mb-4 max-h-60 overflow-y-auto">
+                  {items.map((item, index) => (
+                    <div key={index} className="flex items-center space-x-3 pb-3 border-b">
+                      <div className="w-16 h-16 bg-gray-100 rounded flex-shrink-0 overflow-hidden">
+                        {item.imageUrl ? (
+                          <img src={item.imageUrl} alt={item.productName} className="w-full h-full object-contain" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <FiShoppingCart className="text-gray-400" />
+                          </div>
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 text-sm line-clamp-2">
-                          {item.name}
-                        </h3>
-                        <div className="text-sm text-gray-600">
-                          {t('quantity')}: {item.quantity}
-                        </div>
-                        <div className="font-semibold text-red-500">
-                          {formatPrice(item.price * item.quantity)}
-                        </div>
+                        <p className="text-sm font-medium text-gray-900 truncate">{item.productName}</p>
+                        <p className="text-sm text-gray-600">x{item.quantity}</p>
                       </div>
+                      <p className="text-sm font-medium">{formatPrice(item.price * item.quantity)}</p>
                     </div>
                   ))}
                 </div>
 
-                {/* Order Total */}
-                <div className="space-y-3 border-t pt-4">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">{t('subtotal')}:</span>
-                    <span className="font-semibold">{formatPrice(subtotal)}</span>
+                {/* Total */}
+                <div className="space-y-3 mb-4">
+                  <div className="flex justify-between text-gray-600">
+                    <span>Tạm tính</span>
+                    <span>{formatPrice(calculateSubtotal())}</span>
                   </div>
-                  
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">{t('shipping')}:</span>
-                    <span className="font-semibold text-green-600">{t('freeShipping')}</span>
-                  </div>
-                  
-                  <div className="border-t pt-3">
-                    <div className="flex justify-between text-lg font-bold">
-                      <span>{t('total')}:</span>
-                      <span className="text-red-500">{formatPrice(total)}</span>
+                  <div className="flex justify-between text-gray-600">
+                    <div>
+                      <p>Phí vận chuyển</p>
+                      {shippingMethod === 'internal' && (
+                        <p className="text-xs text-green-600">Shipper nội thành HN</p>
+                      )}
+                      {shippingMethod === 'ghtk' && (
+                        <p className="text-xs text-blue-600">Giao Hàng Tiết Kiệm</p>
+                      )}
                     </div>
+                    <span className={form.shippingFee === 0 ? 'text-green-600 font-medium' : ''}>
+                      {form.shippingFee === 0 ? 'Miễn phí' : formatPrice(form.shippingFee)}
+                    </span>
+                  </div>
+                  <div className="border-t pt-3 flex justify-between text-lg font-bold">
+                    <span>Tổng cộng</span>
+                    <span className="text-red-600">{formatPrice(calculateTotal())}</span>
                   </div>
                 </div>
 
-                {/* Place Order Button */}
                 <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={isProcessing}
-                  className="w-full mt-6 bg-red-500 text-white py-3 px-6 rounded-lg font-semibold hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold disabled:bg-gray-400"
                 >
-                  {isProcessing ? t('processing') : t('placeOrder')}
+                  {submitting ? 'Đang xử lý...' : 'Đặt hàng'}
                 </button>
-
-                {/* Security Info */}
-                <div className="mt-6 pt-6 border-t">
-                  <div className="flex items-center space-x-2 text-sm text-gray-600 mb-2">
-                    <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs">✓</span>
-                    </div>
-                    <span>{t('securePayment')}</span>
-                  </div>
-                  <div className="flex items-center space-x-2 text-sm text-gray-600 mb-2">
-                    <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs">✓</span>
-                    </div>
-                    <span>{t('freeShippingNationwide')}</span>
-                  </div>
-                  <div className="flex items-center space-x-2 text-sm text-gray-600">
-                    <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs">✓</span>
-                    </div>
-                    <span>{t('returnWithin7Days')}</span>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   )

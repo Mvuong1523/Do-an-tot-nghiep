@@ -5,6 +5,7 @@ import lombok.Data;
 @Data
 public class FirstChangePasswordRequest {
     private String email;
+    private String currentPassword;
     private String newPassword;
     private String confirmPassword;
 }

@@ -115,6 +115,13 @@
 			<version>2.5.0</version>
 		</dependency>
 
+		<!-- JSON parsing for ProductSpecification -->
+		<dependency>
+			<groupId>org.json</groupId>
+			<artifactId>json</artifactId>
+			<version>20240303</version>
+		</dependency>
+
 	</dependencies>
 
 	<build>

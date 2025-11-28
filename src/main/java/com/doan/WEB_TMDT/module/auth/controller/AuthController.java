@@ -25,7 +25,12 @@ public class AuthController {
 
     @PostMapping("/register/verify-otp")
     public ApiResponse verifyOtp(@RequestBody OtpVerifyRequest request) {
-        return authService.verifyOtpAndRegister(request);
+        try {
+            return authService.verifyOtpAndRegister(request);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ApiResponse.error("Lỗi xác thực OTP: " + e.getMessage());
+        }
     }
     @PostMapping("/login")
     public ApiResponse login(@RequestBody LoginRequest request) {
@@ -43,6 +48,15 @@ public class AuthController {
     ) {
         String email = authentication.getName();
         return userService.changePassword(email, req);
+    }
+
+    @GetMapping("/me")
+    public ApiResponse getCurrentUser(Authentication authentication) {
+        if (authentication == null) {
+            return ApiResponse.error("Chưa đăng nhập");
+        }
+        String email = authentication.getName();
+        return userService.getCurrentUser(email);
     }
 
 }

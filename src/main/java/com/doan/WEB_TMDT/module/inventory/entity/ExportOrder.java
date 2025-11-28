@@ -26,10 +26,11 @@ public class ExportOrder {
     @Enumerated(EnumType.STRING)
     private ExportStatus status;
 
-//    @ManyToOne
-//    @JoinColumn(name = "order_id")
-//    private Order order;
+    @Column(name = "order_id")
+    private Long orderId;  // Reference đến Order (không dùng @ManyToOne để tránh circular dependency)
 
     @OneToMany(mappedBy = "exportOrder", cascade = CascadeType.ALL)
+    @com.fasterxml.jackson.annotation.JsonManagedReference
+    @Builder.Default
     private List<ExportOrderItem> items = new ArrayList<>();     // Danh sách sản phẩm xuất
 }

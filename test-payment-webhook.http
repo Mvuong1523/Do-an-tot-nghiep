@@ -1,0 +1,69 @@
+### Test Payment Webhook - PAY202511263145
+### Endpoint này dùng để test thanh toán mà không cần chuyển khoản thật
+### ✅ TESTED - Working! Response: {"success":true,"message":"Thanh toán đã được xử lý"}
+
+### 1. Test webhook bằng GET (Mở trực tiếp trên browser)
+### Copy URL này vào browser:
+### http://localhost:8080/api/payment/test-webhook/PAY202511263145
+
+GET http://localhost:8080/api/payment/test-webhook/PAY202511263145
+
+###
+
+### 2. Test webhook bằng POST
+POST http://localhost:8080/api/payment/test-webhook/PAY202511263145
+
+###
+
+### 3. Kiểm tra trạng thái thanh toán sau khi test
+GET http://localhost:8080/api/payment/PAY202511263145/status
+
+###
+
+### 4. Xem chi tiết thanh toán (cần authentication)
+GET http://localhost:8080/api/payment/PAY202511263145
+Authorization: Bearer YOUR_TOKEN_HERE
+
+###
+
+### 5. Test webhook thủ công với SePay format (POST)
+POST http://localhost:8080/api/payment/sepay/webhook
+Content-Type: application/json
+
+{
+  "transactionId": "TEST_MANUAL_123",
+  "amount": 30007.0,
+  "content": "PAY202511263145",
+  "bankCode": "MBBank",
+  "accountNumber": "3333315012003",
+  "status": "SUCCESS",
+  "timestamp": "2025-11-26T15:30:00"
+}
+
+###
+
+### 6. Kiểm tra payment trong database (nếu có MySQL client)
+### mysql -u root -p web2 -e "SELECT * FROM payments WHERE payment_code = 'PAY202511263145';"
+
+###
+
+### HƯỚNG DẪN SỬ DỤNG:
+### 
+### Cách 1: Test nhanh nhất (Dùng browser)
+### - Copy URL này: http://localhost:8080/api/payment/test-webhook/PAY202511263145
+### - Paste vào browser và Enter
+### - Sẽ thấy response JSON với success: true
+###
+### Cách 2: Dùng VS Code REST Client
+### - Click vào "Send Request" ở trên mỗi request
+### - Request #1 hoặc #2 để trigger webhook
+### - Request #3 để check status
+###
+### Cách 3: Dùng curl
+### curl http://localhost:8080/api/payment/test-webhook/PAY202511263145
+###
+### KẾT QUẢ MONG ĐỢI:
+### - Payment status: PENDING → SUCCESS
+### - Order payment_status: PENDING → PAID
+### - Order status: PENDING → CONFIRMED
+### - Response: {"success": true, "message": "Xử lý thanh toán thành công"}

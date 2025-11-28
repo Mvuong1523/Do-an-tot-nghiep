@@ -10,10 +10,12 @@ import { FcGoogle } from "react-icons/fc"
 import Logo from "@/components/layout/Logo"
 import { authApi } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
+import { useCartStore } from '@/store/cartStore'
 
 const LoginPage = () => {
   const router = useRouter()
   const setAuth = useAuthStore((state) => state.setAuth)
+  const { clearCart, setUserId } = useCartStore()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -40,19 +42,52 @@ const LoginPage = () => {
           return
         }
 
+        // Xác định role thực tế dựa trên role và position
+        let actualRole = response.data.role
+        if (response.data.role === 'EMPLOYEE' && response.data.position) {
+          // Nếu là EMPLOYEE, dùng position làm role
+          actualRole = response.data.position
+        }
+
+        // Xóa giỏ hàng cũ và set userId mới
+        clearCart()
+        setUserId(response.data.userId)
+
         // Lưu thông tin đăng nhập
         setAuth(
           {
             id: response.data.userId,
             email: response.data.email,
-            role: response.data.role,
+            fullName: response.data.fullName,
+            phone: response.data.phone,
+            address: response.data.address,
+            role: actualRole,
             status: response.data.status,
           },
           response.data.token
         )
     
-    toast.success('Đăng nhập thành công!')
-        router.push('/')
+        toast.success('Đăng nhập thành công!')
+        
+        // Redirect theo role thực tế
+        switch (actualRole) {
+          case 'ADMIN':
+            router.push('/admin')
+            break
+          case 'WAREHOUSE':
+            router.push('/warehouse')
+            break
+          case 'PRODUCT_MANAGER':
+            router.push('/product-manager')
+            break
+          case 'SALE':
+            router.push('/sales')
+            break
+          case 'CUSTOMER':
+          default:
+            router.push('/')
+            break
+        }
       }
     } catch (error: any) {
       toast.error(error.message || 'Đăng nhập thất bại!')

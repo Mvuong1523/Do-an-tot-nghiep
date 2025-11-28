@@ -2,309 +2,203 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
-import { Swiper, SwiperSlide } from 'swiper/react'
-import { Autoplay, Pagination, Navigation } from 'swiper/modules'
-import 'swiper/css'
-import 'swiper/css/pagination'
-import 'swiper/css/navigation'
-import ProductCard from '@/components/product/ProductCard'
-import CategoryCard from '@/components/category/CategoryCard'
-import { Product } from '@/store/cartStore'
-import { useTranslation } from '@/hooks/useTranslation'
-import { categoryApi } from '@/lib/api'
-
-// Mock data - sẽ được thay thế bằng API calls khi backend có đầy đủ
-const featuredProducts: Product[] = [
-  {
-    id: 1,
-    name: 'iPhone 16 Pro Max 256GB - Chính hãng VN/A',
-    price: 29990000,
-    originalPrice: 34990000,
-    discount: 14,
-    image: '/images/iphone-16-pro-max.jpg',
-    rating: 4.8,
-    reviews: 1250,
-    badge: 'Hot'
-  },
-  {
-    id: 2,
-    name: 'Điện thoại Xiaomi POCO C71 4GB/128GB',
-    price: 2490000,
-    originalPrice: undefined,
-    discount: 0,
-    image: '/images/xiaomi-poco-c71.jpg',
-    rating: 4.5,
-    reviews: 890,
-    badge: 'Mới'
-  },
-  {
-    id: 3,
-    name: 'Điện thoại Xiaomi POCO M6 8GB/256GB',
-    price: 3990000,
-    originalPrice: 5290000,
-    discount: 25,
-    image: '/images/xiaomi-poco-m6.jpg',
-    rating: 4.6,
-    reviews: 567,
-    badge: 'Sale'
-  },
-  {
-    id: 4,
-    name: 'Điện thoại Xiaomi 15T 12GB/512GB',
-    price: 14990000,
-    originalPrice: undefined,
-    discount: 0,
-    image: '/images/xiaomi-15t.jpg',
-    rating: 4.7,
-    reviews: 234,
-    badge: 'Hot'
-  },
-]
-
-const defaultCategories = [
-  { name: 'Điện thoại', icon: '📱', href: '/products?category=phone', count: 1250 },
-  { name: 'Laptop', icon: '💻', href: '/products?category=laptop', count: 450 },
-  { name: 'Tablet', icon: '📱', href: '/products?category=tablet', count: 200 },
-  { name: 'Màn hình', icon: '🖥️', href: '/products?category=monitor', count: 300 },
-  { name: 'Linh kiện máy tính', icon: '🔧', href: '/products?category=computer-parts', count: 800 },
-  { name: 'Điện máy', icon: '🏠', href: '/products?category=appliances', count: 150 },
-  { name: 'Đồng hồ', icon: '⌚', href: '/products?category=watch', count: 400 },
-  { name: 'Âm thanh', icon: '🎵', href: '/products?category=audio', count: 250 },
-]
-
-const banners = [
-  {
-    id: 1,
-    title: 'iPhone 16 Pro Max',
-    subtitle: 'Mua ngay',
-    image: '/images/banner-iphone.jpg',
-    href: '/products/iphone-16-pro-max'
-  },
-  {
-    id: 2,
-    title: 'Điện thoại Xiaomi 15T',
-    subtitle: 'Chạm Đỉnh Tuyệt Tác',
-    image: '/images/banner-xiaomi-15t.jpg',
-    href: '/products/xiaomi-15t'
-  },
-  {
-    id: 3,
-    title: 'iPhone Air',
-    subtitle: 'iPhone mỏng nhất từng có',
-    image: '/images/banner-iphone-air.jpg',
-    href: '/products/iphone-air'
-  },
-]
+import { FiShoppingCart, FiHeart, FiStar, FiSearch, FiMenu } from 'react-icons/fi'
+import { productApi, categoryApi } from '@/lib/api'
+import toast from 'react-hot-toast'
+import { useAuthStore } from '@/store/authStore'
 
 export default function HomePage() {
-  const { t } = useTranslation()
-  const [currentTime, setCurrentTime] = useState(new Date())
-  const [categories, setCategories] = useState(defaultCategories)
-  const [loadingCategories, setLoadingCategories] = useState(false)
+  const { user } = useAuthStore()
+  const [products, setProducts] = useState<any[]>([])
+  const [categories, setCategories] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState<string>('')
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date())
-    }, 1000)
-
-    return () => clearInterval(timer)
+    loadData()
   }, [])
 
-  // Load categories from API
-  useEffect(() => {
-    const loadCategories = async () => {
-      setLoadingCategories(true)
-      try {
-        const response = await categoryApi.getAll()
-        if (response.success && response.data && Array.isArray(response.data)) {
-          // Map API categories to frontend format
-          const mappedCategories = response.data.map((cat: any) => ({
-            name: cat.name || cat.categoryName || 'Danh mục',
-            icon: '📦', // Default icon
-            href: `/products?category=${cat.id || cat.categoryId}`,
-            count: cat.productCount || cat.count || 0,
-          }))
-          if (mappedCategories.length > 0) {
-            setCategories(mappedCategories)
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load categories:', error)
-        // Keep default categories on error
-      } finally {
-        setLoadingCategories(false)
+  const loadData = async () => {
+    try {
+      const [productsRes, categoriesRes] = await Promise.all([
+        productApi.getAll(),
+        categoryApi.getActiveCategories()
+      ])
+
+      if (productsRes.success && Array.isArray(productsRes.data)) {
+        setProducts(productsRes.data)
       }
-    }
 
-    loadCategories()
-  }, [])
+      if (categoriesRes.success && Array.isArray(categoriesRes.data)) {
+        setCategories(categoriesRes.data)
+      }
+    } catch (error) {
+      console.error('Error loading data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(price)
+  }
+
+  const filteredProducts = products.filter(product => {
+    const matchSearch = product.name?.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchCategory = !selectedCategory || product.categoryId?.toString() === selectedCategory
+    return matchSearch && matchCategory
+  })
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Đang tải...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Hero Banner */}
-      <section className="relative">
-        <Swiper
-          modules={[Autoplay, Pagination, Navigation]}
-          spaceBetween={30}
-          centeredSlides={true}
-          autoplay={{
-            delay: 5000,
-            disableOnInteraction: false,
-          }}
-          pagination={{
-            clickable: true,
-          }}
-          navigation={true}
-          className="hero-swiper"
-        >
-          {banners.map((banner) => (
-            <SwiperSlide key={banner.id}>
-              <div className="relative h-96 bg-gradient-to-r from-navy-800 to-navy-900 flex items-center justify-center">
-                <div className="text-center text-white z-10">
-                  <h1 className="text-4xl md:text-6xl font-bold mb-4">{banner.title}</h1>
-                  <p className="text-xl md:text-2xl mb-6">{banner.subtitle}</p>
+    <div className="bg-gray-50">
+
+      {/* Main Content */}
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Sidebar - Categories */}
+          <aside className="lg:w-64 flex-shrink-0">
+            <div className="bg-white rounded-lg shadow-sm p-4 sticky top-24">
+              <h2 className="text-lg font-bold mb-4">Danh mục</h2>
+              <div className="space-y-2">
+                <button
+                  onClick={() => setSelectedCategory('')}
+                  className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                    !selectedCategory ? 'bg-red-50 text-red-600 font-medium' : 'hover:bg-gray-50'
+                  }`}
+                >
+                  Tất cả sản phẩm
+                </button>
+                {categories.map((category) => (
+                  <div key={category.id}>
+                    <button
+                      onClick={() => setSelectedCategory(category.id.toString())}
+                      className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                        selectedCategory === category.id.toString()
+                          ? 'bg-red-50 text-red-600 font-medium'
+                          : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      {category.name}
+                      {category.productCount > 0 && (
+                        <span className="ml-2 text-xs text-gray-500">({category.productCount})</span>
+                      )}
+                    </button>
+                    {category.children && category.children.length > 0 && (
+                      <div className="ml-4 mt-1 space-y-1">
+                        {category.children.map((child: any) => (
+                          <button
+                            key={child.id}
+                            onClick={() => setSelectedCategory(child.id.toString())}
+                            className={`w-full text-left px-4 py-2 text-sm rounded-lg transition-colors ${
+                              selectedCategory === child.id.toString()
+                                ? 'bg-red-50 text-red-600 font-medium'
+                                : 'hover:bg-gray-50'
+                            }`}
+                          >
+                            {child.name}
+                            {child.productCount > 0 && (
+                              <span className="ml-2 text-xs text-gray-500">({child.productCount})</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </aside>
+
+          {/* Products Grid */}
+          <main className="flex-1">
+            <div className="mb-6 flex justify-between items-center">
+              <h1 className="text-2xl font-bold">
+                {selectedCategory
+                  ? categories.find(c => c.id.toString() === selectedCategory)?.name || 'Sản phẩm'
+                  : 'Tất cả sản phẩm'}
+              </h1>
+              <select className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500">
+                <option>Mới nhất</option>
+                <option>Giá tăng dần</option>
+                <option>Giá giảm dần</option>
+                <option>Bán chạy</option>
+              </select>
+            </div>
+
+            {filteredProducts.length === 0 ? (
+              <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+                <p className="text-gray-600">Không tìm thấy sản phẩm nào</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {filteredProducts.map((product) => (
                   <Link
-                    href={banner.href}
-                    className="inline-block bg-white text-navy-500 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+                    key={product.id}
+                    href={`/products/${product.id}`}
+                    className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden group"
                   >
-                    Mua ngay
+                    <div className="relative aspect-square bg-gray-100">
+                      {product.imageUrl ? (
+                        <img
+                          src={product.imageUrl}
+                          alt={product.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                          No Image
+                        </div>
+                      )}
+                      <button className="absolute top-2 right-2 p-2 bg-white rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity">
+                        <FiHeart className="text-gray-600 hover:text-red-500" />
+                      </button>
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-medium text-sm mb-2 line-clamp-2 h-10">
+                        {product.name}
+                      </h3>
+                      <div className="flex items-center mb-2">
+                        <div className="flex text-yellow-400">
+                          {[...Array(5)].map((_, i) => (
+                            <FiStar key={i} size={14} fill="currentColor" />
+                          ))}
+                        </div>
+                        <span className="ml-2 text-xs text-gray-500">(0)</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-red-600 font-bold">
+                          {formatPrice(product.price || 0)}
+                        </span>
+                        {product.stockQuantity > 0 ? (
+                          <span className="text-xs text-green-600">Còn hàng</span>
+                        ) : (
+                          <span className="text-xs text-red-600">Hết hàng</span>
+                        )}
+                      </div>
+                    </div>
                   </Link>
-                </div>
+                ))}
               </div>
-            </SwiperSlide>
-          ))}
-        </Swiper>
-      </section>
-
-      {/* Categories */}
-      <section className="py-12 bg-white">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-8">{t('categories')}</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-            {categories.map((category) => (
-              <CategoryCard key={category.name} category={category} />
-            ))}
-          </div>
+            )}
+          </main>
         </div>
-      </section>
-
-      {/* Featured Products */}
-      <section className="py-12 bg-gray-50">
-        <div className="container mx-auto px-4">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-3xl font-bold">{t('featuredProducts')}</h2>
-            <Link href="/products" className="text-navy-500 hover:text-navy-600 font-semibold">
-              {t('viewAll')} →
-            </Link>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Promotional Banner */}
-      <section className="py-12 bg-white">
-        <div className="container mx-auto px-4">
-          <div className="bg-gradient-to-r from-navy-800 to-navy-900 rounded-2xl p-8 text-white text-center">
-            <h3 className="text-2xl md:text-3xl font-bold mb-4">
-              Đang diễn ra • 29-10
-            </h3>
-            <p className="text-lg mb-6">Kết thúc trong</p>
-            <div className="flex justify-center space-x-4 mb-6">
-              <div className="bg-white/20 rounded-lg p-4">
-                <div className="text-2xl font-bold">02</div>
-                <div className="text-sm">Ngày</div>
-              </div>
-              <div className="bg-white/20 rounded-lg p-4">
-                <div className="text-2xl font-bold">14</div>
-                <div className="text-sm">Giờ</div>
-              </div>
-              <div className="bg-white/20 rounded-lg p-4">
-                <div className="text-2xl font-bold">32</div>
-                <div className="text-sm">Phút</div>
-              </div>
-              <div className="bg-white/20 rounded-lg p-4">
-                <div className="text-2xl font-bold">15</div>
-                <div className="text-sm">Giây</div>
-              </div>
-            </div>
-            <Link
-              href="/promotions"
-              className="inline-block bg-white text-navy-500 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
-            >
-              {t('viewPromotions')}
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Brand Showcase */}
-      <section className="py-12 bg-gray-50">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-8">Thương hiệu nổi bật</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div className="bg-white rounded-lg p-6 text-center hover:shadow-lg transition-shadow">
-              <div className="text-4xl mb-2">🍎</div>
-              <h3 className="font-semibold">Apple chính hãng</h3>
-            </div>
-            <div className="bg-white rounded-lg p-6 text-center hover:shadow-lg transition-shadow">
-              <div className="text-4xl mb-2">📱</div>
-              <h3 className="font-semibold">Samsung đỉnh cao công nghệ</h3>
-            </div>
-            <div className="bg-white rounded-lg p-6 text-center hover:shadow-lg transition-shadow">
-              <div className="text-4xl mb-2">⚡</div>
-              <h3 className="font-semibold">Đại tiệc Xiaomi</h3>
-            </div>
-            <div className="bg-white rounded-lg p-6 text-center hover:shadow-lg transition-shadow">
-              <div className="text-4xl mb-2">💎</div>
-              <h3 className="font-semibold">Máy Cũ Giá Hời</h3>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Customer Reviews */}
-      <section className="py-12 bg-white">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-8">{t('customerReviews')}</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              {
-                name: 'NSND Trung Anh',
-                role: 'Diễn viên truyền hình',
-                content: 'Tôi biết Hoàng Hà qua 1 lần hợp tác quảng cáo, từ đó về sau là biết tới 1 thương hiệu giá cạnh tranh mà ngày càng phát triển.'
-              },
-              {
-                name: 'MC Mù Tạt',
-                role: 'BTV/MC VTV, Diễn viên',
-                content: 'Lần đầu tới mua iPhone 13 Pro Max thấy các bạn nhân viên Hoàng Hà rất thân thiện, giá thì quá tốt rồi.'
-              },
-              {
-                name: 'Hà Bùi',
-                role: 'Phi công + Content Creator',
-                content: 'Không nghĩ rằng mình và Hoàng Hà Mobile có duyên đến thế. Chúc cho Hoàng Hà Mobile luôn giữ vững phong độ.'
-              }
-            ].map((review, index) => (
-              <div key={index} className="bg-gray-50 rounded-lg p-6">
-                <div className="flex items-center mb-4">
-                  <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center text-white font-bold">
-                    {review.name.charAt(0)}
-                  </div>
-                  <div className="ml-4">
-                    <h4 className="font-semibold">{review.name}</h4>
-                    <p className="text-sm text-gray-600">{review.role}</p>
-                  </div>
-                </div>
-                <p className="text-gray-700">&quot;{review.content}&quot;</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      </div>
     </div>
   )
 }

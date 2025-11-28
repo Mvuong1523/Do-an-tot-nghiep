@@ -8,4 +8,5 @@ public interface EmployeeRegistrationService {
     ApiResponse approveEmployee(Long registrationId);
     ApiResponse getAllRegistrations();
     ApiResponse getPendingRegistrations();
+    long getRegistrationCount();
 }

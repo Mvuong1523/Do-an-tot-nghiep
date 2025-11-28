@@ -2,6 +2,7 @@ package com.doan.WEB_TMDT.module.product.entity;
 
 import com.doan.WEB_TMDT.module.inventory.entity.ProductDetail;
 import com.doan.WEB_TMDT.module.inventory.entity.WarehouseProduct;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -12,6 +13,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Product {
 
     @Id
@@ -35,7 +37,12 @@ public class Product {
 
     private String imageUrl;
 
-    private Long stockQuantity;
+    private Long stockQuantity;      // Tồn kho thực tế
+    
+    private Long reservedQuantity;   // Số lượng đang giữ cho đơn hàng
+    
+    @Column(name = "tech_specs_json", columnDefinition = "TEXT")
+    private String techSpecsJson;
 
     @OneToOne
     @JoinColumn(name = "product_detail_id")

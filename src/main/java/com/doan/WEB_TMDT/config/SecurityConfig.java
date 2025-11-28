@@ -34,22 +34,48 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // Public endpoints
+                        .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
-
-                        .requestMatchers("/api/payment/ipn").permitAll()
-
-                        .requestMatchers("/api/category/**").permitAll()
-
+                        .requestMatchers("/api/payment/sepay/webhook").permitAll() // SePay webhook
+                        .requestMatchers("/api/payment/test-webhook/**").permitAll() // Test webhook (dev only)
+                        .requestMatchers("/api/payment/{paymentCode}/status").permitAll() // Check status
                         .requestMatchers("/api/employee-registration/apply").permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/employee/**").hasRole("EMPLOYEE")
-                        .requestMatchers("/api/customer/**").hasRole("CUSTOMER")
-                        .requestMatchers("/api/sale/**").hasAnyAuthority("SALE", "ADMIN")
-                        .requestMatchers("/api/cskh/**").hasAnyAuthority("CSKH", "ADMIN")
-                        .requestMatchers("/api/product-manager/**").hasAnyAuthority("PRODUCT_MANAGER", "ADMIN")
-                        .requestMatchers("/api/warehouse/**").hasAnyAuthority("WAREHOUSE", "ADMIN")
-                        .requestMatchers("/api/accountant/**").hasAnyAuthority("ACCOUNTANT", "ADMIN")
+                        .requestMatchers("/api/test/**").permitAll()
+                        
+                        // Public product & category endpoints (for all users)
+                        .requestMatchers("/api/categories", "/api/categories/tree", "/api/categories/active").permitAll()
+                        .requestMatchers("/api/categories/{id}").permitAll()
+                        .requestMatchers("/api/products").permitAll()
+                        .requestMatchers("/api/products/{id}").permitAll()
+                        .requestMatchers("/api/products/{id}/with-specs").permitAll()
+                        .requestMatchers("/api/products/search-by-specs").permitAll()
+                        .requestMatchers("/api/products/filter-by-specs").permitAll()
+                        .requestMatchers("/api/product/**").permitAll()
+                        
+                        // Customer endpoints (Cart, Orders, Profile)
+                        .requestMatchers("/api/cart/**").hasAnyAuthority("CUSTOMER", "ADMIN")
+                        .requestMatchers("/api/orders/**").hasAnyAuthority("CUSTOMER", "ADMIN")
+                        .requestMatchers("/api/customer/**").hasAnyAuthority("CUSTOMER", "ADMIN")
+                        
+                        // Warehouse endpoints (Inventory management)
+                        // Note: /api/inventory/stock cho phép PRODUCT_MANAGER xem (read-only)
+                        .requestMatchers("/api/inventory/stock").hasAnyAuthority("WAREHOUSE", "PRODUCT_MANAGER", "ADMIN")
+                        .requestMatchers("/api/inventory/**").hasAnyAuthority("WAREHOUSE", "ADMIN")
+                        
+                        // Product Manager endpoints (Product & Category management)
+                        .requestMatchers("/api/products/warehouse/**").hasAnyAuthority("PRODUCT_MANAGER", "ADMIN")
+                        .requestMatchers("/api/products/publish").hasAnyAuthority("PRODUCT_MANAGER", "ADMIN")
+                        
+                        // Admin order management (ADMIN + SALES_STAFF)
+                        .requestMatchers("/api/admin/orders/**").hasAnyAuthority("ADMIN", "SALES")
+                        
+                        // Admin only endpoints
+                        .requestMatchers("/api/employee-registration/list").hasAuthority("ADMIN")
+                        .requestMatchers("/api/employee-registration/pending").hasAuthority("ADMIN")
                         .requestMatchers("/api/employee-registration/approve/**").hasAuthority("ADMIN")
+                        .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
+                        
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
@@ -86,7 +112,17 @@ public class SecurityConfig {
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
+        
+        // Webhook configuration - allow all origins for webhook endpoints
+        CorsConfiguration webhookConfig = new CorsConfiguration();
+        webhookConfig.setAllowedOriginPatterns(Arrays.asList("*")); // Allow all origins for webhooks
+        webhookConfig.setAllowedMethods(Arrays.asList("POST", "GET", "OPTIONS"));
+        webhookConfig.setAllowedHeaders(Arrays.asList("*"));
+        webhookConfig.setAllowCredentials(false); // No credentials needed for webhooks
+        
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/api/payment/sepay/webhook", webhookConfig);
+        source.registerCorsConfiguration("/api/payment/test-webhook/**", webhookConfig);
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }

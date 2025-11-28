@@ -33,6 +33,7 @@ public class EmployeeRegistration {
 
     private String note;
 
+    @Builder.Default
     private boolean approved = false;
 
     private LocalDateTime createdAt;

@@ -29,13 +29,33 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String path = request.getServletPath();
 
-        // ✅ chỉ bỏ qua các endpoint public thật sự
+        // ✅ Chỉ bỏ qua các endpoint public (không cần JWT)
         if (path.equals("/api/auth/login") ||
-                path.equals("/api/auth/register") ||
-                path.equals("/api/auth/verify-otp")||
-                path.equals("/api/payment/ipn")) {
+            path.equals("/api/auth/register/send-otp") ||
+            path.equals("/api/auth/register/verify-otp") ||
+            path.equals("/api/auth/first-change-password") ||
+            path.equals("/api/payment/ipn") ||
+            path.startsWith("/api/payment/sepay/webhook") ||
+            path.matches("/api/payment/[^/]+/status") ||
+            path.equals("/api/employee-registration/apply") ||
+            path.equals("/error")) {
             chain.doFilter(request, response);
             return;
+        }
+        
+        // ✅ Cho phép GET public category endpoints (không cần JWT)
+        if (path.startsWith("/api/categories") && request.getMethod().equals("GET")) {
+            chain.doFilter(request, response);
+            return;
+        }
+        
+        // ✅ Cho phép GET public product endpoints (không cần JWT)
+        if (path.startsWith("/api/products") && request.getMethod().equals("GET")) {
+            // Nhưng không cho phép warehouse endpoints
+            if (!path.startsWith("/api/products/warehouse")) {
+                chain.doFilter(request, response);
+                return;
+            }
         }
 
         String authHeader = request.getHeader("Authorization");
@@ -49,6 +69,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             email = jwtService.extractEmail(token);
         } catch (Exception e) {
+            System.out.println("❌ JWT Token invalid: " + e.getMessage());
             chain.doFilter(request, response);
             return;
         }
@@ -61,10 +82,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 List<SimpleGrantedAuthority> authorities = new ArrayList<>();
 
                 Object role = claims.get("role");
-                if (role != null) authorities.add(new SimpleGrantedAuthority(role.toString()));
+                if (role != null) {
+                    authorities.add(new SimpleGrantedAuthority(role.toString()));
+                    System.out.println("✅ User role: " + role.toString());
+                }
 
                 Object position = claims.get("position");
-                if (position != null) authorities.add(new SimpleGrantedAuthority(position.toString()));
+                if (position != null) {
+                    authorities.add(new SimpleGrantedAuthority(position.toString()));
+                    System.out.println("✅ User position: " + position.toString());
+                } else {
+                    System.out.println("⚠️ No position found in JWT claims");
+                }
+                
+                System.out.println("🔑 Final authorities: " + authorities);
 
                 userDetails.getAuthorities().forEach(a -> {
                     if (authorities.stream().noneMatch(x -> x.getAuthority().equals(a.getAuthority()))) {

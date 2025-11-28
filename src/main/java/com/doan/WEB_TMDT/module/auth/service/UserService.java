@@ -10,4 +10,5 @@ public interface UserService {
     ApiResponse login(LoginRequest request);
     ApiResponse changePassword(String email, ChangePasswordRequest request);
     ApiResponse firstChangePassword(FirstChangePasswordRequest request);
+    ApiResponse getCurrentUser(String email);
 }

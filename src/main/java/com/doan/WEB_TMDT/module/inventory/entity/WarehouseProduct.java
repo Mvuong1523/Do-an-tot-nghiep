@@ -42,15 +42,23 @@ public class WarehouseProduct {
 
     // Liên kết sang sản phẩm hiển thị
     @OneToOne(mappedBy = "warehouseProduct", cascade = CascadeType.ALL)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Product product;
 
     // Danh sách serial chi tiết
     @OneToMany(mappedBy = "warehouseProduct", cascade = CascadeType.ALL, orphanRemoval = true)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private List<ProductDetail> serials;
 
     // ảnh đính kèm (nhiều ảnh)
     @OneToMany(mappedBy="warehouseProduct", cascade=CascadeType.ALL, orphanRemoval=true)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private List<WarehouseProductImage> images;
+
+    // Thông số kỹ thuật (dạng bảng riêng để search)
+    @OneToMany(mappedBy = "warehouseProduct", cascade = CascadeType.ALL, orphanRemoval = true)
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private List<ProductSpecification> specifications;
 
     @Transient
     public long getQuantityInStock() {

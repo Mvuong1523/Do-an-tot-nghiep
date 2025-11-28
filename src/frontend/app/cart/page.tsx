@@ -1,26 +1,81 @@
 'use client'
 
-import Image from 'next/image'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { FiMinus, FiPlus, FiTrash2, FiShoppingBag } from 'react-icons/fi'
+import { useRouter } from 'next/navigation'
+import { FiTrash2, FiShoppingCart, FiArrowLeft } from 'react-icons/fi'
+import { cartApi } from '@/lib/api'
+import { useAuthStore } from '@/store/authStore'
 import toast from 'react-hot-toast'
-import { useCartStore } from '@/store/cartStore'
-import { useTranslation } from '@/hooks/useTranslation'
 
 export default function CartPage() {
-  const { items, updateQuantity, removeFromCart, getCartTotal } = useCartStore()
-  const { t } = useTranslation()
+  const router = useRouter()
+  const { isAuthenticated } = useAuthStore()
+  const [cart, setCart] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
-  const handleUpdateQuantity = (id: number, newQuantity: number) => {
-    if (newQuantity < 1) return
+  useEffect(() => {
+    console.log('Cart page - isAuthenticated:', isAuthenticated)
     
-    updateQuantity(id, newQuantity)
-    toast.success(t('updatedQuantity'))
+    if (!isAuthenticated) {
+      console.log('Not authenticated, redirecting to login')
+      toast.error('Vui lòng đăng nhập')
+      router.push('/login')
+      return
+    }
+    
+    console.log('Loading cart...')
+    loadCart()
+  }, [isAuthenticated])
+
+  const loadCart = async () => {
+    try {
+      const response = await cartApi.getCart()
+      console.log('Cart API response:', response)
+      console.log('Cart data:', response.data)
+      
+      if (response.success) {
+        setCart(response.data)
+      } else {
+        console.warn('Cart API returned success=false')
+      }
+    } catch (error) {
+      console.error('Error loading cart:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleRemoveItem = (id: number) => {
-    removeFromCart(id)
-    toast.success(t('removedFromCart'))
+  const handleUpdateQuantity = async (itemId: number, newQuantity: number) => {
+    if (newQuantity < 1) return
+    
+    try {
+      const response = await cartApi.updateCartItem(itemId, newQuantity)
+      if (response.success) {
+        loadCart()
+        toast.success('Đã cập nhật số lượng')
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Lỗi khi cập nhật')
+    }
+  }
+
+  const handleRemoveItem = async (itemId: number) => {
+    if (!confirm('Bạn có chắc muốn xóa sản phẩm này?')) return
+    
+    try {
+      const response = await cartApi.removeCartItem(itemId)
+      if (response.success) {
+        loadCart()
+        toast.success('Đã xóa sản phẩm')
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Lỗi khi xóa')
+    }
+  }
+
+  const handleCheckout = () => {
+    router.push('/checkout')
   }
 
   const formatPrice = (price: number) => {
@@ -30,233 +85,171 @@ export default function CartPage() {
     }).format(price)
   }
 
-  const calculateSubtotal = () => {
-    return items.reduce((total, item) => total + (item.price * item.quantity), 0)
-  }
-
-  const calculateDiscount = () => {
-    return items.reduce((total, item) => {
-      if (item.originalPrice) {
-        return total + ((item.originalPrice - item.price) * item.quantity)
-      }
-      return total
-    }, 0)
-  }
-
   const calculateTotal = () => {
-    return calculateSubtotal() - calculateDiscount()
+    if (!cart?.items) return 0
+    return cart.items.reduce((sum: number, item: any) => 
+      sum + (item.price * item.quantity), 0
+    )
   }
 
-  if (items.length === 0) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="container mx-auto px-4 py-16">
-          <div className="text-center">
-            <div className="text-gray-400 mb-6">
-              <FiShoppingBag size={120} className="mx-auto" />
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">{t('cartEmpty')}</h1>
-            <p className="text-gray-600 mb-8">
-              {t('cartEmptyMessage')}
-            </p>
-            <Link
-              href="/products"
-              className="bg-navy-500 text-white px-8 py-3 rounded-lg font-semibold hover:bg-navy-600 transition-colors inline-block"
-            >
-              {t('continueShopping')}
-            </Link>
-          </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Đang tải...</p>
         </div>
       </div>
     )
   }
 
+  const isEmpty = !cart?.items || cart.items.length === 0
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">
-        {/* Breadcrumb */}
-        <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-6">
-          <Link href="/" className="hover:text-navy-500">{t('home')}</Link>
-          <span>/</span>
-          <span className="text-gray-900">{t('cart')}</span>
-        </nav>
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="container mx-auto px-4">
+        <div className="mb-6">
+          <Link href="/" className="flex items-center text-blue-600 hover:text-blue-700">
+            <FiArrowLeft className="mr-2" />
+            Tiếp tục mua sắm
+          </Link>
+        </div>
 
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">{t('yourCart')}</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">Giỏ hàng của bạn</h1>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Cart Items */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-sm">
-              <div className="p-6">
-                <div className="space-y-6">
-                  {items.map((item) => (
-                    <div key={item.id} className="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg">
-                      {/* Product Image */}
-                      <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                        <Image
-                          src={item.image}
-                          alt={item.name}
-                          width={80}
-                          height={80}
-                          className="w-full h-full object-cover"
+        {isEmpty ? (
+          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+            <FiShoppingCart size={64} className="mx-auto text-gray-400 mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Giỏ hàng trống</h3>
+            <p className="text-gray-600 mb-6">Hãy thêm sản phẩm vào giỏ hàng để tiếp tục</p>
+            <Link
+              href="/"
+              className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Khám phá sản phẩm
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Cart Items */}
+            <div className="lg:col-span-2 space-y-4">
+              {cart.items.map((item: any) => (
+                <div key={item.id} className="bg-white rounded-lg shadow-sm p-6">
+                  <div className="flex items-center space-x-4">
+                    {/* Image */}
+                    <div className="w-24 h-24 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
+                      {item.product?.imageUrl ? (
+                        <img 
+                          src={item.product.imageUrl} 
+                          alt={item.product.name}
+                          className="w-full h-full object-contain"
                         />
-                      </div>
-
-                      {/* Product Info */}
-                      <div className="flex-1 min-w-0">
-                        <Link href={`/products/${item.id}`}>
-                          <h3 className="font-semibold text-gray-900 hover:text-navy-500 transition-colors line-clamp-2">
-                            {item.name}
-                          </h3>
-                        </Link>
-                        <div className="mt-1 text-sm text-gray-600">
-                          {item.color && <p>Màu: {item.color}</p>}
-                          {item.storage && <p>Dung lượng: {item.storage}</p>}
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                          <FiShoppingCart size={32} />
                         </div>
-                        
-                        {/* Price */}
-                        <div className="mt-2 flex items-center space-x-2">
-                          <span className="text-lg font-bold text-navy-500">
-                            {formatPrice(item.price)}
-                          </span>
-                          {item.originalPrice && (
-                            <span className="text-sm text-gray-500 line-through">
-                              {formatPrice(item.originalPrice)}
-                            </span>
-                          )}
-                          {item.discount && item.discount > 0 && (
-                            <span className="bg-navy-500 text-white px-2 py-1 text-xs font-semibold rounded">
-                              -{item.discount}%
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                      )}
+                    </div>
 
-                      {/* Quantity Controls */}
-                      <div className="flex items-center space-x-3">
-                        <button
-                          onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
-                          className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center hover:bg-gray-300 transition-colors"
-                        >
-                          <FiMinus size={16} />
-                        </button>
-                        <span className="w-12 text-center font-semibold">{item.quantity}</span>
-                        <button
-                          onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
-                          className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center hover:bg-gray-300 transition-colors"
-                        >
-                          <FiPlus size={16} />
-                        </button>
-                      </div>
-
-                      {/* Item Total */}
-                      <div className="text-right">
-                        <div className="text-lg font-bold text-gray-900">
-                          {formatPrice(item.price * item.quantity)}
-                        </div>
-                      </div>
-
-                      {/* Remove Button */}
-                      <button
-                        onClick={() => handleRemoveItem(item.id)}
-                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    {/* Info */}
+                    <div className="flex-1">
+                      <Link 
+                        href={`/products/${item.product?.id}`}
+                        className="text-lg font-semibold text-gray-900 hover:text-blue-600"
                       >
-                        <FiTrash2 size={18} />
+                        {item.product?.name || 'Sản phẩm'}
+                      </Link>
+                      <p className="text-red-600 font-bold mt-1">
+                        {formatPrice(item.price)}
+                      </p>
+                    </div>
+
+                    {/* Quantity */}
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
+                        className="w-8 h-8 border border-gray-300 rounded hover:bg-gray-100"
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        value={item.quantity}
+                        onChange={(e) => handleUpdateQuantity(item.id, parseInt(e.target.value) || 1)}
+                        className="w-16 text-center border border-gray-300 rounded py-1"
+                      />
+                      <button
+                        onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                        className="w-8 h-8 border border-gray-300 rounded hover:bg-gray-100"
+                      >
+                        +
                       </button>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
 
-          {/* Order Summary */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm sticky top-24">
-              <div className="p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-6">Tóm tắt đơn hàng</h2>
-                
-                <div className="space-y-4">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">{t('subtotal')}:</span>
-                    <span className="font-semibold">{formatPrice(calculateSubtotal())}</span>
-                  </div>
-                  
-                  {calculateDiscount() > 0 && (
-                    <div className="flex justify-between text-green-600">
-                      <span>{t('discount')}:</span>
-                      <span className="font-semibold">-{formatPrice(calculateDiscount())}</span>
+                    {/* Subtotal */}
+                    <div className="text-right w-32">
+                      <p className="text-lg font-bold text-gray-900">
+                        {formatPrice(item.price * item.quantity)}
+                      </p>
                     </div>
-                  )}
-                  
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">{t('shipping')}:</span>
-                    <span className="font-semibold text-green-600">{t('freeShipping')}</span>
-                  </div>
-                  
-                  <div className="border-t pt-4">
-                    <div className="flex justify-between text-lg font-bold">
-                      <span>{t('total')}:</span>
-                      <span className="text-navy-500">{formatPrice(calculateTotal())}</span>
-                    </div>
-                  </div>
-                </div>
 
-                <div className="mt-6 space-y-3">
-                  <Link
-                    href="/checkout"
-                    className="w-full bg-navy-500 text-white py-3 px-6 rounded-lg font-semibold hover:bg-navy-600 transition-colors text-center block"
-                  >
-                    {t('checkout')}
-                  </Link>
-                  <Link
-                    href="/products"
-                    className="w-full bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition-colors text-center block"
-                  >
-                    {t('continueShopping')}
-                  </Link>
-                </div>
-
-                {/* Promo Code */}
-                <div className="mt-6 pt-6 border-t">
-                  <h3 className="font-semibold text-gray-900 mb-3">{t('promoCode')}</h3>
-                  <div className="flex space-x-2">
-                    <input
-                      type="text"
-                      placeholder={t('enterPromoCode')}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-500"
-                    />
-                    <button className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors">
-                      {t('apply')}
+                    {/* Remove */}
+                    <button
+                      onClick={() => handleRemoveItem(item.id)}
+                      className="text-red-500 hover:text-red-700 p-2"
+                    >
+                      <FiTrash2 size={20} />
                     </button>
                   </div>
                 </div>
+              ))}
+            </div>
 
-                {/* Security Info */}
-                <div className="mt-6 pt-6 border-t">
-                  <div className="flex items-center space-x-2 text-sm text-gray-600">
-                    <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs">✓</span>
-                    </div>
-                    <span>{t('securePayment')}</span>
+            {/* Summary */}
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-lg shadow-sm p-6 sticky top-4">
+                <h2 className="text-xl font-bold text-gray-900 mb-4">Tóm tắt đơn hàng</h2>
+                
+                <div className="space-y-3 mb-4">
+                  <div className="flex justify-between text-gray-600">
+                    <span>Tạm tính</span>
+                    <span>{formatPrice(calculateTotal())}</span>
                   </div>
-                  <div className="flex items-center space-x-2 text-sm text-gray-600 mt-2">
-                    <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs">✓</span>
-                    </div>
-                    <span>{t('freeShippingNationwide')}</span>
+                  <div className="flex justify-between text-gray-600">
+                    <span>Phí vận chuyển</span>
+                    <span className="text-green-600">Miễn phí</span>
                   </div>
-                  <div className="flex items-center space-x-2 text-sm text-gray-600 mt-2">
-                    <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs">✓</span>
-                    </div>
-                    <span>{t('returnWithin7Days')}</span>
+                  <div className="border-t pt-3 flex justify-between text-lg font-bold">
+                    <span>Tổng cộng</span>
+                    <span className="text-red-600">{formatPrice(calculateTotal())}</span>
                   </div>
+                </div>
+
+                <button
+                  onClick={handleCheckout}
+                  className="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold"
+                >
+                  Tiến hành thanh toán
+                </button>
+
+                <div className="mt-4 space-y-2 text-sm text-gray-600">
+                  <p className="flex items-center">
+                    <span className="mr-2">✓</span>
+                    Miễn phí vận chuyển toàn quốc
+                  </p>
+                  <p className="flex items-center">
+                    <span className="mr-2">✓</span>
+                    Thanh toán khi nhận hàng
+                  </p>
+                  <p className="flex items-center">
+                    <span className="mr-2">✓</span>
+                    Đổi trả trong 7 ngày
+                  </p>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )

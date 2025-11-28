@@ -26,7 +26,7 @@ public class PurchaseOrderItem {
     @JsonBackReference
     private PurchaseOrder purchaseOrder;
 
-    @Column(unique = true, nullable = false, length = 64)
+    @Column(nullable = false, length = 64)
     private String sku;
 
     @ManyToOne(optional = false)
@@ -40,5 +40,6 @@ public class PurchaseOrderItem {
 
 
     @OneToMany(mappedBy = "purchaseOrderItem", cascade = CascadeType.ALL)
+    @com.fasterxml.jackson.annotation.JsonManagedReference
     private List<ProductDetail> productDetails; // Chứa các serial thực tế sau khi nhập
 }

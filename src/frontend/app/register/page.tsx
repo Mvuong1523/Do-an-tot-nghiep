@@ -9,16 +9,19 @@ import { useRouter } from 'next/navigation'
 import Logo from '@/components/layout/Logo'
 import { authApi } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
+import { useCartStore } from '@/store/cartStore'
 
 export default function RegisterPage() {
   const { t } = useTranslation()
   const router = useRouter()
   const setAuth = useAuthStore((state) => state.setAuth)
+  const { clearCart, setUserId } = useCartStore()
   const [step, setStep] = useState<'register' | 'otp'>('register')
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     phone: '',
+    dateOfBirth: '',
     address: '',
     password: '',
     confirmPassword: '',
@@ -57,6 +60,7 @@ export default function RegisterPage() {
         fullName: formData.fullName,
         email: formData.email,
         phone: formData.phone,
+        dateOfBirth: formData.dateOfBirth || '',
         address: formData.address || '',
         password: formData.password,
       })
@@ -79,7 +83,7 @@ export default function RegisterPage() {
     try {
       const response = await authApi.verifyOtp({
         email: formData.email,
-        otp: otpCode,
+        otpCode: otpCode,
       })
       
       if (response.success && response.data) {
@@ -94,6 +98,10 @@ export default function RegisterPage() {
             })
 
             if (loginResponse.success && loginResponse.data) {
+              // Xóa giỏ hàng cũ và set userId mới
+              clearCart()
+              setUserId(loginResponse.data.userId)
+              
               setAuth(
                 {
                   id: loginResponse.data.userId,
@@ -225,6 +233,21 @@ export default function RegisterPage() {
                   placeholder="Nhập số điện thoại"
                 />
               </div>
+            </div>
+
+            {/* Date of Birth Field */}
+            <div>
+              <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-700 mb-2">
+                Ngày sinh
+              </label>
+              <input
+                id="dateOfBirth"
+                name="dateOfBirth"
+                type="date"
+                value={formData.dateOfBirth}
+                onChange={handleInputChange}
+                className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-red-500 focus:border-red-500 focus:z-10 sm:text-sm"
+              />
             </div>
 
             {/* Address Field */}
