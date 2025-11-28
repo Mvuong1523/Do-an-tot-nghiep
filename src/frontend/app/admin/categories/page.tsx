@@ -94,7 +94,7 @@ export default function CategoriesManagementPage() {
     try {
       if (editingCategory) {
         // Update
-        const response = await categoryApi.updateCategory(editingCategory.id, formData)
+        const response = await categoryApi.update(editingCategory.id, formData)
         if (response.success) {
           toast.success('Cập nhật danh mục thành công')
           setShowModal(false)
@@ -102,7 +102,7 @@ export default function CategoriesManagementPage() {
         }
       } else {
         // Create
-        const response = await categoryApi.createCategory(formData)
+        const response = await categoryApi.create(formData)
         if (response.success) {
           toast.success('Tạo danh mục thành công')
           setShowModal(false)
@@ -118,7 +118,7 @@ export default function CategoriesManagementPage() {
     if (!confirm(`Bạn có chắc muốn xóa danh mục "${name}"?`)) return
 
     try {
-      const response = await categoryApi.deleteCategory(id)
+      const response = await categoryApi.delete(id)
       if (response.success) {
         toast.success('Xóa danh mục thành công')
         loadCategories()

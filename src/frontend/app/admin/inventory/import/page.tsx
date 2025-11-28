@@ -34,7 +34,7 @@ export default function ImportInventoryPage() {
       return
     }
 
-    if (user?.role !== 'ADMIN' && user?.role !== 'EMPLOYEE') {
+    if (user?.role !== 'ADMIN' && user?.role !== 'WAREHOUSE') {
       toast.error('Chỉ quản lý và nhân viên mới có quyền truy cập')
       router.push('/')
       return
@@ -82,7 +82,7 @@ MBP14-M3,MacBook Pro 14 inch M3,5,45990000,Apple Vietnam,Laptop`
     if (selectedFile.name.endsWith('.csv')) {
       parseCSV(selectedFile)
     } else {
-      toast.info('Đang xử lý file Excel...')
+      toast('Đang xử lý file Excel...')
       // TODO: Parse Excel file
       // Cần cài package: npm install xlsx
     }

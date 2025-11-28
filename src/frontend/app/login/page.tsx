@@ -42,13 +42,6 @@ const LoginPage = () => {
           return
         }
 
-        // Xác định role thực tế dựa trên role và position
-        let actualRole = response.data.role
-        if (response.data.role === 'EMPLOYEE' && response.data.position) {
-          // Nếu là EMPLOYEE, dùng position làm role
-          actualRole = response.data.position
-        }
-
         // Xóa giỏ hàng cũ và set userId mới
         clearCart()
         setUserId(response.data.userId)
@@ -61,7 +54,8 @@ const LoginPage = () => {
             fullName: response.data.fullName,
             phone: response.data.phone,
             address: response.data.address,
-            role: actualRole,
+            role: response.data.role, // Giữ nguyên role gốc
+            position: response.data.position, // Thêm position
             status: response.data.status,
           },
           response.data.token
@@ -69,24 +63,31 @@ const LoginPage = () => {
     
         toast.success('Đăng nhập thành công!')
         
-        // Redirect theo role thực tế
-        switch (actualRole) {
-          case 'ADMIN':
-            router.push('/admin')
-            break
-          case 'WAREHOUSE':
-            router.push('/warehouse')
-            break
-          case 'PRODUCT_MANAGER':
-            router.push('/product-manager')
-            break
-          case 'SALE':
-            router.push('/sales')
-            break
-          case 'CUSTOMER':
-          default:
-            router.push('/')
-            break
+        // Redirect theo role và position
+        if (response.data.role === 'ADMIN') {
+          router.push('/admin')
+        } else if (response.data.role === 'EMPLOYEE' && response.data.position) {
+          // Redirect theo position của employee
+          switch (response.data.position) {
+            case 'WAREHOUSE':
+              router.push('/warehouse')
+              break
+            case 'PRODUCT_MANAGER':
+              router.push('/product-manager')
+              break
+            case 'SALE':
+              router.push('/sales')
+              break
+            case 'ACCOUNTANT':
+              router.push('/admin/accounting')
+              break
+            default:
+              router.push('/')
+              break
+          }
+        } else {
+          // Customer hoặc role khác
+          router.push('/')
         }
       }
     } catch (error: any) {

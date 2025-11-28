@@ -297,7 +297,7 @@ export default function CreateTransactionPage() {
         }
       } else {
         // TODO: Implement export order
-        toast.info('Chức năng xuất kho đang phát triển')
+        toast('Chức năng xuất kho đang phát triển')
       }
     } catch (error: any) {
       console.error('Error creating purchase order:', error)
