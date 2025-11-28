@@ -67,7 +67,6 @@ const LoginPage = () => {
         if (response.data.role === 'ADMIN') {
           router.push('/admin')
         } else if (response.data.role === 'EMPLOYEE' && response.data.position) {
-          // Redirect theo position của employee
           switch (response.data.position) {
             case 'WAREHOUSE':
               router.push('/warehouse')
@@ -86,7 +85,6 @@ const LoginPage = () => {
               break
           }
         } else {
-          // Customer hoặc role khác
           router.push('/')
         }
       }

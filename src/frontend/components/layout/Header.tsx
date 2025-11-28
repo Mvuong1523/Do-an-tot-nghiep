@@ -32,6 +32,12 @@ export default function Header() {
       return
     }
     
+    // Only load cart for CUSTOMER role
+    if (user?.role !== 'CUSTOMER') {
+      setCartCount(0)
+      return
+    }
+    
     try {
       const response = await fetch('http://localhost:8080/api/cart', {
         headers: {
@@ -54,7 +60,7 @@ export default function Header() {
   // Load cart count only on mount and when auth changes
   useEffect(() => {
     loadCartCount()
-  }, [isAuthenticated])
+  }, [isAuthenticated, user?.role])
 
   // Listen for custom event to reload cart
   useEffect(() => {

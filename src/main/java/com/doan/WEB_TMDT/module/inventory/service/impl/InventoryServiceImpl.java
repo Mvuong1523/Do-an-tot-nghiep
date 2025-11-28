@@ -33,6 +33,7 @@ public class InventoryServiceImpl implements InventoryService {
     private final InventoryStockRepository inventoryStockRepository;
     private final SupplierRepository supplierRepository;
     private final com.doan.WEB_TMDT.module.inventory.service.ProductSpecificationService productSpecificationService;
+    private final com.doan.WEB_TMDT.module.order.repository.OrderRepository orderRepository;
     private String generateExportCode() {
         return "PX" + LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE)
                 + "-" + String.format("%03d", new Random().nextInt(999));

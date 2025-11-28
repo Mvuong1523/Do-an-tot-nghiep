@@ -13,7 +13,7 @@ export interface User {
   ward?: string
   gender?: string
   birthDate?: string
-  role: 'CUSTOMER' | 'ADMIN' | 'WAREHOUSE' | 'PRODUCT_MANAGER' | 'EMPLOYEE'
+  role: 'CUSTOMER' | 'ADMIN' | 'EMPLOYEE'
   position?: 'WAREHOUSE' | 'PRODUCT_MANAGER' | 'ACCOUNTANT' | 'SALE' | 'CSKH'
   status?: string
   customer?: {

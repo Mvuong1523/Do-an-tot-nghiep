@@ -12,6 +12,7 @@ export default function ProductManagerDashboard() {
   const router = useRouter()
   const { user, isAuthenticated } = useAuthStore()
   const [loading, setLoading] = useState(true)
+  const [isHydrated, setIsHydrated] = useState(false)
   const [stats, setStats] = useState({
     warehouseProducts: 0,
     publishedProducts: 0,
@@ -19,21 +20,33 @@ export default function ProductManagerDashboard() {
     lowStock: 0
   })
 
+  // Wait for Zustand persist to hydrate
   useEffect(() => {
+    setIsHydrated(true)
+  }, [])
+
+  useEffect(() => {
+    // Don't check auth until hydrated
+    if (!isHydrated) return
+
     if (!isAuthenticated) {
       toast.error('Vui lòng đăng nhập')
       router.push('/login')
       return
     }
 
-    if (user?.role !== 'PRODUCT_MANAGER' && user?.role !== 'ADMIN') {
+    // Check if user is ADMIN or EMPLOYEE with PRODUCT_MANAGER position
+    const isProductManager = user?.role === 'ADMIN' || 
+                             (user?.role === 'EMPLOYEE' && user?.position === 'PRODUCT_MANAGER')
+
+    if (!isProductManager) {
       toast.error('Chỉ quản lý sản phẩm mới có quyền truy cập')
       router.push('/')
       return
     }
 
     loadStats()
-  }, [isAuthenticated, user, router])
+  }, [isHydrated, isAuthenticated, user, router])
 
   const loadStats = async () => {
     try {

@@ -12,6 +12,7 @@ export default function WarehouseDashboard() {
   const router = useRouter()
   const { user, isAuthenticated } = useAuthStore()
   const [loading, setLoading] = useState(true)
+  const [isHydrated, setIsHydrated] = useState(false)
   const [stats, setStats] = useState({
     totalStock: 0,
     lowStock: 0,
@@ -19,21 +20,31 @@ export default function WarehouseDashboard() {
     pendingExports: 0
   })
 
+  // Wait for Zustand persist to hydrate
   useEffect(() => {
+    setIsHydrated(true)
+  }, [])
+
+  useEffect(() => {
+    if (!isHydrated) return
+
     if (!isAuthenticated) {
       toast.error('Vui lòng đăng nhập')
       router.push('/login')
       return
     }
 
-    if (user?.role !== 'WAREHOUSE' && user?.role !== 'ADMIN') {
+    const isWarehouseStaff = user?.role === 'ADMIN' || 
+                             (user?.role === 'EMPLOYEE' && user?.position === 'WAREHOUSE')
+    
+    if (!isWarehouseStaff) {
       toast.error('Chỉ nhân viên kho mới có quyền truy cập')
       router.push('/')
       return
     }
 
     loadStats()
-  }, [isAuthenticated, user, router])
+  }, [isHydrated, isAuthenticated, user, router])
 
   const loadStats = async () => {
     try {
