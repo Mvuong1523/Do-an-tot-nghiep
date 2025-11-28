@@ -32,7 +32,7 @@ export default function PublishProductsPage() {
       return
     }
 
-    if (user?.role !== 'ADMIN' && user?.role !== 'EMPLOYEE') {
+    if (user?.role !== 'ADMIN' && user?.role !== 'PRODUCT_MANAGER') {
       toast.error('Chỉ quản lý và nhân viên mới có quyền truy cập')
       router.push('/')
       return
@@ -45,7 +45,7 @@ export default function PublishProductsPage() {
     try {
       setLoading(true)
       const [productsRes, categoriesRes] = await Promise.all([
-        productApi.getWarehouseProducts(),
+        productApi.getWarehouseProductsForPublish(),
         categoryApi.getAll()
       ])
       
@@ -104,7 +104,7 @@ export default function PublishProductsPage() {
         imageUrl: formData.imageUrl
       }
       
-      const response = await productApi.publishProduct(data)
+      const response = await productApi.createProductFromWarehouse(data)
       
       if (response.success) {
         toast.success('Đăng bán sản phẩm thành công!')

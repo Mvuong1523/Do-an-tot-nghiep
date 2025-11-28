@@ -41,11 +41,11 @@ export default function ProductsPage() {
       const response = await productApi.getAll()
       
       if (response.success && response.data) {
-        const productsData = response.data.data || response.data
+        const productsData = Array.isArray(response.data) ? response.data : ((response.data as any).data || response.data)
         setProducts(productsData)
         
         // Extract unique brands
-        const uniqueBrands = ['Tất cả', ...new Set(productsData.map((p: any) => p.brand).filter(Boolean))]
+        const uniqueBrands = ['Tất cả', ...new Set(productsData.map((p: any) => p.brand).filter(Boolean))] as string[]
         setBrands(uniqueBrands)
       }
     } catch (error) {

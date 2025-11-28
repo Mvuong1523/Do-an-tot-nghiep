@@ -209,15 +209,31 @@ export default function Header() {
                           >
                             Quản lý kho
                           </Link>
+                          <Link
+                            href="/admin/accounting"
+                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                            onClick={() => setIsUserMenuOpen(false)}
+                          >
+                            Kế toán & Đối soát
+                          </Link>
                         </>
                       )}
-                      {(user.role === 'WAREHOUSE' || user.role === 'EMPLOYEE') && (
+                      {user.role === 'WAREHOUSE' && (
                         <Link
                           href="/admin/inventory"
                           className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                           onClick={() => setIsUserMenuOpen(false)}
                         >
                           Quản lý kho
+                        </Link>
+                      )}
+                      {user.position === 'ACCOUNTANT' && (
+                        <Link
+                          href="/admin/accounting"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          Kế toán & Đối soát
                         </Link>
                       )}
                       <button

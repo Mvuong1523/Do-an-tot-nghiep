@@ -132,7 +132,7 @@ export default function EmployeeApprovalPage() {
     setProcessingId(employeeId)
     try {
       // TODO: Backend cần thêm endpoint reject với reason
-      toast.info('Chức năng từ chối đang được phát triển')
+      toast('Chức năng từ chối đang được phát triển')
     } catch (error: any) {
       toast.error(error.message || 'Lỗi khi từ chối nhân viên')
     } finally {

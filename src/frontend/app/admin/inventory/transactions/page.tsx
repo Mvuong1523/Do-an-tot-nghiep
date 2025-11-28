@@ -47,7 +47,7 @@ export default function InventoryTransactionsPage() {
     }
 
     // Check if user is admin or employee (tạm thời cho tất cả employee)
-    if (user?.role !== 'ADMIN' && user?.role !== 'EMPLOYEE') {
+    if (user?.role !== 'ADMIN' && user?.role !== 'WAREHOUSE') {
       toast.error('Chỉ quản lý và nhân viên mới có quyền truy cập')
       router.push('/')
       return
