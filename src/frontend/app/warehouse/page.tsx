@@ -175,7 +175,7 @@ export default function WarehouseDashboard() {
           </Link>
 
           <Link
-            href="/warehouse/import"
+            href="/admin/inventory/transactions/create?type=IMPORT"
             className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
           >
             <div className="flex items-center justify-between mb-4">
@@ -187,7 +187,7 @@ export default function WarehouseDashboard() {
           </Link>
 
           <Link
-            href="/warehouse/export"
+            href="/admin/inventory/transactions/create?type=EXPORT"
             className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
           >
             <div className="flex items-center justify-between mb-4">
@@ -199,7 +199,7 @@ export default function WarehouseDashboard() {
           </Link>
 
           <Link
-            href="/warehouse/transactions"
+            href="/admin/inventory"
             className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
           >
             <div className="flex items-center justify-between mb-4">

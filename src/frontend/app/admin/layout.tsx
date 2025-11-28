@@ -10,8 +10,9 @@ export default function AdminLayout({
 }) {
   const { user } = useAuthStore()
   
-  // Detect role: nếu user là WAREHOUSE thì hiển thị navbar warehouse
-  const navRole = user?.role === 'WAREHOUSE' ? 'WAREHOUSE' : 'ADMIN'
+  // Detect role: nếu user là WAREHOUSE staff thì hiển thị navbar warehouse
+  const isWarehouseStaff = user?.role === 'EMPLOYEE' && user?.position === 'WAREHOUSE'
+  const navRole = isWarehouseStaff ? 'WAREHOUSE' : 'ADMIN'
   
   return (
     <div className="min-h-screen bg-gray-50">

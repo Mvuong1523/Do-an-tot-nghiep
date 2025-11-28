@@ -11,6 +11,7 @@ import { inventoryApi } from '@/lib/api'
 export default function SuppliersPage() {
   const router = useRouter()
   const { user, isAuthenticated } = useAuthStore()
+  const [isHydrated, setIsHydrated] = useState(false)
   const [suppliers, setSuppliers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -28,20 +29,29 @@ export default function SuppliersPage() {
   })
 
   useEffect(() => {
+    setIsHydrated(true)
+  }, [])
+
+  useEffect(() => {
+    if (!isHydrated) return
+
     if (!isAuthenticated) {
       toast.error('Vui lòng đăng nhập')
       router.push('/login')
       return
     }
 
-    if (user?.role !== 'WAREHOUSE' && user?.role !== 'ADMIN') {
+    const isWarehouseStaff = user?.role === 'ADMIN' || 
+                             (user?.role === 'EMPLOYEE' && user?.position === 'WAREHOUSE')
+
+    if (!isWarehouseStaff) {
       toast.error('Chỉ nhân viên kho mới có quyền truy cập')
       router.push('/')
       return
     }
 
     loadSuppliers()
-  }, [isAuthenticated, user, router])
+  }, [isHydrated, isAuthenticated, user, router])
 
   const loadSuppliers = async () => {
     try {

@@ -24,6 +24,7 @@ export default function CreateTransactionPage() {
   const { user, isAuthenticated } = useAuthStore()
   
   const type = (searchParams.get('type') || 'IMPORT') as 'IMPORT' | 'EXPORT'
+  const isWarehouseStaff = user?.role === 'EMPLOYEE' && user?.position === 'WAREHOUSE'
   
   const [formData, setFormData] = useState({
     note: '',
@@ -63,8 +64,11 @@ export default function CreateTransactionPage() {
       return
     }
 
-    // Check if user is admin or warehouse
-    if (user?.role !== 'ADMIN' && user?.role !== 'WAREHOUSE') {
+    // Check if user is admin or warehouse staff
+    const isWarehouseStaff = user?.role === 'ADMIN' || 
+                             (user?.role === 'EMPLOYEE' && user?.position === 'WAREHOUSE')
+    
+    if (!isWarehouseStaff) {
       toast.error('Chỉ quản trị viên và nhân viên kho mới có quyền truy cập')
       router.push('/')
       return
@@ -291,7 +295,7 @@ export default function CreateTransactionPage() {
 
         if (response.success) {
           toast.success('Tạo phiếu nhập kho thành công!')
-          router.push('/warehouse/import/list')
+          router.push(isWarehouseStaff ? '/warehouse' : '/admin/inventory')
         } else {
           toast.error(response.message || 'Tạo phiếu nhập thất bại')
         }
@@ -325,9 +329,13 @@ export default function CreateTransactionPage() {
         <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-6">
           <Link href="/" className="hover:text-red-500">Trang chủ</Link>
           <span>/</span>
-          <Link href="/admin" className="hover:text-red-500">Quản trị</Link>
+          <Link href={isWarehouseStaff ? "/warehouse" : "/admin"} className="hover:text-red-500">
+            {isWarehouseStaff ? "Kho hàng" : "Quản trị"}
+          </Link>
           <span>/</span>
-          <Link href="/warehouse/import/list" className="hover:text-red-500">Danh sách phiếu nhập</Link>
+          <Link href={isWarehouseStaff ? "/warehouse/inventory" : "/admin/inventory"} className="hover:text-red-500">
+            Quản lý kho
+          </Link>
           <span>/</span>
           <span className="text-gray-900">Tạo phiếu {type === 'IMPORT' ? 'nhập' : 'xuất'}</span>
         </nav>
@@ -618,7 +626,7 @@ export default function CreateTransactionPage() {
                   </button>
 
                   <Link
-                    href="/warehouse/import/list"
+                    href={isWarehouseStaff ? "/warehouse" : "/admin/inventory"}
                     className="w-full flex items-center justify-center space-x-2 bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
                   >
                     <FiX />
