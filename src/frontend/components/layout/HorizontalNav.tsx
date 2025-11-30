@@ -30,7 +30,7 @@ interface MenuItem {
 }
 
 interface HorizontalNavProps {
-  role: 'WAREHOUSE' | 'PRODUCT_MANAGER' | 'ADMIN'
+  role: 'WAREHOUSE' | 'PRODUCT_MANAGER' | 'ADMIN' | 'ACCOUNTANT' | 'SALES'
 }
 
 export default function HorizontalNav({ role }: HorizontalNavProps) {
@@ -109,14 +109,28 @@ export default function HorizontalNav({ role }: HorizontalNavProps) {
             ]
           },
           {
-            name: 'Đơn hàng',
+            name: 'Kế toán',
             icon: FiFileText,
             children: [
-              { name: 'Tất cả đơn', path: '/admin/orders' },
-              { name: 'Chờ xử lý', path: '/admin/orders/pending' },
+              { name: 'Tổng quan', path: '/admin/accounting' },
+              { name: 'Đối soát', path: '/admin/accounting/reconciliation' },
+              { name: 'Báo cáo', path: '/admin/accounting/reports' },
             ]
           },
           { name: 'Duyệt nhân viên', icon: FiUsers, path: '/admin/employee-approval' },
+        ]
+      case 'ACCOUNTANT':
+        return [
+          { name: 'Dashboard', icon: FiHome, path: '/admin/accounting' },
+          { name: 'Đối soát', icon: FiFileText, path: '/admin/accounting/reconciliation' },
+          { name: 'Báo cáo', icon: FiBarChart2, path: '/admin/accounting/reports' },
+          { name: 'Quản lý kỳ', icon: FiFileText, path: '/admin/accounting/periods' },
+        ]
+      case 'SALES':
+        return [
+          { name: 'Dashboard', icon: FiHome, path: '/sales' },
+          { name: 'Đơn hàng', icon: FiShoppingCart, path: '/sales/orders' },
+          { name: 'Xuất kho bán hàng', icon: FiUpload, path: '/sales/export' },
         ]
       default:
         return []
@@ -131,6 +145,10 @@ export default function HorizontalNav({ role }: HorizontalNavProps) {
         return 'Quản lý sản phẩm'
       case 'ADMIN':
         return 'Quản trị viên'
+      case 'ACCOUNTANT':
+        return 'Kế toán'
+      case 'SALES':
+        return 'Nhân viên bán hàng'
       default:
         return ''
     }
