@@ -202,44 +202,39 @@ export default function Header() {
                       {user.role === 'ADMIN' && (
                         <>
                           <Link
-                            href="/admin/employee-approval"
+                            href="/admin"
                             className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                             onClick={() => setIsUserMenuOpen(false)}
                           >
-                            Duyệt đăng ký nhân viên
-                          </Link>
-                          <Link
-                            href="/admin/inventory"
-                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                            onClick={() => setIsUserMenuOpen(false)}
-                          >
-                            Quản lý kho
-                          </Link>
-                          <Link
-                            href="/admin/accounting"
-                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                            onClick={() => setIsUserMenuOpen(false)}
-                          >
-                            Kế toán & Đối soát
+                            Trang quản trị
                           </Link>
                         </>
                       )}
-                      {user.role === 'WAREHOUSE' && (
+                      {(user.role === 'EMPLOYEE' && user.position === 'WAREHOUSE') && (
                         <Link
-                          href="/admin/inventory"
+                          href="/warehouse"
                           className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                           onClick={() => setIsUserMenuOpen(false)}
                         >
                           Quản lý kho
                         </Link>
                       )}
-                      {user.position === 'ACCOUNTANT' && (
+                      {(user.role === 'EMPLOYEE' && user.position === 'ACCOUNTANT') && (
                         <Link
                           href="/admin/accounting"
                           className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                           onClick={() => setIsUserMenuOpen(false)}
                         >
                           Kế toán & Đối soát
+                        </Link>
+                      )}
+                      {(user.role === 'EMPLOYEE' && user.position === 'SALES') && (
+                        <Link
+                          href="/sales"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          Quản lý bán hàng
                         </Link>
                       )}
                       <button
