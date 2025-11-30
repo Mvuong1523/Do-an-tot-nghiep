@@ -11,6 +11,7 @@ import { productApi, inventoryApi, categoryApi } from '@/lib/api'
 export default function PublishProductPage() {
   const router = useRouter()
   const { user, isAuthenticated } = useAuthStore()
+  const [isHydrated, setIsHydrated] = useState(false)
   const [warehouseProducts, setWarehouseProducts] = useState<any[]>([])
   const [categories, setCategories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -27,20 +28,29 @@ export default function PublishProductPage() {
   })
 
   useEffect(() => {
+    setIsHydrated(true)
+  }, [])
+
+  useEffect(() => {
+    if (!isHydrated) return
+
     if (!isAuthenticated) {
       toast.error('Vui lòng đăng nhập')
       router.push('/login')
       return
     }
 
-    if (user?.role !== 'PRODUCT_MANAGER' && user?.role !== 'ADMIN') {
+    const isProductManager = user?.role === 'ADMIN' || 
+                             (user?.role === 'EMPLOYEE' && user?.position === 'PRODUCT_MANAGER')
+
+    if (!isProductManager) {
       toast.error('Chỉ quản lý sản phẩm mới có quyền truy cập')
       router.push('/')
       return
     }
 
     loadData()
-  }, [isAuthenticated, user, router])
+  }, [isHydrated, isAuthenticated, user, router])
 
   const loadData = async () => {
     try {

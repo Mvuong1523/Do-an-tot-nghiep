@@ -8,41 +8,16 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const { setAuth, logout } = useAuthStore()
 
   useEffect(() => {
-    // Restore auth state from localStorage on mount
+    // Auth state is already restored from localStorage by Zustand persist
+    // No need to call API on every page load
+    // Just verify token exists
     const token = localStorage.getItem('auth_token')
     
-    if (token) {
-      // Verify token and get user info
-      authApi.getCurrentUser()
-        .then((response) => {
-          if (response.success && response.data) {
-            // Determine actual role from position
-            let actualRole = response.data.role
-            if (response.data.role === 'EMPLOYEE' && response.data.position) {
-              actualRole = response.data.position
-            }
-            
-            setAuth(
-              {
-                id: response.data.id,
-                email: response.data.email,
-                fullName: response.data.fullName,
-                role: actualRole,
-                status: response.data.status,
-              },
-              token
-            )
-          } else {
-            // Invalid token, clear it
-            logout()
-          }
-        })
-        .catch(() => {
-          // Token expired or invalid
-          logout()
-        })
+    if (!token) {
+      // No token, ensure logged out
+      logout()
     }
-  }, [setAuth, logout])
+  }, [logout])
 
   return <>{children}</>
 }

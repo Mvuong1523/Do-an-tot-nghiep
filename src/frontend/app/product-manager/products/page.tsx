@@ -12,25 +12,35 @@ import EmployeeBreadcrumb from '@/components/EmployeeBreadcrumb'
 export default function ProductManagerProductsPage() {
   const router = useRouter()
   const { user, isAuthenticated } = useAuthStore()
+  const [isHydrated, setIsHydrated] = useState(false)
   const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
+    setIsHydrated(true)
+  }, [])
+
+  useEffect(() => {
+    if (!isHydrated) return
+
     if (!isAuthenticated) {
       toast.error('Vui lòng đăng nhập')
       router.push('/login')
       return
     }
 
-    if (user?.role !== 'PRODUCT_MANAGER' && user?.role !== 'ADMIN') {
+    const isProductManager = user?.role === 'ADMIN' || 
+                             (user?.role === 'EMPLOYEE' && user?.position === 'PRODUCT_MANAGER')
+
+    if (!isProductManager) {
       toast.error('Chỉ quản lý sản phẩm mới có quyền truy cập')
       router.push('/')
       return
     }
 
     loadProducts()
-  }, [isAuthenticated, user, router])
+  }, [isHydrated, isAuthenticated, user, router])
 
   const loadProducts = async () => {
     try {

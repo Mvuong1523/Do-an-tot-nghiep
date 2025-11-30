@@ -70,6 +70,9 @@ public class SecurityConfig {
                         // Admin order management (ADMIN + SALES_STAFF)
                         .requestMatchers("/api/admin/orders/**").hasAnyAuthority("ADMIN", "SALES")
                         
+                        // Accounting endpoints (ADMIN + ACCOUNTANT)
+                        .requestMatchers("/api/accounting/**").hasAnyAuthority("ADMIN", "ACCOUNTANT")
+                        
                         // Admin only endpoints
                         .requestMatchers("/api/employee-registration/list").hasAuthority("ADMIN")
                         .requestMatchers("/api/employee-registration/pending").hasAuthority("ADMIN")

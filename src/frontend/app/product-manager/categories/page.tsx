@@ -12,6 +12,7 @@ import EmployeeBreadcrumb from '@/components/EmployeeBreadcrumb'
 export default function CategoriesPage() {
   const router = useRouter()
   const { user, isAuthenticated } = useAuthStore()
+  const [isHydrated, setIsHydrated] = useState(false)
   const [categories, setCategories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -27,24 +28,29 @@ export default function CategoriesPage() {
   })
 
   useEffect(() => {
-    console.log('🔍 Auth Check:', { isAuthenticated, user })
+    setIsHydrated(true)
+  }, [])
+
+  useEffect(() => {
+    if (!isHydrated) return
     
     if (!isAuthenticated) {
       toast.error('Vui lòng đăng nhập')
       router.push('/login')
       return
     }
-
-    console.log('👤 User role:', user?.role)
     
-    if (user?.role !== 'PRODUCT_MANAGER' && user?.role !== 'ADMIN') {
+    const isProductManager = user?.role === 'ADMIN' || 
+                             (user?.role === 'EMPLOYEE' && user?.position === 'PRODUCT_MANAGER')
+
+    if (!isProductManager) {
       toast.error('Chỉ quản lý sản phẩm mới có quyền truy cập')
       router.push('/')
       return
     }
 
     loadCategories()
-  }, [isAuthenticated, user, router])
+  }, [isHydrated, isAuthenticated, user, router])
 
   const loadCategories = async () => {
     try {

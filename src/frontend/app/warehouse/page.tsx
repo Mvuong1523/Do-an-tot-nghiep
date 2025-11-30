@@ -12,6 +12,7 @@ export default function WarehouseDashboard() {
   const router = useRouter()
   const { user, isAuthenticated } = useAuthStore()
   const [loading, setLoading] = useState(true)
+  const [isHydrated, setIsHydrated] = useState(false)
   const [stats, setStats] = useState({
     totalStock: 0,
     lowStock: 0,
@@ -19,21 +20,31 @@ export default function WarehouseDashboard() {
     pendingExports: 0
   })
 
+  // Wait for Zustand persist to hydrate
   useEffect(() => {
+    setIsHydrated(true)
+  }, [])
+
+  useEffect(() => {
+    if (!isHydrated) return
+
     if (!isAuthenticated) {
       toast.error('Vui lòng đăng nhập')
       router.push('/login')
       return
     }
 
-    if (user?.role !== 'WAREHOUSE' && user?.role !== 'ADMIN') {
+    const isWarehouseStaff = user?.role === 'ADMIN' || 
+                             (user?.role === 'EMPLOYEE' && user?.position === 'WAREHOUSE')
+    
+    if (!isWarehouseStaff) {
       toast.error('Chỉ nhân viên kho mới có quyền truy cập')
       router.push('/')
       return
     }
 
     loadStats()
-  }, [isAuthenticated, user, router])
+  }, [isHydrated, isAuthenticated, user, router])
 
   const loadStats = async () => {
     try {
@@ -164,7 +175,7 @@ export default function WarehouseDashboard() {
           </Link>
 
           <Link
-            href="/warehouse/import"
+            href="/admin/inventory/transactions/create?type=IMPORT"
             className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
           >
             <div className="flex items-center justify-between mb-4">
@@ -176,7 +187,7 @@ export default function WarehouseDashboard() {
           </Link>
 
           <Link
-            href="/warehouse/export"
+            href="/admin/inventory/transactions/create?type=EXPORT"
             className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
           >
             <div className="flex items-center justify-between mb-4">
@@ -188,7 +199,7 @@ export default function WarehouseDashboard() {
           </Link>
 
           <Link
-            href="/warehouse/transactions"
+            href="/admin/inventory"
             className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
           >
             <div className="flex items-center justify-between mb-4">

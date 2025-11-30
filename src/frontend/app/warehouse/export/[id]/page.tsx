@@ -22,7 +22,10 @@ export default function ExportDetailPage() {
       return
     }
 
-    if (user?.role !== 'WAREHOUSE' && user?.role !== 'ADMIN') {
+    const isWarehouseStaff = user?.role === 'ADMIN' || 
+                             (user?.role === 'EMPLOYEE' && user?.position === 'WAREHOUSE')
+    
+    if (!isWarehouseStaff) {
       toast.error('Chỉ nhân viên kho mới có quyền truy cập')
       router.push('/')
       return

@@ -3,7 +3,7 @@ import { Inter } from 'next/font/google'
 import '../styles/globals.css'
 import RootLayoutClient from '@/components/RootLayoutClient'
 import AuthProvider from '@/components/AuthProvider'
-import { Toaster } from 'react-hot-toast'
+import { Toaster } from 'sonner'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -25,7 +25,7 @@ export default function RootLayout({
           <RootLayoutClient>
             {children}
           </RootLayoutClient>
-          <Toaster position="top-right" />
+          <Toaster position="top-right" richColors />
         </AuthProvider>
       </body>
     </html>

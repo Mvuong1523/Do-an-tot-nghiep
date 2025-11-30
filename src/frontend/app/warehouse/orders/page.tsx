@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/store/authStore';
+import toast from 'react-hot-toast';
 
 interface OrderItem {
   itemId: number;
@@ -29,13 +31,29 @@ interface Order {
 
 export default function WarehouseOrdersPage() {
   const router = useRouter();
+  const { user, isAuthenticated } = useAuthStore();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      toast.error('Vui lòng đăng nhập');
+      router.push('/login');
+      return;
+    }
+
+    const isWarehouseStaff = user?.role === 'ADMIN' || 
+                             (user?.role === 'EMPLOYEE' && user?.position === 'WAREHOUSE');
+    
+    if (!isWarehouseStaff) {
+      toast.error('Chỉ nhân viên kho mới có quyền truy cập');
+      router.push('/');
+      return;
+    }
+
     fetchPendingOrders();
-  }, []);
+  }, [isAuthenticated, user, router]);
 
   const fetchPendingOrders = async () => {
     try {

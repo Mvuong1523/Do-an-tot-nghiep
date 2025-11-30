@@ -18,4 +18,6 @@ public interface InventoryService {
     ApiResponse cancelPurchaseOrder(Long id);
     ApiResponse cancelExportOrder(Long id);
     ApiResponse getStocks();
+    ApiResponse exportForSale(SaleExportRequest req);
+    ApiResponse exportForWarranty(WarrantyExportRequest req);
 }

@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/inventory/orders")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyAuthority('ADMIN', 'WAREHOUSE', 'WAREHOUSE_STAFF')")
+@PreAuthorize("hasAnyAuthority('ADMIN', 'WAREHOUSE')")
 public class InventoryOrderController {
 
     private final OrderService orderService;

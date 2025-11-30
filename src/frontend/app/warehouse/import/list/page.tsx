@@ -11,26 +11,36 @@ import { inventoryApi } from '@/lib/api'
 export default function ImportListPage() {
   const router = useRouter()
   const { user, isAuthenticated } = useAuthStore()
+  const [isHydrated, setIsHydrated] = useState(false)
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
 
   useEffect(() => {
+    setIsHydrated(true)
+  }, [])
+
+  useEffect(() => {
+    if (!isHydrated) return
+
     if (!isAuthenticated) {
       toast.error('Vui lòng đăng nhập')
       router.push('/login')
       return
     }
 
-    if (user?.role !== 'WAREHOUSE' && user?.role !== 'ADMIN') {
+    const isWarehouseStaff = user?.role === 'ADMIN' || 
+                             (user?.role === 'EMPLOYEE' && user?.position === 'WAREHOUSE')
+
+    if (!isWarehouseStaff) {
       toast.error('Chỉ nhân viên kho mới có quyền truy cập')
       router.push('/')
       return
     }
 
     loadPurchaseOrders()
-  }, [isAuthenticated, user, router, statusFilter])
+  }, [isHydrated, isAuthenticated, user, router, statusFilter])
 
   const loadPurchaseOrders = async () => {
     try {
