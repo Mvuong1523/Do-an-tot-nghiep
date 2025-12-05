@@ -9,15 +9,8 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     // Auth state is already restored from localStorage by Zustand persist
-    // No need to call API on every page load
-    // Just verify token exists
-    const token = localStorage.getItem('auth_token')
-    
-    if (!token) {
-      // No token, ensure logged out
-      logout()
-    }
-  }, [logout])
+    // No additional logic needed here
+  }, [])
 
   return <>{children}</>
 }

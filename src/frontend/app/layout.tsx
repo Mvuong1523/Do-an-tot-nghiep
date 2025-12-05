@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import '../styles/globals.css'
 import RootLayoutClient from '@/components/RootLayoutClient'
 import AuthProvider from '@/components/AuthProvider'
+import BrowserSessionManager from '@/components/BrowserSessionManager'
 import { Toaster } from 'react-hot-toast'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -21,6 +22,7 @@ export default function RootLayout({
   return (
     <html lang="vi">
       <body className={inter.className}>
+        <BrowserSessionManager />
         <AuthProvider>
           <RootLayoutClient>
             {children}

@@ -5,14 +5,15 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { FiPackage, FiDownload, FiUpload, FiTrendingUp, FiAlertCircle, FiArrowRight } from 'react-icons/fi'
 import toast from 'react-hot-toast'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore, useAuthStoreHydrated } from '@/store/authStore'
 import { inventoryApi } from '@/lib/api'
 
 export default function WarehouseDashboard() {
   const router = useRouter()
   const { user, isAuthenticated } = useAuthStore()
+  const isHydrated = useAuthStoreHydrated()
   const [loading, setLoading] = useState(true)
-  const [isHydrated, setIsHydrated] = useState(false)
+  const [authChecked, setAuthChecked] = useState(false)
   const [stats, setStats] = useState({
     totalStock: 0,
     lowStock: 0,
@@ -20,22 +21,18 @@ export default function WarehouseDashboard() {
     pendingExports: 0
   })
 
-  // Wait for Zustand persist to hydrate
-  useEffect(() => {
-    setIsHydrated(true)
-  }, [])
-
   useEffect(() => {
     if (!isHydrated) return
+    if (authChecked) return
 
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !user) {
       toast.error('Vui lòng đăng nhập')
       router.push('/login')
       return
     }
 
-    const isWarehouseStaff = user?.role === 'ADMIN' || 
-                             (user?.role === 'EMPLOYEE' && user?.position === 'WAREHOUSE')
+    const isWarehouseStaff = user.role === 'ADMIN' || 
+                             (user.role === 'EMPLOYEE' && user.position === 'WAREHOUSE')
     
     if (!isWarehouseStaff) {
       toast.error('Chỉ nhân viên kho mới có quyền truy cập')
@@ -43,8 +40,9 @@ export default function WarehouseDashboard() {
       return
     }
 
+    setAuthChecked(true)
     loadStats()
-  }, [isHydrated, isAuthenticated, user, router])
+  }, [isHydrated, isAuthenticated, user, router, authChecked])
 
   const loadStats = async () => {
     try {

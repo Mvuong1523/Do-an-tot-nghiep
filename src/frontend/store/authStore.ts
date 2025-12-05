@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
+import { useState, useEffect } from 'react'
 
 export interface User {
   id?: string
@@ -46,6 +47,7 @@ export const useAuthStore = create<AuthStore>()(
         if (typeof window !== 'undefined') {
           localStorage.removeItem('auth_token')
           localStorage.removeItem('token')
+          localStorage.removeItem('auth-storage')
           // Xóa giỏ hàng khi đăng xuất
           localStorage.removeItem('cart-storage')
         }
@@ -60,8 +62,9 @@ export const useAuthStore = create<AuthStore>()(
             localStorage.removeItem('cart-storage')
           }
           
+          // Lưu token vào localStorage
           localStorage.setItem('auth_token', token)
-          localStorage.setItem('token', token) // Lưu cả 2 key để tương thích
+          localStorage.setItem('token', token)
         }
         set({ user, token, isAuthenticated: true })
       },
@@ -72,3 +75,19 @@ export const useAuthStore = create<AuthStore>()(
     }
   )
 )
+
+// Hook để check xem Zustand đã hydrate chưa
+export const useAuthStoreHydrated = () => {
+  const [hydrated, setHydrated] = useState(false)
+  
+  useEffect(() => {
+    // Đợi một tick để Zustand persist hydrate
+    const timer = setTimeout(() => {
+      setHydrated(true)
+    }, 0)
+    
+    return () => clearTimeout(timer)
+  }, [])
+  
+  return hydrated
+}
