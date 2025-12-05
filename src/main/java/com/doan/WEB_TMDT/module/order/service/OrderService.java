@@ -13,6 +13,7 @@ public interface OrderService {
     ApiResponse getOrderByCode(String orderCode, Long customerId);
     ApiResponse getMyOrders(Long customerId);
     ApiResponse cancelOrderByCustomer(Long orderId, Long customerId, String reason);
+    ApiResponse getShippingStatus(Long orderId, Long customerId);
     
     // Admin/Staff endpoints
     ApiResponse getAllOrders(String status, int page, int size);
@@ -23,4 +24,5 @@ public interface OrderService {
     ApiResponse markAsShipping(Long orderId);
     ApiResponse markAsDelivered(Long orderId);
     ApiResponse cancelOrder(Long orderId, String reason);
+    ApiResponse getShippingStatusAdmin(Long orderId);
 }

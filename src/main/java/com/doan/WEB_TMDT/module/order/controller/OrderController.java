@@ -71,6 +71,17 @@ public class OrderController {
         return orderService.cancelOrderByCustomer(orderId, customerId, reason);
     }
 
+    /**
+     * Xem trạng thái vận chuyển GHN
+     */
+    @GetMapping("/{orderId}/shipping-status")
+    public ApiResponse getShippingStatus(
+            @PathVariable Long orderId,
+            Authentication authentication) {
+        Long customerId = getCustomerIdFromAuth(authentication);
+        return orderService.getShippingStatus(orderId, customerId);
+    }
+
     // Helper method
     private Long getCustomerIdFromAuth(Authentication authentication) {
         if (authentication == null || authentication.getName() == null) {

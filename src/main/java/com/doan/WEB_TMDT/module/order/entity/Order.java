@@ -78,6 +78,15 @@ public class Order {
     
     private String cancelReason; // Lý do hủy
     
+    // GHN Shipping Integration
+    private String ghnOrderCode; // Mã vận đơn GHN
+    
+    private String ghnShippingStatus; // Trạng thái vận chuyển từ GHN
+    
+    private LocalDateTime ghnCreatedAt; // Thời gian tạo đơn GHN
+    
+    private LocalDateTime ghnExpectedDeliveryTime; // Thời gian giao hàng dự kiến
+    
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

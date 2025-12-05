@@ -40,6 +40,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/payment/sepay/webhook").permitAll() // SePay webhook
                         .requestMatchers("/api/payment/test-webhook/**").permitAll() // Test webhook (dev only)
                         .requestMatchers("/api/payment/{paymentCode}/status").permitAll() // Check status
+                        .requestMatchers("/api/webhooks/**").permitAll() // GHN webhook
                         .requestMatchers("/api/employee-registration/apply").permitAll()
                         .requestMatchers("/api/test/**").permitAll()
                         
@@ -52,6 +53,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/products/search-by-specs").permitAll()
                         .requestMatchers("/api/products/filter-by-specs").permitAll()
                         .requestMatchers("/api/product/**").permitAll()
+                        
+                        // Public shipping endpoint (for calculating shipping fee)
+                        .requestMatchers("/api/shipping/calculate-fee").permitAll()
                         
                         // Customer endpoints (Cart, Orders, Profile)
                         .requestMatchers("/api/cart/**").hasAnyAuthority("CUSTOMER", "ADMIN")
@@ -126,6 +130,7 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/payment/sepay/webhook", webhookConfig);
         source.registerCorsConfiguration("/api/payment/test-webhook/**", webhookConfig);
+        source.registerCorsConfiguration("/api/webhooks/**", webhookConfig); // GHN webhook
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }

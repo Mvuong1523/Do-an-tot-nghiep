@@ -93,4 +93,13 @@ public class OrderManagementController {
             @RequestParam String status) {
         return orderService.updateOrderStatus(orderId, status);
     }
+
+    /**
+     * Xem trạng thái vận chuyển GHN (Admin)
+     * GET /api/admin/orders/{orderId}/shipping-status
+     */
+    @GetMapping("/{orderId}/shipping-status")
+    public ApiResponse getShippingStatusAdmin(@PathVariable Long orderId) {
+        return orderService.getShippingStatusAdmin(orderId);
+    }
 }

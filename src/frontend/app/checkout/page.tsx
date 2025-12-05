@@ -27,7 +27,8 @@ export default function CheckoutPage() {
     paymentMethod: 'COD',
     shippingFee: 30000 // Phí ship mặc định
   })
-  const [shippingMethod, setShippingMethod] = useState<'internal' | 'ghtk'>('internal')
+  const [shippingMethod, setShippingMethod] = useState<'internal' | 'ghn'>('internal')
+  const [calculatingShipping, setCalculatingShipping] = useState(false)
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -39,6 +40,13 @@ export default function CheckoutPage() {
     loadCustomerProfile()
     loadOrderData()
   }, [isAuthenticated])
+
+  // Calculate shipping fee when address changes
+  useEffect(() => {
+    if (form.province && form.district) {
+      calculateShippingFee()
+    }
+  }, [form.province, form.district])
 
   const loadCustomerProfile = async () => {
     console.log('🔍 Loading customer profile...')
@@ -170,24 +178,47 @@ export default function CheckoutPage() {
     return calculateSubtotal() + form.shippingFee
   }
 
-  // Tự động tính phí ship khi thay đổi tỉnh
-  useEffect(() => {
-    if (form.province) {
-      const isHanoi = form.province.toLowerCase().includes('hà nội') || 
-                      form.province.toLowerCase().includes('ha noi') ||
-                      form.province.toLowerCase().includes('hanoi')
+  const calculateShippingFee = async () => {
+    if (!form.province || !form.district) return
+
+    setCalculatingShipping(true)
+    try {
+      const response = await fetch('http://localhost:8080/api/shipping/calculate-fee', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          province: form.province,
+          district: form.district,
+          address: form.address || '',
+          weight: 1000, // Default 1kg
+          value: calculateSubtotal()
+        })
+      })
+
+      const data = await response.json()
       
-      if (isHanoi) {
-        // Nội thành Hà Nội - Miễn phí
-        setShippingMethod('internal')
-        setForm(prev => ({ ...prev, shippingFee: 0 }))
+      if (data.success && data.data) {
+        const { fee, shipMethod, isFreeShip } = data.data
+        setForm(prev => ({ ...prev, shippingFee: fee }))
+        setShippingMethod(shipMethod === 'INTERNAL' ? 'internal' : 'ghn')
+        
+        if (isFreeShip) {
+          toast.success('Miễn phí vận chuyển!')
+        }
       } else {
-        // Ngoài Hà Nội - GHTK (tạm tính 30k)
-        setShippingMethod('ghtk')
+        toast.error('Không thể tính phí vận chuyển')
         setForm(prev => ({ ...prev, shippingFee: 30000 }))
       }
+    } catch (error) {
+      console.error('Error calculating shipping fee:', error)
+      toast.error('Lỗi khi tính phí vận chuyển')
+      setForm(prev => ({ ...prev, shippingFee: 30000 }))
+    } finally {
+      setCalculatingShipping(false)
     }
-  }, [form.province])
+  }
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('vi-VN', {
@@ -525,8 +556,11 @@ export default function CheckoutPage() {
                       {shippingMethod === 'internal' && (
                         <p className="text-xs text-green-600">Shipper nội thành HN</p>
                       )}
-                      {shippingMethod === 'ghtk' && (
-                        <p className="text-xs text-blue-600">Giao Hàng Tiết Kiệm</p>
+                      {shippingMethod === 'ghn' && (
+                        <p className="text-xs text-blue-600">Giao Hàng Nhanh</p>
+                      )}
+                      {calculatingShipping && (
+                        <p className="text-xs text-gray-500">Đang tính phí...</p>
                       )}
                     </div>
                     <span className={form.shippingFee === 0 ? 'text-green-600 font-medium' : ''}>

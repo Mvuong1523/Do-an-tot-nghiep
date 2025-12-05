@@ -42,4 +42,10 @@ public class OrderResponse {
     private LocalDateTime deliveredAt;
     private LocalDateTime cancelledAt;
     private String cancelReason;
+    
+    // GHN Shipping info
+    private String ghnOrderCode;
+    private String ghnShippingStatus;
+    private LocalDateTime ghnCreatedAt;
+    private LocalDateTime ghnExpectedDeliveryTime;
 }

@@ -7,6 +7,7 @@ import { FiArrowLeft, FiPackage, FiMapPin, FiCreditCard, FiClock, FiFileText } f
 import { orderApi } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
 import toast from 'react-hot-toast'
+import GHNTracking from '@/components/GHNTracking'
 
 export default function OrderDetailPage() {
   const router = useRouter()
@@ -313,9 +314,14 @@ export default function OrderDetailPage() {
           </div>
         </div>
 
+        {/* GHN Tracking */}
+        {order.ghnOrderCode && (
+          <GHNTracking orderId={order.orderId} ghnOrderCode={order.ghnOrderCode} />
+        )}
+
         {/* Order Timeline */}
         {(order.confirmedAt || order.shippedAt || order.deliveredAt || order.cancelledAt) && (
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-white rounded-lg shadow-sm p-6 mt-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
               <FiClock className="mr-2" />
               Lịch sử đơn hàng
