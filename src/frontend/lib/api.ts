@@ -315,6 +315,15 @@ export const productApi = {
     }
   },
 
+  update: async (productId: number, data: any): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.put(`/products/${productId}`, data)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi cập nhật sản phẩm')
+    }
+  },
+
   updatePublishedProduct: async (productId: number, data: any): Promise<ApiResponse<any>> => {
     try {
       const response = await apiClient.put(`/products/warehouse/publish/${productId}`, data)

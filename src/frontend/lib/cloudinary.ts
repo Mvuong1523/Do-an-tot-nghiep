@@ -1,21 +1,33 @@
-// Cloudinary helper (sẽ dùng sau)
+// Cloudinary helper - Upload qua Backend API
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'
 
 export const uploadToCloudinary = async (file: File): Promise<string> => {
   const formData = new FormData()
   formData.append('file', file)
-  formData.append('upload_preset', 'your_upload_preset') // Tạo trong Cloudinary dashboard
   
   try {
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/your_cloud_name/image/upload`,
-      {
-        method: 'POST',
-        body: formData
-      }
-    )
+    const token = localStorage.getItem('auth_token')
     
-    const data = await response.json()
-    return data.secure_url // https://res.cloudinary.com/...
+    const response = await fetch(`${API_URL}/files/upload`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    })
+    
+    if (!response.ok) {
+      throw new Error('Upload failed')
+    }
+    
+    const result = await response.json()
+    
+    if (result.success && result.data) {
+      return result.data // Cloudinary URL
+    } else {
+      throw new Error(result.message || 'Upload failed')
+    }
   } catch (error) {
     console.error('Cloudinary upload error:', error)
     throw error

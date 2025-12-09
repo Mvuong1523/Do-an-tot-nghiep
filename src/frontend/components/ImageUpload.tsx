@@ -33,18 +33,12 @@ export default function ImageUpload({ value, onChange, disabled }: ImageUploadPr
     try {
       setUploading(true)
       
-      // TODO: Sau này uncomment để dùng Cloudinary
-      // const url = await uploadToCloudinary(file)
+      // Upload lên Cloudinary qua Backend API
+      const url = await uploadToCloudinary(file)
       
-      // Tạm thời: Dùng local preview
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        const localUrl = reader.result as string
-        setPreview(localUrl)
-        onChange(localUrl)
-        toast.success('Upload ảnh thành công!')
-      }
-      reader.readAsDataURL(file)
+      setPreview(url)
+      onChange(url)
+      toast.success('Upload ảnh thành công!')
       
     } catch (error) {
       console.error('Upload error:', error)

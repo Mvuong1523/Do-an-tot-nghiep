@@ -7,6 +7,7 @@ import { FiPlus, FiTrash2, FiSave, FiX } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/store/authStore'
 import { inventoryApi } from '@/lib/api'
+import ExcelImport from '@/components/ExcelImport'
 
 interface TransactionItem {
   sku: string
@@ -245,6 +246,74 @@ export default function CreateTransactionPage() {
     toast.success('Đã xóa sản phẩm')
   }
 
+  const handleExcelImport = (data: { items: any[], supplier?: any }) => {
+    // Fill supplier info if provided
+    if (data.supplier) {
+      setFormData({
+        ...formData,
+        supplierName: data.supplier.name || '',
+        supplierTaxCode: data.supplier.taxCode || '',
+        supplierContactName: data.supplier.contactName || '',
+        supplierPhone: data.supplier.phone || '',
+        supplierEmail: data.supplier.email || '',
+        supplierAddress: data.supplier.address || '',
+        supplierBankAccount: data.supplier.bankAccount || '',
+        supplierPaymentTerm: data.supplier.paymentTerm || ''
+      })
+      setSelectedSupplierId('') // Clear selected supplier dropdown
+    }
+
+    // Convert imported items to TransactionItem format
+    const newItems: TransactionItem[] = data.items.map(item => ({
+      sku: item.sku,
+      productName: item.productName,
+      quantity: item.quantity,
+      price: item.price,
+      warrantyMonths: item.warrantyMonths,
+      techSpecs: '', // Empty for now
+      note: item.note || ''
+    }))
+
+    // Merge with existing items - handle duplicates
+    setItems(prevItems => {
+      const mergedItems = [...prevItems]
+      let addedCount = 0
+      let updatedCount = 0
+      
+      newItems.forEach(newItem => {
+        const existingIndex = mergedItems.findIndex(item => item.sku === newItem.sku)
+        
+        if (existingIndex >= 0) {
+          // SKU already exists - add quantity
+          mergedItems[existingIndex] = {
+            ...mergedItems[existingIndex],
+            quantity: mergedItems[existingIndex].quantity + newItem.quantity
+          }
+          updatedCount++
+        } else {
+          // New SKU - add to list
+          mergedItems.push(newItem)
+          addedCount++
+        }
+      })
+      
+      // Show detailed message
+      if (updatedCount > 0 && addedCount > 0) {
+        toast.success(`Đã thêm ${addedCount} SP mới và cộng dồn ${updatedCount} SP trùng`)
+      } else if (updatedCount > 0) {
+        toast.success(`Đã cộng dồn số lượng cho ${updatedCount} sản phẩm trùng`)
+      } else {
+        if (data.supplier) {
+          toast.success(`Đã import thông tin NCC và ${addedCount} sản phẩm`)
+        } else {
+          toast.success(`Đã thêm ${addedCount} sản phẩm từ Excel`)
+        }
+      }
+      
+      return mergedItems
+    })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -360,7 +429,10 @@ export default function CreateTransactionPage() {
             <div className="lg:col-span-2 space-y-6">
               {/* Transaction Info */}
               <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-4">Thông tin phiếu</h2>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold text-gray-900">Thông tin phiếu</h2>
+                  <ExcelImport onImport={handleExcelImport} />
+                </div>
                 
                 <div className="space-y-4">
                   {type === 'IMPORT' && (
@@ -764,7 +836,7 @@ export default function CreateTransactionPage() {
                           }}
                           className="text-xs text-blue-500 hover:text-blue-600 font-medium"
                         >
-                          📋 Paste từ clipboard
+                           Paste từ clipboard
                         </button>
                         <button
                           type="button"

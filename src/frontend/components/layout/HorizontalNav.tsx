@@ -115,6 +115,7 @@ export default function HorizontalNav({ role }: HorizontalNavProps) {
               { name: 'Tổng quan', path: '/admin/accounting' },
               { name: 'Đối soát', path: '/admin/accounting/reconciliation' },
               { name: 'Báo cáo', path: '/admin/accounting/reports' },
+              { name: 'Tài khoản ngân hàng', path: '/admin/bank-accounts' },
             ]
           },
           { name: 'Duyệt nhân viên', icon: FiUsers, path: '/admin/employee-approval' },

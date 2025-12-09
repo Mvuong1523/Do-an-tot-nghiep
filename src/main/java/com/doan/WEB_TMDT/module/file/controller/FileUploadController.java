@@ -1,6 +1,8 @@
 package com.doan.WEB_TMDT.module.file.controller;
 
 import com.doan.WEB_TMDT.common.dto.ApiResponse;
+import com.doan.WEB_TMDT.module.file.service.CloudinaryService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -20,15 +22,30 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/files")
+@RequiredArgsConstructor
 public class FileUploadController {
+
+    private final CloudinaryService cloudinaryService;
 
     @Value("${file.upload-dir:uploads/products}")
     private String uploadDir;
 
-    // Upload ảnh (PRODUCT_MANAGER, ADMIN)
+    // Upload ảnh lên Cloudinary (PRODUCT_MANAGER, ADMIN)
     @PostMapping("/upload")
     @PreAuthorize("hasAnyAuthority('PRODUCT_MANAGER', 'ADMIN')")
     public ApiResponse uploadFile(@RequestParam("file") MultipartFile file) {
+        try {
+            String imageUrl = cloudinaryService.uploadImage(file);
+            return ApiResponse.success("Upload thành công", imageUrl);
+        } catch (Exception e) {
+            return ApiResponse.error("Lỗi khi upload file: " + e.getMessage());
+        }
+    }
+
+    // Upload local (backup method)
+    @PostMapping("/upload-local")
+    @PreAuthorize("hasAnyAuthority('PRODUCT_MANAGER', 'ADMIN')")
+    public ApiResponse uploadFileLocal(@RequestParam("file") MultipartFile file) {
         try {
             // Tạo thư mục nếu chưa có
             Path uploadPath = Paths.get(uploadDir);

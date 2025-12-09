@@ -34,6 +34,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
+    private final com.doan.WEB_TMDT.module.payment.repository.BankAccountRepository bankAccountRepository;
 
     @Value("${sepay.bank.code:VCB}")
     private String sepayBankCode;
@@ -85,10 +86,22 @@ public class PaymentServiceImpl implements PaymentService {
         // 4. Generate payment code
         String paymentCode = generatePaymentCode();
 
-        // 5. Generate QR Code URL (SePay format)
-        String qrCodeUrl = generateSepayQrCode(paymentCode, request.getAmount());
+        // 5. Get bank account from database (default account)
+        com.doan.WEB_TMDT.module.payment.entity.BankAccount bankAccount = 
+            bankAccountRepository.findByIsDefaultTrue()
+                .orElse(null);
+        
+        // Fallback to config if no default account
+        String bankCode = bankAccount != null ? bankAccount.getBankCode() : sepayBankCode;
+        String accountNumber = bankAccount != null ? bankAccount.getAccountNumber() : sepayAccountNumber;
+        String accountName = bankAccount != null ? bankAccount.getAccountName() : sepayAccountName;
+        
+        log.info("Using bank account: {} - {} - {}", bankCode, accountNumber, accountName);
 
-        // 6. Create payment
+        // 6. Generate QR Code URL (SePay format)
+        String qrCodeUrl = generateSepayQrCode(paymentCode, request.getAmount(), bankCode, accountNumber, accountName);
+
+        // 7. Create payment
         Payment payment = Payment.builder()
                 .paymentCode(paymentCode)
                 .order(order)
@@ -96,9 +109,9 @@ public class PaymentServiceImpl implements PaymentService {
                 .amount(request.getAmount())
                 .method(PaymentMethod.SEPAY)
                 .status(PaymentStatus.PENDING)
-                .sepayBankCode(sepayBankCode)
-                .sepayAccountNumber(sepayAccountNumber)
-                .sepayAccountName(sepayAccountName)
+                .sepayBankCode(bankCode)
+                .sepayAccountNumber(accountNumber)
+                .sepayAccountName(accountName)
                 .sepayContent(paymentCode)
                 .sepayQrCode(qrCodeUrl)
                 .build();
@@ -168,13 +181,7 @@ public class PaymentServiceImpl implements PaymentService {
                 return ApiResponse.error("Nội dung không chứa mã thanh toán");
             }
 
-            // 2. Verify signature
-            if (!verifySignature(request)) {
-                log.error("Invalid signature from SePay webhook");
-                return ApiResponse.error("Chữ ký không hợp lệ");
-            }
-
-            // 3. Extract payment code from content (may have extra text like "PAY202511277791 FT2533..")
+            // 2. Extract payment code from content (may have extra text like "PAY202511277791 FT2533..")
             String paymentCode = extractPaymentCode(content);
             
             log.info("Extracted payment code: {} from content: {}", paymentCode, content);
@@ -183,19 +190,33 @@ public class PaymentServiceImpl implements PaymentService {
             Payment payment = paymentRepository.findByPaymentCode(paymentCode)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy thanh toán với mã: " + paymentCode));
 
-            // 3. Check if already processed
+            // 4. Get bank account to verify signature
+            com.doan.WEB_TMDT.module.payment.entity.BankAccount bankAccount = 
+                bankAccountRepository.findByIsDefaultTrue().orElse(null);
+            
+            // 5. Verify signature (if bank account has API token)
+            if (bankAccount != null && bankAccount.getSepayApiToken() != null && !bankAccount.getSepayApiToken().isEmpty()) {
+                if (!verifySignature(request, bankAccount.getSepayApiToken())) {
+                    log.error("Invalid signature from SePay webhook");
+                    return ApiResponse.error("Chữ ký không hợp lệ");
+                }
+            } else {
+                log.warn("No SePay API token configured for default bank account - skipping signature verification");
+            }
+
+            // 6. Check if already processed
             if (payment.getStatus() == PaymentStatus.SUCCESS) {
                 log.warn("Payment already processed: {}", payment.getPaymentCode());
                 return ApiResponse.success("Thanh toán đã được xử lý");
             }
 
-            // 4. Check amount
+            // 7. Check amount
             if (!payment.getAmount().equals(request.getAmount())) {
                 log.error("Amount mismatch. Expected: {}, Received: {}", payment.getAmount(), request.getAmount());
                 return ApiResponse.error("Số tiền không khớp");
             }
 
-            // 5. Check if expired
+            // 8. Check if expired
             if (LocalDateTime.now().isAfter(payment.getExpiredAt())) {
                 payment.setStatus(PaymentStatus.EXPIRED);
                 payment.setFailureReason("Thanh toán đã hết hạn");
@@ -203,14 +224,14 @@ public class PaymentServiceImpl implements PaymentService {
                 return ApiResponse.error("Thanh toán đã hết hạn");
             }
 
-            // 6. Update payment
+            // 9. Update payment
             payment.setStatus(PaymentStatus.SUCCESS);
             payment.setSepayTransactionId(request.getTransactionId());
             payment.setPaidAt(LocalDateTime.now());
             payment.setSepayResponse(request.toString());
             paymentRepository.save(payment);
 
-            // 7. Update order: PENDING_PAYMENT → CONFIRMED (tự động xác nhận, chờ chuẩn bị hàng)
+            // 10. Update order: PENDING_PAYMENT → CONFIRMED (tự động xác nhận, chờ chuẩn bị hàng)
             Order order = payment.getOrder();
             order.setPaymentStatus(com.doan.WEB_TMDT.module.order.entity.PaymentStatus.PAID);
             // Note: paidAt được lưu trong Payment entity, không cần lưu trong Order
@@ -296,32 +317,33 @@ public class PaymentServiceImpl implements PaymentService {
         return code;
     }
 
-    private String generateSepayQrCode(String content, Double amount) {
+    private String generateSepayQrCode(String content, Double amount, String bankCode, String accountNumber, String accountName) {
         // VietQR format - chỉ hiện mã QR, không có text
         // Template: qr_only - sạch sẽ, chỉ có mã QR
         long amountInVnd = Math.round(amount * amountMultiplier);
         
-        log.info("Generating QR code - Original amount: {} VND, Multiplier: {}, Final amount in QR: {} VND", 
-                 amount, amountMultiplier, amountInVnd);
+        log.info("Generating QR code - Bank: {}, Account: {}, Amount: {} VND", 
+                 bankCode, accountNumber, amountInVnd);
         
         // Sử dụng 'qr_only' - chỉ có mã QR, không có thông tin ngân hàng
         return String.format(
                 "https://img.vietqr.io/image/%s-%s-qr_only.jpg?amount=%d&addInfo=%s&accountName=%s",
-                sepayBankCode,
-                sepayAccountNumber,
+                bankCode,
+                accountNumber,
                 amountInVnd,
                 content,
-                sepayAccountName.replace(" ", "%20")
+                accountName.replace(" ", "%20")
         );
     }
 
-    private boolean verifySignature(SepayWebhookRequest request) {
-        // TODO: Implement real signature verification
-        // String data = request.getTransactionId() + request.getAmount() + request.getContent() + sepaySecretKey;
+    private boolean verifySignature(SepayWebhookRequest request, String apiToken) {
+        // TODO: Implement real signature verification based on SePay documentation
+        // String data = request.getTransactionId() + request.getAmount() + request.getContent() + apiToken;
         // String calculatedSignature = DigestUtils.sha256Hex(data);
         // return calculatedSignature.equals(request.getSignature());
 
         // For demo, always return true
+        log.info("Verifying signature with API token: {}...", apiToken.substring(0, Math.min(10, apiToken.length())));
         return true;
     }
 
