@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
-import { FiArrowLeft, FiPackage, FiCalendar, FiUser, FiFileText } from 'react-icons/fi'
+import { FiArrowLeft, FiPackage, FiCalendar, FiUser, FiFileText, FiCamera } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/store/authStore'
 import { inventoryApi } from '@/lib/api'
+import QRScanner from '@/components/QRScanner'
 
 export default function ImportDetailPage() {
   const router = useRouter()
@@ -16,6 +17,8 @@ export default function ImportDetailPage() {
   const [loading, setLoading] = useState(true)
   const [isCompleting, setIsCompleting] = useState(false)
   const [serialInputs, setSerialInputs] = useState<Record<number, string[]>>({})
+  const [showQRScanner, setShowQRScanner] = useState(false)
+  const [scanningFor, setScanningFor] = useState<{ itemId: number; index: number } | null>(null)
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -69,6 +72,48 @@ export default function ImportDetailPage() {
       ...prev,
       [itemId]: prev[itemId].map((s, i) => i === index ? value : s)
     }))
+  }
+
+  const handleOpenQRScanner = (itemId: number, index: number) => {
+    setScanningFor({ itemId, index })
+    setShowQRScanner(true)
+  }
+
+  const handleQRScan = (result: string) => {
+    if (scanningFor) {
+      // Kiểm tra trùng serial trong cùng sản phẩm
+      const currentSerials = serialInputs[scanningFor.itemId] || []
+      const isDuplicate = currentSerials.some((s, idx) => 
+        idx !== scanningFor.index && s.trim() === result.trim()
+      )
+      
+      if (isDuplicate) {
+        toast.error('Serial này đã được nhập rồi!')
+        setShowQRScanner(false)
+        setScanningFor(null)
+        return
+      }
+      
+      // Kiểm tra trùng serial với các sản phẩm khác
+      const allSerials: string[] = []
+      Object.entries(serialInputs).forEach(([itemId, serials]) => {
+        if (Number(itemId) !== scanningFor.itemId) {
+          allSerials.push(...serials.filter(s => s.trim()))
+        }
+      })
+      
+      if (allSerials.includes(result.trim())) {
+        toast.error('Serial này đã được sử dụng cho sản phẩm khác!')
+        setShowQRScanner(false)
+        setScanningFor(null)
+        return
+      }
+      
+      handleSerialChange(scanningFor.itemId, scanningFor.index, result)
+      toast.success('Đã quét mã thành công!')
+    }
+    setShowQRScanner(false)
+    setScanningFor(null)
   }
 
   const handleCompleteImport = async () => {
@@ -372,16 +417,24 @@ export default function ImportDetailPage() {
                     </td>
                     <td className="px-6 py-4">
                       {order.status === 'CREATED' ? (
-                        <div className="space-y-2 min-w-[200px]">
+                        <div className="space-y-2 min-w-[250px]">
                           {Array.from({ length: item.quantity }).map((_, idx) => (
-                            <input
-                              key={idx}
-                              type="text"
-                              value={serialInputs[item.id]?.[idx] || ''}
-                              onChange={(e) => handleSerialChange(item.id, idx, e.target.value)}
-                              placeholder={`Serial #${idx + 1}`}
-                              className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-red-500 focus:border-transparent font-mono"
-                            />
+                            <div key={idx} className="flex items-center space-x-2">
+                              <input
+                                type="text"
+                                value={serialInputs[item.id]?.[idx] || ''}
+                                onChange={(e) => handleSerialChange(item.id, idx, e.target.value)}
+                                placeholder={`Serial #${idx + 1}`}
+                                className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-red-500 focus:border-transparent font-mono"
+                              />
+                              <button
+                                onClick={() => handleOpenQRScanner(item.id, idx)}
+                                className="p-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                                title="Quét QR"
+                              >
+                                <FiCamera size={14} />
+                              </button>
+                            </div>
                           ))}
                         </div>
                       ) : (
@@ -464,6 +517,17 @@ export default function ImportDetailPage() {
           </div>
         )}
       </div>
+
+      {/* QR Scanner Modal */}
+      {showQRScanner && (
+        <QRScanner
+          onScan={handleQRScan}
+          onClose={() => {
+            setShowQRScanner(false)
+            setScanningFor(null)
+          }}
+        />
+      )}
     </div>
   )
 }

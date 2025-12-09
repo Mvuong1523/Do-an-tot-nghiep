@@ -23,8 +23,9 @@ public class ProductController {
     @GetMapping
     public ApiResponse getAll() {
         List<Product> products = productService.getAll();
-        // Trả về danh sách sản phẩm kèm thông số
+        // Chỉ trả về sản phẩm đang bán (active = true) cho khách hàng
         List<ProductWithSpecsDTO> productsWithSpecs = products.stream()
+                .filter(product -> product.getActive() == null || product.getActive()) // null coi như true (sản phẩm cũ)
                 .map(productService::toProductWithSpecs)
                 .collect(java.util.stream.Collectors.toList());
         return ApiResponse.success("Danh sách sản phẩm", productsWithSpecs);
@@ -180,6 +181,26 @@ public class ProductController {
     ) {
         java.util.List<Long> imageIds = request.get("imageIds");
         return productService.reorderProductImages(productId, imageIds);
+    }
+
+    @PutMapping("/{id}/toggle-active")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'PRODUCT_MANAGER')")
+    public ApiResponse toggleActive(@PathVariable Long id) {
+        try {
+            Product product = productService.getById(id)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
+            
+            Boolean currentActive = product.getActive();
+            if (currentActive == null) currentActive = true;
+            
+            product.setActive(!currentActive);
+            productService.update(id, product);
+            
+            String status = product.getActive() ? "đang bán" : "ngừng bán";
+            return ApiResponse.success("Đã chuyển sản phẩm sang trạng thái " + status, null);
+        } catch (Exception e) {
+            return ApiResponse.error("Lỗi: " + e.getMessage());
+        }
     }
 
 }

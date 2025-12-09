@@ -27,8 +27,16 @@ public class ProductServiceImpl implements ProductService {
     private final com.doan.WEB_TMDT.module.product.repository.ProductImageRepository imageRepository;
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<Product> getAll() {
-        return productRepository.findAll();
+        List<Product> products = productRepository.findAll();
+        // Eager load category để tránh lazy loading exception
+        products.forEach(product -> {
+            if (product.getCategory() != null) {
+                product.getCategory().getName(); // Trigger lazy load
+            }
+        });
+        return products;
     }
 
     @Override
@@ -57,6 +65,9 @@ public class ProductServiceImpl implements ProductService {
                     }
                     if (product.getCategory() != null) {
                         existingProduct.setCategory(product.getCategory());
+                    } else if (product.getCategory() == null && existingProduct.getCategory() != null) {
+                        // Nếu gửi category = null, giữ nguyên category cũ (không xóa)
+                        // Không làm gì
                     }
                     if (product.getSku() != null) {
                         existingProduct.setSku(product.getSku());
@@ -89,6 +100,10 @@ public class ProductServiceImpl implements ProductService {
                 .stream()
                 .map(this::toImageDTO)
                 .collect(Collectors.toList());
+        
+        // Debug log
+        System.out.println("Product: " + product.getName() + ", Category: " + 
+            (product.getCategory() != null ? product.getCategory().getName() : "NULL"));
         
         var dto = ProductWithSpecsDTO.builder()
                 .id(product.getId())
@@ -186,6 +201,7 @@ public class ProductServiceImpl implements ProductService {
                     .supplierName(wp.getSupplier() != null ? wp.getSupplier().getName() : null)
                     .isPublished(existingProduct.isPresent())
                     .publishedProductId(existingProduct.map(Product::getId).orElse(null))
+                    .active(existingProduct.map(Product::getActive).orElse(null))
                     .build();
         }).collect(Collectors.toList());
         

@@ -92,6 +92,29 @@ export default function PublishProductPage() {
     setShowPublishModal(true)
   }
 
+  const handleToggleActive = async (product: any) => {
+    const isCurrentlyActive = product.active !== false
+    const confirmMessage = isCurrentlyActive 
+      ? 'Bạn có chắc muốn ngừng bán sản phẩm này?' 
+      : 'Bạn có chắc muốn mở lại bán sản phẩm này?'
+    
+    if (!confirm(confirmMessage)) return
+
+    try {
+      const response = await productApi.toggleActive(product.publishedProductId)
+      if (response.success) {
+        const successMessage = isCurrentlyActive ? 'Đã ngừng bán sản phẩm!' : 'Đã mở lại bán sản phẩm!'
+        toast.success(successMessage)
+        loadData()
+      } else {
+        toast.error(response.message || 'Có lỗi xảy ra')
+      }
+    } catch (error: any) {
+      console.error('Error toggling active:', error)
+      toast.error(error.message || 'Lỗi khi thay đổi trạng thái')
+    }
+  }
+
   const handleSubmitPublish = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -128,10 +151,16 @@ export default function PublishProductPage() {
     }
   }
 
-  const filteredProducts = warehouseProducts.filter(product =>
-    product.internalName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.sku?.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const filteredProducts = warehouseProducts
+    .filter(product =>
+      product.internalName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.sku?.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .sort((a, b) => {
+      // Sản phẩm chưa đăng bán (isPublished = false) lên trước
+      if (a.isPublished === b.isPublished) return 0
+      return a.isPublished ? 1 : -1
+    })
 
   if (loading) {
     return (
@@ -169,80 +198,117 @@ export default function PublishProductPage() {
             <p className="text-gray-600">Không có sản phẩm nào trong kho để đăng bán</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProducts.map((product) => (
-              <div key={product.id} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow border border-gray-200">
-                <div className="h-48 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center border-b border-gray-200">
-                  <FiPackage size={64} className="text-gray-300" />
-                </div>
-                <div className="p-5">
-                  <div className="mb-3">
-                    <h3 className="text-lg font-bold text-gray-900 mb-1">{product.internalName}</h3>
-                    <p className="text-xs text-gray-500">SKU: <span className="font-mono font-semibold text-gray-700">{product.sku}</span></p>
-                  </div>
-                  
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">Nhà cung cấp:</span>
-                      <span className="font-medium text-gray-900">{product.supplier?.name || 'N/A'}</span>
-                    </div>
-                    
-                    {product.stockQuantity !== undefined && (
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">Tồn kho:</span>
-                        <span className="font-bold text-green-600">
-                          {product.sellableQuantity || 0} / {product.stockQuantity || 0}
+          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-32">SKU</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-48">Tên sản phẩm</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-40">Nhà cung cấp</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Thông số kỹ thuật</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase w-32">Tồn kho</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase w-32">Trạng thái</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase w-32">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white">
+                  {filteredProducts.map((product) => (
+                    <tr key={product.id} className="hover:bg-gray-50 border-b-2 border-gray-300">
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <span className="text-xs font-mono font-semibold text-gray-900">{product.sku}</span>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="text-sm font-medium text-gray-900 line-clamp-2">{product.internalName}</div>
+                      </td>
+                      <td className="px-4 py-4 text-xs text-gray-900">
+                        <div className="line-clamp-2">{product.supplier?.name || 'N/A'}</div>
+                      </td>
+                      <td className="px-4 py-4">
+                        {product.techSpecsJson ? (
+                          <div className="text-xs">
+                            {(() => {
+                              try {
+                                const specs = typeof product.techSpecsJson === 'string' 
+                                  ? JSON.parse(product.techSpecsJson) 
+                                  : product.techSpecsJson;
+                                const entries = Object.entries(specs);
+                                return (
+                                  <div className="space-y-1 bg-gray-50 p-3 rounded border border-gray-200">
+                                    {entries.map(([key, value]: [string, any]) => (
+                                      <div key={key} className="flex border-b border-gray-200 pb-1 last:border-0">
+                                        <span className="text-gray-600 font-medium mr-2 min-w-[120px] flex-shrink-0">{key}:</span>
+                                        <span className="font-medium text-gray-900 break-words">
+                                          {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                );
+                              } catch (e) {
+                                return <span className="text-gray-400">-</span>;
+                              }
+                            })()}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-center">
+                        <span className="text-xs font-bold text-green-600">
+                          {product.sellableQuantity || 0}
                         </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {product.description && (
-                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">{product.description}</p>
-                  )}
-                  
-                  {/* Thông số kỹ thuật */}
-                  {product.techSpecsJson && (
-                    <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                      <p className="text-xs font-semibold text-gray-700 mb-2">📋 Thông số kỹ thuật:</p>
-                      <div className="space-y-1">
-                        {(() => {
-                          try {
-                            const specs = typeof product.techSpecsJson === 'string' 
-                              ? JSON.parse(product.techSpecsJson) 
-                              : product.techSpecsJson;
-                            return Object.entries(specs).slice(0, 3).map(([key, value]: [string, any]) => (
-                              <div key={key} className="flex justify-between text-xs">
-                                <span className="text-gray-600">{key}:</span>
-                                <span className="font-medium text-gray-900 truncate ml-2">
-                                  {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                                </span>
-                              </div>
-                            ));
-                          } catch (e) {
-                            return <span className="text-xs text-gray-400">Không có thông số</span>;
-                          }
-                        })()}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {product.isPublished ? (
-                    <div className="w-full bg-gray-100 text-gray-600 px-4 py-2.5 rounded-lg text-center font-medium">
-                      ✓ Đã đăng bán
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => handlePublish(product)}
-                      className="w-full bg-red-500 text-white px-4 py-2.5 rounded-lg hover:bg-red-600 transition-colors flex items-center justify-center space-x-2 font-semibold shadow-sm hover:shadow"
-                    >
-                      <FiPlus size={18} />
-                      <span>Đăng bán</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+                        <span className="text-xs text-gray-500">
+                          {' / '}{product.stockQuantity || 0}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-center">
+                        {product.isPublished && product.active !== false ? (
+                          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                            Đang bán
+                          </span>
+                        ) : product.isPublished && product.active === false ? (
+                          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-600">
+                            Ngừng bán
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-600">
+                            Chưa bán
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-center">
+                        {product.isPublished && product.active !== false ? (
+                          <button
+                            onClick={() => handleToggleActive(product)}
+                            className="inline-flex items-center space-x-1 bg-orange-500 text-white px-3 py-1.5 rounded-lg hover:bg-orange-600 transition-colors text-xs font-medium"
+                            title="Ngừng bán sản phẩm này"
+                          >
+                            <span>Ngừng bán</span>
+                          </button>
+                        ) : product.isPublished && product.active === false ? (
+                          <button
+                            onClick={() => handleToggleActive(product)}
+                            className="inline-flex items-center space-x-1 bg-green-500 text-white px-3 py-1.5 rounded-lg hover:bg-green-600 transition-colors text-xs font-medium"
+                            title="Mở lại bán sản phẩm này"
+                          >
+                            <span>Mở bán lại</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handlePublish(product)}
+                            className="inline-flex items-center space-x-1 bg-red-500 text-white px-3 py-1.5 rounded-lg hover:bg-red-600 transition-colors text-xs font-medium"
+                          >
+                            <FiPlus size={14} />
+                            <span>Đăng bán</span>
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 

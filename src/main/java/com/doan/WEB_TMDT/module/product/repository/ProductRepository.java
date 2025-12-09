@@ -11,5 +11,11 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     // Nó cho phép tìm tất cả Product dựa trên ID của nhà cung cấp liên kết qua WarehouseProduct.
     List<Product> findAllByWarehouseProduct_Supplier_Id(Long supplierId);
+    
+    // Đếm số sản phẩm theo category
+    long countByCategory_Id(Long categoryId);
+    
+    // Tìm sản phẩm theo category
+    List<Product> findByCategory_Id(Long categoryId);
 
 }

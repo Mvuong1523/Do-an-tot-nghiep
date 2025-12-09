@@ -32,6 +32,7 @@ public class CartServiceImpl implements CartService {
     private final CartItemRepository cartItemRepository;
     private final ProductRepository productRepository;
     private final CustomerRepository customerRepository;
+    private final com.doan.WEB_TMDT.module.product.repository.ProductImageRepository productImageRepository;
 
     @Override
     public Long getCustomerIdByEmail(String email) {
@@ -211,11 +212,18 @@ public class CartServiceImpl implements CartService {
         boolean available = product.getStockQuantity() != null && 
                            product.getStockQuantity() >= item.getQuantity();
 
+        // Lấy ảnh đầu tiên (primary hoặc ảnh có displayOrder nhỏ nhất)
+        String productImage = productImageRepository.findByProductIdOrderByDisplayOrderAsc(product.getId())
+                .stream()
+                .findFirst()
+                .map(img -> img.getImageUrl())
+                .orElse(null);
+
         return CartItemResponse.builder()
                 .itemId(item.getId())
                 .productId(product.getId())
                 .productName(product.getName())
-                .productImage(product.getImageUrl())
+                .productImage(productImage)
                 .productSku(product.getSku())
                 .price(item.getPrice())
                 .quantity(item.getQuantity())

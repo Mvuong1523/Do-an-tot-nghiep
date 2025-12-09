@@ -23,4 +23,5 @@ public class WarehouseProductListResponse {
     private String supplierName;
     private Boolean isPublished; // Đã đăng bán chưa
     private Long publishedProductId; // ID của Product nếu đã đăng bán
+    private Boolean active; // Trạng thái đang bán hay ngừng bán
 }

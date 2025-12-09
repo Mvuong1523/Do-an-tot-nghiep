@@ -18,6 +18,7 @@ export default function CategoriesPage() {
   const [showModal, setShowModal] = useState(false)
   const [editingCategory, setEditingCategory] = useState<any>(null)
   const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set())
+  const [productCounts, setProductCounts] = useState<{[key: number]: number}>({})
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -54,8 +55,25 @@ export default function CategoriesPage() {
 
   const loadCategories = async () => {
     try {
-      const response = await categoryApi.getAll()
-      setCategories(response.data || [])
+      // Load cả categories và products cùng lúc
+      const [categoriesResponse, productsResponse] = await Promise.all([
+        categoryApi.getAll(),
+        fetch('http://localhost:8080/api/products').then(res => res.json())
+      ])
+      
+      setCategories(categoriesResponse.data || [])
+      
+      // Tính số lượng sản phẩm cho mỗi danh mục
+      if (productsResponse.success && productsResponse.data) {
+        const counts: {[key: number]: number} = {}
+        productsResponse.data.forEach((product: any) => {
+          // API trả về categoryId, không phải category.id
+          if (product.categoryId) {
+            counts[product.categoryId] = (counts[product.categoryId] || 0) + 1
+          }
+        })
+        setProductCounts(counts)
+      }
     } catch (error) {
       console.error('Error loading categories:', error)
       toast.error('Lỗi khi tải danh mục')
@@ -173,7 +191,15 @@ export default function CategoriesPage() {
             
             <div className="flex-1">
               <div className="flex items-center space-x-2">
-                <span className="font-medium text-gray-900">{category.name}</span>
+                <Link 
+                  href={`/product-manager/products?category=${category.id}`}
+                  className="font-medium text-gray-900 hover:text-red-500 transition-colors"
+                >
+                  {category.name}
+                </Link>
+                <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded font-semibold">
+                  {productCounts[category.id] || 0} sản phẩm
+                </span>
                 {!category.active && (
                   <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
                     Tạm ngưng

@@ -20,7 +20,7 @@ public class Product {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "category_id")
     private Category category;
 
@@ -52,4 +52,7 @@ public class Product {
     @OneToOne
     @JoinColumn(name = "warehouse_product_id")
     private WarehouseProduct warehouseProduct;
+
+    @Column(name = "active")
+    private Boolean active = true;  // Trạng thái đang bán hay ngừng bán
 }

@@ -13,6 +13,8 @@ import MultiImageUpload from '@/components/MultiImageUpload'
 
 export default function ProductManagerProductsPage() {
   const router = useRouter()
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
+  const categoryIdFromUrl = searchParams?.get('category') ? Number(searchParams.get('category')) : null
   const { user, isAuthenticated } = useAuthStore()
   const [isHydrated, setIsHydrated] = useState(false)
   const [products, setProducts] = useState<any[]>([])
@@ -23,10 +25,13 @@ export default function ProductManagerProductsPage() {
   const [editForm, setEditForm] = useState({
     name: '',
     description: '',
-    price: 0
+    price: 0,
+    categoryId: null as number | null
   })
   const [productImages, setProductImages] = useState<any[]>([])
   const [originalImages, setOriginalImages] = useState<any[]>([]) // Lưu ảnh gốc để so sánh
+  const [categories, setCategories] = useState<any[]>([])
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(categoryIdFromUrl)
 
   useEffect(() => {
     setIsHydrated(true)
@@ -51,6 +56,7 @@ export default function ProductManagerProductsPage() {
     }
 
     loadProducts()
+    loadCategories()
   }, [isHydrated, isAuthenticated, user, router])
 
   const loadProducts = async () => {
@@ -62,6 +68,18 @@ export default function ProductManagerProductsPage() {
       toast.error('Lỗi khi tải sản phẩm')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadCategories = async () => {
+    try {
+      const response = await fetch('http://localhost:8080/api/categories')
+      const data = await response.json()
+      if (data.success) {
+        setCategories(data.data || [])
+      }
+    } catch (error) {
+      console.error('Error loading categories:', error)
     }
   }
 
@@ -77,7 +95,8 @@ export default function ProductManagerProductsPage() {
     setEditForm({
       name: product.name || '',
       description: product.description || '',
-      price: product.price || 0
+      price: product.price || 0,
+      categoryId: product.categoryId || null
     })
     
     // Load product images trước khi mở modal
@@ -111,7 +130,11 @@ export default function ProductManagerProductsPage() {
 
     try {
       // 1. Cập nhật thông tin sản phẩm
-      const response = await productApi.update(editingProduct.id, editForm)
+      const updateData = {
+        ...editForm,
+        category: editForm.categoryId ? { id: editForm.categoryId } : null
+      }
+      const response = await productApi.update(editingProduct.id, updateData)
       if (!response.success) {
         toast.error(response.message || 'Có lỗi xảy ra')
         return
@@ -163,9 +186,15 @@ export default function ProductManagerProductsPage() {
     }
   }
 
-  const filteredProducts = products.filter(product =>
-    product.name?.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = product.name?.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesCategory = selectedCategory === null || product.categoryId === selectedCategory
+    return matchesSearch && matchesCategory
+  })
+
+  const getProductCountByCategory = (categoryId: number) => {
+    return products.filter(p => p.categoryId === categoryId).length
+  }
 
   if (loading) {
     return (
@@ -194,7 +223,7 @@ export default function ProductManagerProductsPage() {
         </div>
 
         <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-          <div className="relative">
+          <div className="relative mb-4">
             <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
@@ -203,6 +232,33 @@ export default function ProductManagerProductsPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
             />
+          </div>
+
+          {/* Danh mục filter */}
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setSelectedCategory(null)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                selectedCategory === null
+                  ? 'bg-red-500 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Tất cả ({products.length})
+            </button>
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                onClick={() => setSelectedCategory(category.id)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  selectedCategory === category.id
+                    ? 'bg-red-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {category.name} ({getProductCountByCategory(category.id)})
+              </button>
+            ))}
           </div>
         </div>
 
@@ -241,7 +297,7 @@ export default function ProductManagerProductsPage() {
                         )}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500">
-                        {product.category?.name || 'N/A'}
+                        {product.categoryName || 'N/A'}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
                         {formatPrice(product.price)}
@@ -333,6 +389,22 @@ export default function ProductManagerProductsPage() {
                         required
                         min="0"
                       />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Danh mục
+                      </label>
+                      <select
+                        value={editForm.categoryId || ''}
+                        onChange={(e) => setEditForm({...editForm, categoryId: e.target.value ? Number(e.target.value) : null})}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                      >
+                        <option value="">Chọn danh mục</option>
+                        {categories.map((cat) => (
+                          <option key={cat.id} value={cat.id}>{cat.name}</option>
+                        ))}
+                      </select>
                     </div>
 
                     <div>

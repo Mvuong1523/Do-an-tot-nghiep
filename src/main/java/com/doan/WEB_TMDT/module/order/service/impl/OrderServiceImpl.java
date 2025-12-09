@@ -39,6 +39,7 @@ public class OrderServiceImpl implements OrderService {
     private final CustomerRepository customerRepository;
     private final com.doan.WEB_TMDT.module.payment.service.PaymentService paymentService;
     private final com.doan.WEB_TMDT.module.shipping.service.ShippingService shippingService;
+    private final com.doan.WEB_TMDT.module.product.repository.ProductImageRepository productImageRepository;
 
     @Override
     public Long getCustomerIdByEmail(String email) {
@@ -403,11 +404,18 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private OrderItemResponse toOrderItemResponse(OrderItem item) {
+        // Lấy ảnh đầu tiên từ product_images
+        String productImage = productImageRepository.findByProductIdOrderByDisplayOrderAsc(item.getProduct().getId())
+                .stream()
+                .findFirst()
+                .map(img -> img.getImageUrl())
+                .orElse(null);
+
         return OrderItemResponse.builder()
                 .itemId(item.getId())
                 .productId(item.getProduct().getId())
                 .productName(item.getProductName())
-                .productImage(item.getProduct().getImageUrl())
+                .productImage(productImage)
                 .productSku(item.getProduct().getSku())
                 .price(item.getPrice())
                 .quantity(item.getQuantity())

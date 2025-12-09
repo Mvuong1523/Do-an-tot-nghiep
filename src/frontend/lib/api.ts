@@ -391,6 +391,15 @@ export const productApi = {
       throw new Error(error.response?.data?.message || 'Lỗi khi sắp xếp ảnh')
     }
   },
+
+  toggleActive: async (productId: number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.put(`/products/${productId}/toggle-active`)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi thay đổi trạng thái')
+    }
+  },
 }
 
 // Order API
