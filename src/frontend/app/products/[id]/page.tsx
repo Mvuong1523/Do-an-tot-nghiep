@@ -96,7 +96,7 @@ export default function ProductDetailPage() {
         productName: product.name,
         price: product.price,
         quantity: quantity,
-        imageUrl: product.imageUrl
+        imageUrl: product.images && product.images.length > 0 ? product.images[0].imageUrl : ''
       }],
       total: product.price * quantity
     }
@@ -146,7 +146,10 @@ export default function ProductDetailPage() {
     console.error('Error parsing specifications:', e)
   }
 
-  const images = product.imageUrl ? [product.imageUrl] : []
+  // Lấy danh sách ảnh từ product.images, nếu không có thì dùng mảng rỗng
+  const images = product.images && product.images.length > 0 
+    ? product.images.map((img: any) => img.imageUrl) 
+    : []
 
   return (
     <div className="bg-gray-50 min-h-screen py-8">

@@ -33,4 +33,12 @@ public interface ProductService {
     
     // Gỡ sản phẩm khỏi trang bán (unpublish)
     ApiResponse unpublishProduct(Long productId);
+    
+    // === Product Images ===
+    ApiResponse addProductImage(Long productId, String imageUrl, Boolean isPrimary);
+    ApiResponse getProductImages(Long productId);
+    ApiResponse setPrimaryImage(Long productId, Long imageId);
+    ApiResponse deleteProductImage(Long imageId);
+    ApiResponse reorderProductImages(Long productId, List<Long> imageIds);
+    ApiResponse updateProductImage(Long imageId, com.doan.WEB_TMDT.module.product.dto.ProductImageDTO dto);
 }

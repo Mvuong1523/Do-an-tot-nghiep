@@ -138,9 +138,9 @@ export default function CartPage() {
                   <div className="flex items-center space-x-4">
                     {/* Image */}
                     <div className="w-24 h-24 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
-                      {item.product?.imageUrl ? (
+                      {item.product?.images && item.product.images.length > 0 ? (
                         <img 
-                          src={item.product.imageUrl} 
+                          src={item.product.images[0].imageUrl} 
                           alt={item.product.name}
                           className="w-full h-full object-contain"
                         />

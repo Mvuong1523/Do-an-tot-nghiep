@@ -35,7 +35,8 @@ public class Product {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    private String imageUrl;
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<ProductImage> images = new java.util.ArrayList<>();
 
     private Long stockQuantity;      // Tồn kho thực tế
     

@@ -17,10 +17,12 @@ public class ProductWithSpecsDTO {
     private String sku;
     private Double price;
     private String description;
-    private String imageUrl;
     private Long stockQuantity;
     private Long categoryId;
     private String categoryName;
+    
+    // Danh sách ảnh sản phẩm
+    private java.util.List<ProductImageDTO> images;
     
     // Thông số kỹ thuật dạng Map để dễ hiển thị
     private Map<String, String> specifications;

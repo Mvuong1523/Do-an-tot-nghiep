@@ -138,4 +138,48 @@ public class ProductController {
         
         return ApiResponse.success("Tìm thấy " + products.size() + " sản phẩm", products);
     }
+
+    // ===== Product Images Management =====
+    
+    @GetMapping("/{productId}/images")
+    public ApiResponse getProductImages(@PathVariable Long productId) {
+        return productService.getProductImages(productId);
+    }
+
+    @PostMapping("/{productId}/images")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'PRODUCT_MANAGER')")
+    public ApiResponse addProductImage(
+            @PathVariable Long productId,
+            @RequestBody java.util.Map<String, Object> request
+    ) {
+        String imageUrl = (String) request.get("imageUrl");
+        Boolean isPrimary = (Boolean) request.getOrDefault("isPrimary", false);
+        return productService.addProductImage(productId, imageUrl, isPrimary);
+    }
+
+    @PutMapping("/{productId}/images/{imageId}/primary")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'PRODUCT_MANAGER')")
+    public ApiResponse setPrimaryImage(
+            @PathVariable Long productId,
+            @PathVariable Long imageId
+    ) {
+        return productService.setPrimaryImage(productId, imageId);
+    }
+
+    @DeleteMapping("/images/{imageId}")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'PRODUCT_MANAGER')")
+    public ApiResponse deleteProductImage(@PathVariable Long imageId) {
+        return productService.deleteProductImage(imageId);
+    }
+
+    @PutMapping("/{productId}/images/reorder")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'PRODUCT_MANAGER')")
+    public ApiResponse reorderProductImages(
+            @PathVariable Long productId,
+            @RequestBody java.util.Map<String, java.util.List<Long>> request
+    ) {
+        java.util.List<Long> imageIds = request.get("imageIds");
+        return productService.reorderProductImages(productId, imageIds);
+    }
+
 }

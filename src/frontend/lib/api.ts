@@ -341,6 +341,56 @@ export const productApi = {
       throw new Error(error.response?.data?.message || 'Lỗi khi gỡ sản phẩm')
     }
   },
+
+  // Product Images Management
+  getProductImages: async (productId: number): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await apiClient.get(`/products/${productId}/images`)
+      return response.data
+    } catch (error: any) {
+      return {
+        success: false,
+        data: [],
+        error: error.message,
+      }
+    }
+  },
+
+  addProductImage: async (productId: number, imageUrl: string, isPrimary: boolean = false): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.post(`/products/${productId}/images`, { imageUrl, isPrimary })
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi thêm ảnh')
+    }
+  },
+
+  setPrimaryImage: async (productId: number, imageId: number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.put(`/products/${productId}/images/${imageId}/primary`)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi đặt ảnh chính')
+    }
+  },
+
+  deleteProductImage: async (imageId: number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.delete(`/products/images/${imageId}`)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi xóa ảnh')
+    }
+  },
+
+  reorderProductImages: async (productId: number, imageIds: number[]): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.put(`/products/${productId}/images/reorder`, { imageIds })
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi sắp xếp ảnh')
+    }
+  },
 }
 
 // Order API

@@ -24,6 +24,7 @@ public class ProductServiceImpl implements ProductService {
     private final WarehouseProductRepository warehouseProductRepository;
     private final CategoryRepository categoryRepository;
     private final com.doan.WEB_TMDT.module.inventory.repository.InventoryStockRepository inventoryStockRepository;
+    private final com.doan.WEB_TMDT.module.product.repository.ProductImageRepository imageRepository;
 
     @Override
     public List<Product> getAll() {
@@ -42,11 +43,37 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public Product update(Long id, Product product) {
-        if (productRepository.existsById(id)) {
-            product.setId(id);
-            return productRepository.save(product);
-        }
-        return null;
+        return productRepository.findById(id)
+                .map(existingProduct -> {
+                    // Chỉ update các field cần thiết, không động vào images
+                    if (product.getName() != null) {
+                        existingProduct.setName(product.getName());
+                    }
+                    if (product.getPrice() != null) {
+                        existingProduct.setPrice(product.getPrice());
+                    }
+                    if (product.getDescription() != null) {
+                        existingProduct.setDescription(product.getDescription());
+                    }
+                    if (product.getCategory() != null) {
+                        existingProduct.setCategory(product.getCategory());
+                    }
+                    if (product.getSku() != null) {
+                        existingProduct.setSku(product.getSku());
+                    }
+                    if (product.getStockQuantity() != null) {
+                        existingProduct.setStockQuantity(product.getStockQuantity());
+                    }
+                    if (product.getReservedQuantity() != null) {
+                        existingProduct.setReservedQuantity(product.getReservedQuantity());
+                    }
+                    if (product.getTechSpecsJson() != null) {
+                        existingProduct.setTechSpecsJson(product.getTechSpecsJson());
+                    }
+                    // Không update images collection - quản lý riêng qua addProductImage/deleteProductImage
+                    return productRepository.save(existingProduct);
+                })
+                .orElse(null);
     }
 
     @Override
@@ -56,16 +83,23 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public ProductWithSpecsDTO toProductWithSpecs(Product product) {
+        // Lấy danh sách ảnh
+        List<com.doan.WEB_TMDT.module.product.dto.ProductImageDTO> images = 
+            imageRepository.findByProductIdOrderByDisplayOrderAsc(product.getId())
+                .stream()
+                .map(this::toImageDTO)
+                .collect(Collectors.toList());
+        
         var dto = ProductWithSpecsDTO.builder()
                 .id(product.getId())
                 .name(product.getName())
                 .sku(product.getSku())
                 .price(product.getPrice())
                 .description(product.getDescription())
-                .imageUrl(product.getImageUrl())
                 .stockQuantity(product.getStockQuantity())
                 .categoryId(product.getCategory() != null ? product.getCategory().getId() : null)
                 .categoryName(product.getCategory() != null ? product.getCategory().getName() : null)
+                .images(images)
                 .build();
 
         // Lấy specifications từ techSpecsJson của Product
@@ -108,7 +142,6 @@ public class ProductServiceImpl implements ProductService {
                 .sku(warehouseProduct.getSku())
                 .price(request.getPrice())
                 .description(request.getDescription())
-                .imageUrl(request.getImageUrl())
                 .category(category)
                 .warehouseProduct(warehouseProduct)
                 .stockQuantity(warehouseProduct.getQuantityInStock())
@@ -199,7 +232,6 @@ public class ProductServiceImpl implements ProductService {
                 .sku(warehouseProduct.getSku())
                 .price(request.getPrice())
                 .description(request.getDescription())
-                .imageUrl(request.getImageUrl())
                 .category(category)
                 .warehouseProduct(warehouseProduct)
                 .stockQuantity(stockQuantity)
@@ -240,9 +272,6 @@ public class ProductServiceImpl implements ProductService {
         if (request.getDescription() != null) {
             product.setDescription(request.getDescription());
         }
-        if (request.getImageUrl() != null) {
-            product.setImageUrl(request.getImageUrl());
-        }
 
         // 4. Cập nhật số lượng tồn kho từ InventoryStock
         if (product.getWarehouseProduct() != null) {
@@ -272,4 +301,157 @@ public class ProductServiceImpl implements ProductService {
         return com.doan.WEB_TMDT.common.dto.ApiResponse.success(
                 "Gỡ sản phẩm khỏi trang bán thành công", null);
     }
+
+    // === Product Images Implementation với Validation ===
+    
+    private static final int MAX_IMAGES_PER_PRODUCT = 9;
+    
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public com.doan.WEB_TMDT.common.dto.ApiResponse addProductImage(Long productId, String imageUrl, Boolean isPrimary) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
+
+        // Nếu set làm ảnh chính, bỏ primary của ảnh khác
+        if (isPrimary != null && isPrimary) {
+            imageRepository.findByProductIdAndIsPrimaryTrue(productId)
+                    .ifPresent(img -> {
+                        img.setIsPrimary(false);
+                        imageRepository.save(img);
+                    });
+        }
+
+        // Tính display order
+        long count = imageRepository.countByProductId(productId);
+        
+        com.doan.WEB_TMDT.module.product.entity.ProductImage image = 
+            com.doan.WEB_TMDT.module.product.entity.ProductImage.builder()
+                .product(product)
+                .imageUrl(imageUrl)
+                .displayOrder((int) count)
+                .isPrimary(isPrimary != null ? isPrimary : count == 0)
+                .build();
+
+        com.doan.WEB_TMDT.module.product.entity.ProductImage saved = imageRepository.save(image);
+
+        return com.doan.WEB_TMDT.common.dto.ApiResponse.success("Thêm ảnh thành công", toImageDTO(saved));
+    }
+
+    @Override
+    public com.doan.WEB_TMDT.common.dto.ApiResponse getProductImages(Long productId) {
+        List<com.doan.WEB_TMDT.module.product.dto.ProductImageDTO> images = 
+            imageRepository.findByProductIdOrderByDisplayOrderAsc(productId)
+                .stream()
+                .map(this::toImageDTO)
+                .collect(Collectors.toList());
+        
+        return com.doan.WEB_TMDT.common.dto.ApiResponse.success("Lấy danh sách ảnh thành công", images);
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public com.doan.WEB_TMDT.common.dto.ApiResponse setPrimaryImage(Long productId, Long imageId) {
+        // Bỏ primary của tất cả ảnh
+        List<com.doan.WEB_TMDT.module.product.entity.ProductImage> images = 
+            imageRepository.findByProductIdOrderByDisplayOrderAsc(productId);
+        images.forEach(img -> img.setIsPrimary(false));
+        imageRepository.saveAll(images);
+
+        // Set primary cho ảnh được chọn
+        com.doan.WEB_TMDT.module.product.entity.ProductImage image = imageRepository.findById(imageId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy ảnh"));
+        
+        image.setIsPrimary(true);
+        com.doan.WEB_TMDT.module.product.entity.ProductImage saved = imageRepository.save(image);
+
+        return com.doan.WEB_TMDT.common.dto.ApiResponse.success("Đã đặt làm ảnh chính", toImageDTO(saved));
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public com.doan.WEB_TMDT.common.dto.ApiResponse deleteProductImage(Long imageId) {
+        com.doan.WEB_TMDT.module.product.entity.ProductImage image = imageRepository.findById(imageId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy ảnh"));
+        
+        Long productId = image.getProduct().getId();
+        boolean wasPrimary = image.getIsPrimary();
+        
+        imageRepository.delete(image);
+        
+        // Nếu xóa ảnh chính, set ảnh đầu tiên còn lại làm primary
+        if (wasPrimary) {
+            List<com.doan.WEB_TMDT.module.product.entity.ProductImage> remaining = 
+                imageRepository.findByProductIdOrderByDisplayOrderAsc(productId);
+            if (!remaining.isEmpty()) {
+                com.doan.WEB_TMDT.module.product.entity.ProductImage newPrimary = remaining.get(0);
+                newPrimary.setIsPrimary(true);
+                imageRepository.save(newPrimary);
+            }
+        }
+        
+        return com.doan.WEB_TMDT.common.dto.ApiResponse.success("Xóa ảnh thành công", null);
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public com.doan.WEB_TMDT.common.dto.ApiResponse reorderProductImages(Long productId, List<Long> imageIds) {
+        for (int i = 0; i < imageIds.size(); i++) {
+            Long imageId = imageIds.get(i);
+            final int order = i;
+            imageRepository.findById(imageId).ifPresent(img -> {
+                img.setDisplayOrder(order);
+                imageRepository.save(img);
+            });
+        }
+        
+        return com.doan.WEB_TMDT.common.dto.ApiResponse.success("Sắp xếp lại thành công", null);
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public com.doan.WEB_TMDT.common.dto.ApiResponse updateProductImage(
+            Long imageId, 
+            com.doan.WEB_TMDT.module.product.dto.ProductImageDTO dto) {
+        
+        com.doan.WEB_TMDT.module.product.entity.ProductImage image = imageRepository.findById(imageId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy ảnh"));
+
+        // Cập nhật thông tin
+        if (dto.getImageUrl() != null) {
+            image.setImageUrl(dto.getImageUrl());
+        }
+        if (dto.getAltText() != null) {
+            image.setAltText(dto.getAltText());
+        }
+        if (dto.getDisplayOrder() != null) {
+            image.setDisplayOrder(dto.getDisplayOrder());
+        }
+        if (dto.getIsPrimary() != null && dto.getIsPrimary()) {
+            // Nếu set làm ảnh chính, bỏ primary của ảnh khác
+            Long productId = image.getProduct().getId();
+            imageRepository.findByProductIdAndIsPrimaryTrue(productId)
+                    .ifPresent(img -> {
+                        img.setIsPrimary(false);
+                        imageRepository.save(img);
+                    });
+            image.setIsPrimary(true);
+        }
+
+        com.doan.WEB_TMDT.module.product.entity.ProductImage updated = imageRepository.save(image);
+        
+        return com.doan.WEB_TMDT.common.dto.ApiResponse.success(
+                "Cập nhật ảnh thành công", toImageDTO(updated));
+    }
+
+    private com.doan.WEB_TMDT.module.product.dto.ProductImageDTO toImageDTO(
+            com.doan.WEB_TMDT.module.product.entity.ProductImage image) {
+        return com.doan.WEB_TMDT.module.product.dto.ProductImageDTO.builder()
+                .id(image.getId())
+                .imageUrl(image.getImageUrl())
+                .displayOrder(image.getDisplayOrder())
+                .isPrimary(image.getIsPrimary())
+                .altText(image.getAltText())
+                .build();
+    }
+
 }

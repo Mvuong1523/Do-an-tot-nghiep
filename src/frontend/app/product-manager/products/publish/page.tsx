@@ -8,6 +8,7 @@ import toast from 'react-hot-toast'
 import { useAuthStore } from '@/store/authStore'
 import { productApi, inventoryApi, categoryApi } from '@/lib/api'
 import ImageUpload from '@/components/ImageUpload'
+import MultiImageUpload from '@/components/MultiImageUpload'
 
 export default function PublishProductPage() {
   const router = useRouter()
@@ -24,9 +25,9 @@ export default function PublishProductPage() {
     name: '',
     description: '',
     price: 0,
-    categoryId: 0,
-    imageUrl: ''
+    categoryId: 0
   })
+  const [productImages, setProductImages] = useState<any[]>([])
 
   useEffect(() => {
     setIsHydrated(true)
@@ -85,9 +86,9 @@ export default function PublishProductPage() {
       name: product.internalName || '',
       description: product.description || '',
       price: 0,
-      categoryId: 0,
-      imageUrl: ''
+      categoryId: 0
     })
+    setProductImages([]) // Reset images
     setShowPublishModal(true)
   }
 
@@ -100,14 +101,27 @@ export default function PublishProductPage() {
     }
 
     try {
+      // 1. Tạo sản phẩm
       const response = await productApi.createProductFromWarehouse(publishForm)
-      if (response.success) {
-        toast.success('Đăng bán sản phẩm thành công!')
-        setShowPublishModal(false)
-        loadData()
-      } else {
+      if (!response.success) {
         toast.error(response.message || 'Có lỗi xảy ra')
+        return
       }
+
+      const newProductId = response.data?.id
+      
+      // 2. Thêm các ảnh sản phẩm (ảnh đầu tiên là primary)
+      if (newProductId && productImages.length > 0) {
+        for (let i = 0; i < productImages.length; i++) {
+          const img = productImages[i]
+          await productApi.addProductImage(newProductId, img.imageUrl, i === 0)
+        }
+      }
+
+      toast.success('Đăng bán sản phẩm thành công!')
+      setShowPublishModal(false)
+      setProductImages([])
+      loadData()
     } catch (error: any) {
       console.error('Error publishing product:', error)
       toast.error(error.response?.data?.message || 'Lỗi khi đăng bán sản phẩm')
@@ -301,13 +315,11 @@ export default function PublishProductPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Hình ảnh sản phẩm
                       </label>
-                      <ImageUpload
-                        value={publishForm.imageUrl}
-                        onChange={(url) => setPublishForm({...publishForm, imageUrl: url})}
+                      <MultiImageUpload
+                        images={productImages}
+                        onChange={setProductImages}
+                        maxImages={9}
                       />
-                      <p className="text-xs text-gray-500 mt-2">
-                        💡 Upload ảnh lên Cloudinary (max 10MB)
-                      </p>
                     </div>
 
                     {/* Hiển thị thông số kỹ thuật từ WarehouseProduct */}

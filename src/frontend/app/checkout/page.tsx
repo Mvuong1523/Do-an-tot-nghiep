@@ -135,7 +135,7 @@ export default function CheckoutPage() {
               productName: product.name || product.productName || item.productName || 'Sản phẩm',
               price: item.price || product.price || 0,
               quantity: item.quantity || 1,
-              imageUrl: product.imageUrl || product.image || item.imageUrl || ''
+              imageUrl: (product.images && product.images.length > 0 ? product.images[0].imageUrl : '') || product.image || item.imageUrl || ''
             }
           }).filter(Boolean) // Loại bỏ null items
           

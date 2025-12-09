@@ -50,6 +50,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/products").permitAll()
                         .requestMatchers("/api/products/{id}").permitAll()
                         .requestMatchers("/api/products/{id}/with-specs").permitAll()
+                        .requestMatchers("/api/products/{id}/images").permitAll() // Product images - public
                         .requestMatchers("/api/products/search-by-specs").permitAll()
                         .requestMatchers("/api/products/filter-by-specs").permitAll()
                         .requestMatchers("/api/product/**").permitAll()
@@ -70,6 +71,10 @@ public class SecurityConfig {
                         // Product Manager endpoints (Product & Category management)
                         .requestMatchers("/api/products/warehouse/**").hasAnyAuthority("PRODUCT_MANAGER", "ADMIN")
                         .requestMatchers("/api/products/publish").hasAnyAuthority("PRODUCT_MANAGER", "ADMIN")
+                        .requestMatchers("/api/products/*/images").hasAnyAuthority("PRODUCT_MANAGER", "ADMIN") // Add/manage images
+                        .requestMatchers("/api/products/*/images/*/primary").hasAnyAuthority("PRODUCT_MANAGER", "ADMIN") // Set primary
+                        .requestMatchers("/api/products/images/*").hasAnyAuthority("PRODUCT_MANAGER", "ADMIN") // Delete image
+                        .requestMatchers("/api/products/*/images/reorder").hasAnyAuthority("PRODUCT_MANAGER", "ADMIN") // Reorder
                         
                         // Admin order management (ADMIN + SALES_STAFF)
                         .requestMatchers("/api/admin/orders/**").hasAnyAuthority("ADMIN", "SALES")

@@ -113,7 +113,7 @@ public class ShippingServiceImpl implements ShippingService {
             
             HttpEntity<Map<String, Object>> leadTimeEntity = new HttpEntity<>(leadTimeBody, headers);
             
-            log.info("🕐 Calling GHN Lead Time API...");
+            log.info("Calling GHN Lead Time API...");
             log.info("Lead time request: {}", leadTimeBody);
             
             @SuppressWarnings("unchecked")
@@ -128,7 +128,7 @@ public class ShippingServiceImpl implements ShippingService {
                 if (data != null && data.containsKey("leadtime")) {
                     Long leadtimeTimestamp = ((Number) data.get("leadtime")).longValue();
                     expectedTime = formatLeadTime(leadtimeTimestamp);
-                    log.info("📅 Lead time from GHN: {} (timestamp) = {}", leadtimeTimestamp, expectedTime);
+                    log.info("Lead time from GHN: {} (timestamp) = {}", leadtimeTimestamp, expectedTime);
                 }
             }
         } catch (Exception e) {
@@ -161,7 +161,7 @@ public class ShippingServiceImpl implements ShippingService {
             Map<String, Object> data = (Map<String, Object>) feeResponse.get("data");
             if (data != null && data.containsKey("total")) {
                 Double fee = ((Number) data.get("total")).doubleValue();
-                log.info("✅ GHN fee calculated successfully: {}", fee);
+                log.info("GHN fee calculated successfully: {}", fee);
                 
                 Map<String, Object> result = new HashMap<>();
                 result.put("fee", fee);
@@ -314,14 +314,14 @@ public class ShippingServiceImpl implements ShippingService {
                 
                 // Normalize: remove accents, lowercase, remove special chars
                 String normalizedInput = normalizeVietnamese(provinceName);
-                log.info("📝 Normalized input: {}", normalizedInput);
+                log.info("Normalized input: {}", normalizedInput);
                 
                 for (Map<String, Object> province : provinces) {
                     String ghnName = (String) province.get("ProvinceName");
                     
                     if (matchLocation(ghnName, normalizedInput)) {
                         Integer provinceId = (Integer) province.get("ProvinceID");
-                        log.info("✅ Found province: {} → ID: {}", ghnName, provinceId);
+                        log.info("Found province: {} → ID: {}", ghnName, provinceId);
                         return provinceId;
                     }
                 }
@@ -397,7 +397,7 @@ public class ShippingServiceImpl implements ShippingService {
                     
                     if (matchLocation(mapDistrictName, districtName)) {
                         Integer districtId = districtEntry.getValue();
-                        log.info("✅ Found district in map: {} → ID: {}", mapDistrictName, districtId);
+                        log.info("Found district in map: {} → ID: {}", mapDistrictName, districtId);
                         return districtId;
                     }
                 }
@@ -435,7 +435,7 @@ public class ShippingServiceImpl implements ShippingService {
                     
                     if (matchLocation(ghnName, districtName)) {
                         Integer districtId = (Integer) district.get("DistrictID");
-                        log.info("✅ Found district via API: {} → ID: {}", ghnName, districtId);
+                        log.info("Found district via API: {} → ID: {}", ghnName, districtId);
                         return districtId;
                     }
                 }
@@ -523,7 +523,7 @@ public class ShippingServiceImpl implements ShippingService {
                         }
                     }
                     
-                    log.info("✅ GHN order created successfully: {}", orderCode);
+                    log.info("GHN order created successfully: {}", orderCode);
                     
                     return CreateGHNOrderResponse.builder()
                             .orderCode(orderCode)
@@ -599,7 +599,7 @@ public class ShippingServiceImpl implements ShippingService {
                         }
                     }
                     
-                    log.info("✅ GHN order detail retrieved: {}", ghnOrderCode);
+                    log.info("GHN order detail retrieved: {}", ghnOrderCode);
                     
                     return GHNOrderDetailResponse.builder()
                             .orderCode(ghnOrderCode)

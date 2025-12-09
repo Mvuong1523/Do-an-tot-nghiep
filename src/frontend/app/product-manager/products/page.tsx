@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/authStore'
 import { productApi } from '@/lib/api'
 import EmployeeBreadcrumb from '@/components/EmployeeBreadcrumb'
 import ImageUpload from '@/components/ImageUpload'
+import MultiImageUpload from '@/components/MultiImageUpload'
 
 export default function ProductManagerProductsPage() {
   const router = useRouter()
@@ -22,9 +23,10 @@ export default function ProductManagerProductsPage() {
   const [editForm, setEditForm] = useState({
     name: '',
     description: '',
-    price: 0,
-    imageUrl: ''
+    price: 0
   })
+  const [productImages, setProductImages] = useState<any[]>([])
+  const [originalImages, setOriginalImages] = useState<any[]>([]) // Lưu ảnh gốc để so sánh
 
   useEffect(() => {
     setIsHydrated(true)
@@ -70,14 +72,32 @@ export default function ProductManagerProductsPage() {
     }).format(price)
   }
 
-  const handleEdit = (product: any) => {
+  const handleEdit = async (product: any) => {
     setEditingProduct(product)
     setEditForm({
       name: product.name || '',
       description: product.description || '',
-      price: product.price || 0,
-      imageUrl: product.imageUrl || ''
+      price: product.price || 0
     })
+    
+    // Load product images trước khi mở modal
+    try {
+      const response = await productApi.getProductImages(product.id)
+      if (response.success && response.data) {
+        // Clone array để tránh reference issue
+        setProductImages([...response.data])
+        setOriginalImages([...response.data]) // Lưu ảnh gốc (clone riêng)
+      } else {
+        setProductImages([])
+        setOriginalImages([])
+      }
+    } catch (error) {
+      console.error('Error loading product images:', error)
+      setProductImages([])
+      setOriginalImages([])
+    }
+    
+    // Mở modal sau khi load xong images
     setShowEditModal(true)
   }
 
@@ -90,14 +110,53 @@ export default function ProductManagerProductsPage() {
     }
 
     try {
+      // 1. Cập nhật thông tin sản phẩm
       const response = await productApi.update(editingProduct.id, editForm)
-      if (response.success) {
-        toast.success('Cập nhật sản phẩm thành công!')
-        setShowEditModal(false)
-        loadProducts()
-      } else {
+      if (!response.success) {
         toast.error(response.message || 'Có lỗi xảy ra')
+        return
       }
+
+      // 2. Xử lý ảnh sản phẩm
+      console.log('=== Image Processing ===')
+      console.log('Original images:', originalImages)
+      console.log('Current images:', productImages)
+      
+      // Tìm ảnh cần xóa (có trong originalImages nhưng không có trong productImages)
+      const imagesToDelete = originalImages.filter((original: any) => 
+        !productImages.find((img: any) => img.id === original.id)
+      )
+      
+      console.log('Images to delete:', imagesToDelete)
+      
+      // Xóa ảnh
+      for (const img of imagesToDelete) {
+        if (img.id) {
+          console.log('Deleting image:', img.id)
+          await productApi.deleteProductImage(img.id)
+        }
+      }
+      
+      // Tìm ảnh mới cần thêm (không có id)
+      const newImages = productImages.filter((img: any) => !img.id)
+      
+      console.log('New images to add:', newImages)
+      
+      // Thêm ảnh mới
+      for (let i = 0; i < newImages.length; i++) {
+        const img = newImages[i]
+        // Ảnh đầu tiên là primary nếu không còn ảnh cũ nào
+        const isPrimary = originalImages.length === 0 && i === 0
+        console.log('Adding image:', img.imageUrl, 'isPrimary:', isPrimary)
+        const addResult = await productApi.addProductImage(editingProduct.id, img.imageUrl, isPrimary)
+        console.log('Add result:', addResult)
+      }
+
+      toast.success('Cập nhật sản phẩm thành công!')
+      setShowEditModal(false)
+      setProductImages([])
+      setOriginalImages([])
+      loadProducts()
     } catch (error: any) {
       console.error('Error updating product:', error)
       toast.error(error.response?.data?.message || 'Lỗi khi cập nhật sản phẩm')
@@ -176,15 +235,10 @@ export default function ProductManagerProductsPage() {
                   {filteredProducts.map((product) => (
                     <tr key={product.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
-                        <div className="flex items-center">
-                          <div className="w-10 h-10 bg-gray-100 rounded flex-shrink-0"></div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">{product.name}</div>
-                            {product.description && (
-                              <div className="text-xs text-gray-500 truncate max-w-xs">{product.description}</div>
-                            )}
-                          </div>
-                        </div>
+                        <div className="text-sm font-medium text-gray-900">{product.name}</div>
+                        {product.description && (
+                          <div className="text-xs text-gray-500 truncate max-w-xs">{product.description}</div>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500">
                         {product.category?.name || 'N/A'}
@@ -229,7 +283,11 @@ export default function ProductManagerProductsPage() {
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-2xl font-bold text-gray-900">Sửa sản phẩm</h2>
                   <button
-                    onClick={() => setShowEditModal(false)}
+                    onClick={() => {
+                      setShowEditModal(false)
+                      setProductImages([])
+                      setOriginalImages([])
+                    }}
                     className="text-gray-400 hover:text-gray-600"
                   >
                     <FiX size={24} />
@@ -281,20 +339,23 @@ export default function ProductManagerProductsPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Hình ảnh sản phẩm
                       </label>
-                      <ImageUpload
-                        value={editForm.imageUrl}
-                        onChange={(url) => setEditForm({...editForm, imageUrl: url})}
+                      <MultiImageUpload
+                        productId={editingProduct?.id}
+                        images={productImages}
+                        onChange={setProductImages}
+                        maxImages={9}
                       />
-                      <p className="text-xs text-gray-500 mt-2">
-                        💡 Upload ảnh mới lên Cloudinary (max 10MB)
-                      </p>
                     </div>
                   </div>
 
                   <div className="flex space-x-4 mt-6">
                     <button
                       type="button"
-                      onClick={() => setShowEditModal(false)}
+                      onClick={() => {
+                        setShowEditModal(false)
+                        setProductImages([])
+                        setOriginalImages([])
+                      }}
                       className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                     >
                       Hủy
