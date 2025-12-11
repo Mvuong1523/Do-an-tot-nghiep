@@ -186,6 +186,66 @@ export default function AccountingPage() {
               </div>
             </div>
           </button>
+
+          <button
+            onClick={() => router.push('/admin/accounting/tax')}
+            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow text-left"
+          >
+            <div className="flex items-center space-x-4">
+              <div className="bg-red-100 p-3 rounded-full">
+                <FiAlertCircle className="text-red-600" size={24} />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Quản lý thuế</h3>
+                <p className="text-sm text-gray-600 mt-1">VAT, thuế TNDN</p>
+              </div>
+            </div>
+          </button>
+
+          <button
+            onClick={() => router.push('/admin/accounting/transactions')}
+            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow text-left"
+          >
+            <div className="flex items-center space-x-4">
+              <div className="bg-orange-100 p-3 rounded-full">
+                <FiFileText className="text-orange-600" size={24} />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Giao dịch tài chính</h3>
+                <p className="text-sm text-gray-600 mt-1">Quản lý thu chi</p>
+              </div>
+            </div>
+          </button>
+
+          <button
+            onClick={() => router.push('/admin/accounting/shipping')}
+            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow text-left"
+          >
+            <div className="flex items-center space-x-4">
+              <div className="bg-yellow-100 p-3 rounded-full">
+                <FiFileText className="text-yellow-600" size={24} />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Đối soát vận chuyển</h3>
+                <p className="text-sm text-gray-600 mt-1">Chi phí vận chuyển</p>
+              </div>
+            </div>
+          </button>
+
+          <button
+            onClick={() => router.push('/admin/accounting/advanced-reports')}
+            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow text-left"
+          >
+            <div className="flex items-center space-x-4">
+              <div className="bg-indigo-100 p-3 rounded-full">
+                <FiFileText className="text-indigo-600" size={24} />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Báo cáo nâng cao</h3>
+                <p className="text-sm text-gray-600 mt-1">Phân tích chi tiết</p>
+              </div>
+            </div>
+          </button>
         </div>
       </div>
     </div>

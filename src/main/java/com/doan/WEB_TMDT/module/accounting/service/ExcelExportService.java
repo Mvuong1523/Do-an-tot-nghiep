@@ -112,4 +112,143 @@ public class ExcelExportService {
         }
         return 0;
     }
+
+    public byte[] exportTaxReports(List<com.doan.WEB_TMDT.module.accounting.entity.TaxReport> reports) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Báo cáo thuế");
+            
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            CellStyle numberStyle = createNumberStyle(workbook);
+            
+            // Create header row
+            Row headerRow = sheet.createRow(0);
+            String[] headers = {
+                "Mã báo cáo", "Loại thuế", "Từ ngày", "Đến ngày", 
+                "Doanh thu chịu thuế", "Thuế suất (%)", "Số thuế", 
+                "Đã nộp", "Còn nợ", "Trạng thái"
+            };
+            
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+            }
+            
+            // Fill data
+            int rowNum = 1;
+            for (com.doan.WEB_TMDT.module.accounting.entity.TaxReport report : reports) {
+                Row row = sheet.createRow(rowNum++);
+                
+                createCell(row, 0, report.getReportCode(), null);
+                createCell(row, 1, report.getTaxType().name(), null);
+                createCell(row, 2, report.getPeriodStart().toString(), null);
+                createCell(row, 3, report.getPeriodEnd().toString(), null);
+                createCell(row, 4, report.getTaxableRevenue(), numberStyle);
+                createCell(row, 5, report.getTaxRate(), numberStyle);
+                createCell(row, 6, report.getTaxAmount(), numberStyle);
+                createCell(row, 7, report.getPaidTax(), numberStyle);
+                createCell(row, 8, report.getRemainingTax(), numberStyle);
+                createCell(row, 9, report.getStatus().name(), null);
+            }
+            
+            // Auto-size columns
+            for (int i = 0; i < headers.length; i++) {
+                sheet.autoSizeColumn(i);
+            }
+            
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        }
+    }
+
+    public byte[] exportTransactions(List<com.doan.WEB_TMDT.module.accounting.entity.FinancialTransaction> transactions) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Giao dịch tài chính");
+            
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            CellStyle numberStyle = createNumberStyle(workbook);
+            
+            // Create header row
+            Row headerRow = sheet.createRow(0);
+            String[] headers = {
+                "Mã giao dịch", "Mã đơn hàng", "Loại", "Danh mục", 
+                "Số tiền", "Mô tả", "Ngày giao dịch", "Người tạo"
+            };
+            
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+            }
+            
+            // Fill data
+            int rowNum = 1;
+            for (com.doan.WEB_TMDT.module.accounting.entity.FinancialTransaction transaction : transactions) {
+                Row row = sheet.createRow(rowNum++);
+                
+                createCell(row, 0, transaction.getTransactionCode(), null);
+                createCell(row, 1, transaction.getOrderId(), null);
+                createCell(row, 2, transaction.getType().name(), null);
+                createCell(row, 3, transaction.getCategory().name(), null);
+                createCell(row, 4, transaction.getAmount(), numberStyle);
+                createCell(row, 5, transaction.getDescription(), null);
+                createCell(row, 6, transaction.getTransactionDate().toString(), null);
+                createCell(row, 7, transaction.getCreatedBy(), null);
+            }
+            
+            // Auto-size columns
+            for (int i = 0; i < headers.length; i++) {
+                sheet.autoSizeColumn(i);
+            }
+            
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        }
+    }
+
+    public byte[] exportShippingReconciliation(List<Map<String, Object>> details) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Đối soát vận chuyển");
+            
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            CellStyle numberStyle = createNumberStyle(workbook);
+            
+            // Create header row
+            Row headerRow = sheet.createRow(0);
+            String[] headers = {
+                "Mã đơn hàng", "Ngày đặt", "Địa chỉ giao hàng", 
+                "Phí VC thu khách", "Chi phí VC thực tế", "Lợi nhuận VC"
+            };
+            
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+            }
+            
+            // Fill data
+            int rowNum = 1;
+            for (Map<String, Object> detail : details) {
+                Row row = sheet.createRow(rowNum++);
+                
+                createCell(row, 0, detail.get("orderId"), null);
+                createCell(row, 1, detail.get("orderDate"), null);
+                createCell(row, 2, detail.get("shippingAddress"), null);
+                createCell(row, 3, detail.get("shippingFeeCollected"), numberStyle);
+                createCell(row, 4, detail.get("actualShippingCost"), numberStyle);
+                createCell(row, 5, detail.get("profit"), numberStyle);
+            }
+            
+            // Auto-size columns
+            for (int i = 0; i < headers.length; i++) {
+                sheet.autoSizeColumn(i);
+            }
+            
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        }
+    }
 }

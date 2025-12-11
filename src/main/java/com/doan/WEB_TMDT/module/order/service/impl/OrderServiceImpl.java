@@ -16,8 +16,10 @@ import com.doan.WEB_TMDT.module.order.entity.PaymentStatus;
 import com.doan.WEB_TMDT.module.order.repository.OrderRepository;
 import com.doan.WEB_TMDT.module.order.service.OrderService;
 import com.doan.WEB_TMDT.module.product.entity.Product;
+import com.doan.WEB_TMDT.module.accounting.listener.OrderStatusChangedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,6 +42,7 @@ public class OrderServiceImpl implements OrderService {
     private final com.doan.WEB_TMDT.module.payment.service.PaymentService paymentService;
     private final com.doan.WEB_TMDT.module.shipping.service.ShippingService shippingService;
     private final com.doan.WEB_TMDT.module.product.repository.ProductImageRepository productImageRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public Long getCustomerIdByEmail(String email) {
@@ -48,6 +51,21 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy khách hàng với email: " + email));
         log.info("OrderService - Found customerId: {}", customer.getId());
         return customer.getId();
+    }
+
+    /**
+     * Helper method to publish order status change event for accounting module
+     */
+    private void publishOrderStatusChangeEvent(Order order, OrderStatus oldStatus, OrderStatus newStatus) {
+        try {
+            OrderStatusChangedEvent event = new OrderStatusChangedEvent(this, order, oldStatus, newStatus);
+            eventPublisher.publishEvent(event);
+            log.info("Published OrderStatusChangedEvent for order: {} ({} -> {})", 
+                order.getOrderCode(), oldStatus, newStatus);
+        } catch (Exception e) {
+            log.error("Failed to publish OrderStatusChangedEvent for order: {}", order.getOrderCode(), e);
+            // Don't fail the order process if event publishing fails
+        }
     }
 
     @Override

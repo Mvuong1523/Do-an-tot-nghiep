@@ -16,4 +16,5 @@ public interface AccountingService {
     ApiResponse getAllPeriods();
     ApiResponse closePeriod(Long id);
     ApiResponse reopenPeriod(Long id);
+    ApiResponse exportShippingReconciliation(LocalDate startDate, LocalDate endDate);
 }

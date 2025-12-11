@@ -32,4 +32,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
            "AND o.paymentStatus = com.doan.WEB_TMDT.module.order.entity.PaymentStatus.PAID")
     Double sumTotalByDateRange(@Param("startDate") LocalDateTime startDate, 
                                @Param("endDate") LocalDateTime endDate);
+    
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.createdAt BETWEEN :startDate AND :endDate " +
+           "AND o.paymentStatus = com.doan.WEB_TMDT.module.order.entity.PaymentStatus.PAID")
+    Long countPaidOrdersBetween(@Param("startDate") LocalDateTime startDate, 
+                                @Param("endDate") LocalDateTime endDate);
 }

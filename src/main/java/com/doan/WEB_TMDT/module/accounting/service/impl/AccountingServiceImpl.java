@@ -67,6 +67,31 @@ public class AccountingServiceImpl implements AccountingService {
                     request.getGateway(), startDateTime, endDateTime);
         }
 
+        // Tự động đối soát với dữ liệu hệ thống
+        for (PaymentReconciliation reconciliation : reconciliations) {
+            Optional<Order> orderOpt = orderRepo.findByOrderCode(reconciliation.getOrderId());
+            if (orderOpt.isPresent()) {
+                Order order = orderOpt.get();
+                BigDecimal systemAmount = BigDecimal.valueOf(order.getTotal());
+                
+                // Cập nhật số tiền hệ thống nếu khác
+                if (!systemAmount.equals(reconciliation.getSystemAmount())) {
+                    reconciliation.setSystemAmount(systemAmount);
+                    reconciliation.setDiscrepancy(systemAmount.subtract(reconciliation.getGatewayAmount()).abs());
+                    
+                    // Cập nhật trạng thái
+                    if (reconciliation.getDiscrepancy().compareTo(BigDecimal.ZERO) == 0) {
+                        reconciliation.setStatus(ReconciliationStatus.MATCHED);
+                    } else {
+                        reconciliation.setStatus(ReconciliationStatus.MISMATCHED);
+                    }
+                }
+            }
+        }
+
+        // Lưu các thay đổi
+        reconciliationRepo.saveAll(reconciliations);
+
         // Calculate summary
         Map<String, Object> result = new HashMap<>();
         result.put("data", reconciliations);
@@ -142,12 +167,50 @@ public class AccountingServiceImpl implements AccountingService {
 
     @Override
     public ApiResponse getShippingReconciliation(LocalDate startDate, LocalDate endDate) {
-        // TODO: Implement shipping reconciliation logic
+        LocalDateTime startDateTime = startDate.atStartOfDay();
+        LocalDateTime endDateTime = endDate.atTime(23, 59, 59);
+        
+        // Lấy tất cả đơn hàng trong khoảng thời gian
+        List<Order> orders = orderRepo.findPaidOrdersBetween(startDateTime, endDateTime);
+        
+        BigDecimal totalShippingFeeCollected = BigDecimal.ZERO; // Phí vận chuyển thu từ khách
+        BigDecimal totalShippingCostPaid = BigDecimal.ZERO;     // Chi phí trả cho đối tác vận chuyển
+        int totalOrders = orders.size();
+        
+        List<Map<String, Object>> shippingDetails = new ArrayList<>();
+        
+        for (Order order : orders) {
+            BigDecimal shippingFeeCollected = BigDecimal.valueOf(order.getShippingFee());
+            // Giả định chi phí thực tế trả cho đối tác = 80% phí thu từ khách
+            BigDecimal actualShippingCost = shippingFeeCollected.multiply(BigDecimal.valueOf(0.8));
+            
+            totalShippingFeeCollected = totalShippingFeeCollected.add(shippingFeeCollected);
+            totalShippingCostPaid = totalShippingCostPaid.add(actualShippingCost);
+            
+            Map<String, Object> detail = new HashMap<>();
+            detail.put("orderId", order.getOrderCode());
+            detail.put("shippingFeeCollected", shippingFeeCollected);
+            detail.put("actualShippingCost", actualShippingCost);
+            detail.put("profit", shippingFeeCollected.subtract(actualShippingCost));
+            detail.put("orderDate", order.getCreatedAt().toLocalDate());
+            detail.put("shippingAddress", order.getShippingAddress());
+            
+            shippingDetails.add(detail);
+        }
+        
+        BigDecimal shippingProfit = totalShippingFeeCollected.subtract(totalShippingCostPaid);
+        BigDecimal profitMargin = totalShippingFeeCollected.compareTo(BigDecimal.ZERO) > 0 
+            ? shippingProfit.divide(totalShippingFeeCollected, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100))
+            : BigDecimal.ZERO;
+        
         Map<String, Object> result = new HashMap<>();
-        result.put("totalShippingCost", 5000000);
-        result.put("paidToCarrier", 4500000);
-        result.put("collectedFromCustomer", 5200000);
-        result.put("discrepancy", 200000);
+        result.put("period", startDate + " - " + endDate);
+        result.put("totalOrders", totalOrders);
+        result.put("totalShippingFeeCollected", totalShippingFeeCollected);
+        result.put("totalShippingCostPaid", totalShippingCostPaid);
+        result.put("shippingProfit", shippingProfit);
+        result.put("profitMargin", profitMargin);
+        result.put("details", shippingDetails);
         
         return ApiResponse.success("Đối soát vận chuyển", result);
     }
@@ -306,10 +369,38 @@ public class AccountingServiceImpl implements AccountingService {
             return ApiResponse.error("Kỳ này đã được chốt!");
         }
         
-        // Kiểm tra sai số
-        if (period.getDiscrepancyRate() != null && period.getDiscrepancyRate() > 15) {
-            return ApiResponse.error("Sai số vượt quá 15%. Không thể chốt kỳ!");
+        // Tính toán lại sai số trước khi chốt
+        LocalDateTime startDateTime = period.getStartDate().atStartOfDay();
+        LocalDateTime endDateTime = period.getEndDate().atTime(23, 59, 59);
+        
+        // Tính doanh thu thực tế từ đơn hàng
+        Double actualRevenue = orderRepo.sumTotalByDateRange(startDateTime, endDateTime);
+        if (actualRevenue == null) actualRevenue = 0.0;
+        
+        // Tính tổng sai lệch từ đối soát thanh toán
+        Double totalDiscrepancy = reconciliationRepo.sumDiscrepancyByDateRange(startDateTime, endDateTime);
+        if (totalDiscrepancy == null) totalDiscrepancy = 0.0;
+        
+        // Cập nhật thông tin kỳ
+        period.setTotalRevenue(BigDecimal.valueOf(actualRevenue));
+        period.setDiscrepancyAmount(BigDecimal.valueOf(totalDiscrepancy));
+        
+        // Tính tỷ lệ sai số
+        double discrepancyRate = actualRevenue > 0 ? (totalDiscrepancy / actualRevenue) * 100 : 0;
+        period.setDiscrepancyRate(discrepancyRate);
+        
+        // Kiểm tra sai số > 15%
+        if (discrepancyRate > 15) {
+            periodRepo.save(period); // Lưu thông tin đã cập nhật
+            return ApiResponse.error(String.format(
+                "Sai số %.2f%% vượt quá 15%%. Vui lòng kiểm tra và xử lý các sai lệch trước khi chốt kỳ. " +
+                "Tổng sai lệch: %,.0f ₫ / Tổng doanh thu: %,.0f ₫", 
+                discrepancyRate, totalDiscrepancy, actualRevenue));
         }
+        
+        // Đếm số đơn hàng trong kỳ
+        Long orderCount = orderRepo.countPaidOrdersBetween(startDateTime, endDateTime);
+        period.setTotalOrders(orderCount != null ? orderCount.intValue() : 0);
         
         String currentUser = SecurityUtils.getCurrentUserEmail();
         
@@ -344,6 +435,33 @@ public class AccountingServiceImpl implements AccountingService {
         periodRepo.save(period);
         
         return ApiResponse.success("Đã mở khóa kỳ báo cáo!", period);
+    }
+
+    @Override
+    public ApiResponse exportShippingReconciliation(LocalDate startDate, LocalDate endDate) {
+        try {
+            // Lấy dữ liệu đối soát vận chuyển
+            ApiResponse reconciliationResponse = getShippingReconciliation(startDate, endDate);
+            if (!reconciliationResponse.isSuccess()) {
+                return reconciliationResponse;
+            }
+            
+            @SuppressWarnings("unchecked")
+            Map<String, Object> data = (Map<String, Object>) reconciliationResponse.getData();
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> details = (List<Map<String, Object>>) data.get("details");
+            
+            byte[] excelData = excelExportService.exportShippingReconciliation(details);
+            String base64Excel = Base64.getEncoder().encodeToString(excelData);
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("fileName", "DoiSoatVanChuyen_" + startDate + "_" + endDate + ".xlsx");
+            result.put("data", base64Excel);
+            
+            return ApiResponse.success("Xuất báo cáo đối soát vận chuyển thành công!", result);
+        } catch (Exception e) {
+            return ApiResponse.error("Lỗi khi xuất báo cáo: " + e.getMessage());
+        }
     }
 
     private Map<String, Object> calculateSummary(List<PaymentReconciliation> reconciliations) {

@@ -19,4 +19,7 @@ public interface PaymentReconciliationRepository extends JpaRepository<PaymentRe
     
     @Query("SELECT SUM(p.discrepancy) FROM PaymentReconciliation p WHERE p.status = :status")
     Double sumDiscrepancyByStatus(@Param("status") ReconciliationStatus status);
+    
+    @Query("SELECT SUM(p.discrepancy) FROM PaymentReconciliation p WHERE p.transactionDate BETWEEN :startDate AND :endDate")
+    Double sumDiscrepancyByDateRange(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
 }

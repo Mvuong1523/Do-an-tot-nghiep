@@ -18,7 +18,7 @@ public class SecurityUtils {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null) {
             return authentication.getAuthorities().stream()
-                    .anyMatch(auth -> auth.getAuthority().equals("ADMIN"));
+                    .anyRequest(auth -> auth.getAuthority().equals("ADMIN"));
         }
         return false;
     }
@@ -30,5 +30,18 @@ public class SecurityUtils {
                     .anyMatch(auth -> auth.getAuthority().equals(role));
         }
         return false;
+    }
+
+    public static boolean isAccountant() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null) {
+            return authentication.getAuthorities().stream()
+                    .anyMatch(auth -> auth.getAuthority().equals("ACCOUNTANT"));
+        }
+        return false;
+    }
+
+    public static boolean hasAccountingAccess() {
+        return isAdmin() || isAccountant();
     }
 }

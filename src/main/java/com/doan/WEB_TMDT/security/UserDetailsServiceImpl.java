@@ -23,10 +23,11 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
         List<SimpleGrantedAuthority> authorities = new ArrayList<>();
 
-        // Quyền cấp 1 (Role)
+        // Quyền cấp 1 (Role) - Thêm cả có và không có prefix ROLE_
         authorities.add(new SimpleGrantedAuthority("ROLE_" + u.getRole().name()));
+        authorities.add(new SimpleGrantedAuthority(u.getRole().name()));
 
-        // Quyền cấp 2 (Position)
+        // Quyền cấp 2 (Position) - Cho Employee
         if (u.getEmployee() != null && u.getEmployee().getPosition() != null) {
             authorities.add(new SimpleGrantedAuthority(u.getEmployee().getPosition().name()));
         }

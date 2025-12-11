@@ -13,9 +13,11 @@ import com.doan.WEB_TMDT.module.payment.entity.PaymentMethod;
 import com.doan.WEB_TMDT.module.payment.entity.PaymentStatus;
 import com.doan.WEB_TMDT.module.payment.repository.PaymentRepository;
 import com.doan.WEB_TMDT.module.payment.service.PaymentService;
+import com.doan.WEB_TMDT.module.accounting.listener.OrderStatusChangedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +37,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final com.doan.WEB_TMDT.module.payment.repository.BankAccountRepository bankAccountRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Value("${sepay.bank.code:VCB}")
     private String sepayBankCode;
@@ -233,11 +236,26 @@ public class PaymentServiceImpl implements PaymentService {
 
             // 10. Update order: PENDING_PAYMENT → CONFIRMED (tự động xác nhận, chờ chuẩn bị hàng)
             Order order = payment.getOrder();
+            com.doan.WEB_TMDT.module.order.entity.OrderStatus oldStatus = order.getStatus();
+            
             order.setPaymentStatus(com.doan.WEB_TMDT.module.order.entity.PaymentStatus.PAID);
             // Note: paidAt được lưu trong Payment entity, không cần lưu trong Order
             order.setStatus(com.doan.WEB_TMDT.module.order.entity.OrderStatus.CONFIRMED);
             order.setConfirmedAt(LocalDateTime.now());
             orderRepository.save(order);
+
+            // 11. Publish event for accounting module
+            try {
+                OrderStatusChangedEvent event = new OrderStatusChangedEvent(
+                    this, order, oldStatus, order.getStatus()
+                );
+                eventPublisher.publishEvent(event);
+                log.info("Published OrderStatusChangedEvent for order: {} ({} -> {})", 
+                    order.getOrderCode(), oldStatus, order.getStatus());
+            } catch (Exception e) {
+                log.error("Failed to publish OrderStatusChangedEvent for order: {}", order.getOrderCode(), e);
+                // Don't fail the payment process if event publishing fails
+            }
 
             log.info("Payment processed successfully: {}", payment.getPaymentCode());
 
