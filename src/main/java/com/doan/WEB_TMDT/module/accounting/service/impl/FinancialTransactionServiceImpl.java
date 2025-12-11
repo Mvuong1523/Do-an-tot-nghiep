@@ -98,21 +98,15 @@ public class FinancialTransactionServiceImpl implements FinancialTransactionServ
         BigDecimal totalRevenue = getAmountByType(TransactionType.REVENUE, startDateTime, endDateTime);
         BigDecimal otherRevenue = totalRevenue.subtract(salesRevenue);
 
-        // Tính chi phí
-        BigDecimal costOfGoods = getAmountByCategory(TransactionCategory.COST_OF_GOODS, startDateTime, endDateTime);
+        // Tính chi phí thực tế từ hệ thống
         BigDecimal shippingCosts = getAmountByCategory(TransactionCategory.SHIPPING, startDateTime, endDateTime);
         BigDecimal paymentFees = getAmountByCategory(TransactionCategory.PAYMENT_FEE, startDateTime, endDateTime);
-        BigDecimal marketingCosts = getAmountByCategory(TransactionCategory.MARKETING, startDateTime, endDateTime);
-        BigDecimal operationalCosts = getAmountByCategory(TransactionCategory.OPERATIONAL, startDateTime, endDateTime);
         BigDecimal taxAmount = getAmountByCategory(TransactionCategory.TAX, startDateTime, endDateTime);
-        BigDecimal otherExpenses = getAmountByCategory(TransactionCategory.OTHER, startDateTime, endDateTime);
 
         // Tính lợi nhuận
-        BigDecimal grossProfit = totalRevenue.subtract(costOfGoods);
-        BigDecimal totalExpenses = shippingCosts.add(paymentFees).add(marketingCosts)
-                .add(operationalCosts).add(otherExpenses);
-        BigDecimal operatingProfit = grossProfit.subtract(totalExpenses);
-        BigDecimal netProfit = operatingProfit.subtract(taxAmount);
+        BigDecimal totalExpenses = shippingCosts.add(paymentFees);
+        BigDecimal grossProfit = totalRevenue.subtract(totalExpenses);
+        BigDecimal netProfit = grossProfit.subtract(taxAmount);
 
         // Tính tỷ suất
         BigDecimal grossProfitMargin = totalRevenue.compareTo(BigDecimal.ZERO) > 0 
@@ -129,14 +123,9 @@ public class FinancialTransactionServiceImpl implements FinancialTransactionServ
                 .totalRevenue(totalRevenue)
                 .salesRevenue(salesRevenue)
                 .otherRevenue(otherRevenue)
-                .costOfGoodsSold(costOfGoods)
                 .shippingCosts(shippingCosts)
                 .paymentFees(paymentFees)
-                .marketingCosts(marketingCosts)
-                .operationalCosts(operationalCosts)
-                .otherExpenses(otherExpenses)
                 .grossProfit(grossProfit)
-                .operatingProfit(operatingProfit)
                 .netProfit(netProfit)
                 .vatAmount(taxAmount)
                 .grossProfitMargin(grossProfitMargin)

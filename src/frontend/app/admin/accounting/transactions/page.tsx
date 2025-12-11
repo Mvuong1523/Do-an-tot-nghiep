@@ -160,14 +160,10 @@ export default function TransactionsPage() {
 
   const getCategoryText = (category: string) => {
     switch (category) {
-      case 'SALES': return 'Bán hàng'
-      case 'SHIPPING': return 'Vận chuyển'
-      case 'PAYMENT_FEE': return 'Phí thanh toán'
+      case 'SALES': return 'Doanh thu bán hàng'
+      case 'SHIPPING': return 'Chi phí vận chuyển'
+      case 'PAYMENT_FEE': return 'Phí cổng thanh toán'
       case 'TAX': return 'Thuế'
-      case 'COST_OF_GOODS': return 'Giá vốn'
-      case 'MARKETING': return 'Marketing'
-      case 'OPERATIONAL': return 'Vận hành'
-      case 'OTHER': return 'Khác'
       default: return category
     }
   }

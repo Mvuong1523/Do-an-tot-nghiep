@@ -120,28 +120,12 @@ export default function AdvancedReportsPage() {
               <h4 className="text-md font-semibold text-gray-900 mb-4">CHI PHÍ</h4>
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Giá vốn hàng bán:</span>
-                  <span className="font-medium">{reportData.costOfGoodsSold?.toLocaleString('vi-VN')} ₫</span>
-                </div>
-                <div className="flex justify-between">
                   <span className="text-gray-600">Chi phí vận chuyển:</span>
-                  <span className="font-medium">{reportData.shippingCosts?.toLocaleString('vi-VN')} ₫</span>
+                  <span className="font-medium text-red-600">{reportData.shippingCosts?.toLocaleString('vi-VN')} ₫</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Phí thanh toán:</span>
-                  <span className="font-medium">{reportData.paymentFees?.toLocaleString('vi-VN')} ₫</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Chi phí marketing:</span>
-                  <span className="font-medium">{reportData.marketingCosts?.toLocaleString('vi-VN')} ₫</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Chi phí vận hành:</span>
-                  <span className="font-medium">{reportData.operationalCosts?.toLocaleString('vi-VN')} ₫</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Chi phí khác:</span>
-                  <span className="font-medium">{reportData.otherExpenses?.toLocaleString('vi-VN')} ₫</span>
+                  <span className="text-gray-600">Phí cổng thanh toán:</span>
+                  <span className="font-medium text-red-600">{reportData.paymentFees?.toLocaleString('vi-VN')} ₫</span>
                 </div>
               </div>
             </div>
@@ -149,21 +133,27 @@ export default function AdvancedReportsPage() {
 
           {/* Lợi nhuận */}
           <div className="mt-8 border-t pt-6">
-            <h4 className="text-md font-semibold text-gray-900 mb-4">LỢI NHUẬN</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <h4 className="text-md font-semibold text-gray-900 mb-4">LỢI NHUẬN & THUẾ</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-blue-50 p-4 rounded-lg">
                 <p className="text-sm text-gray-600">Lợi nhuận gộp</p>
                 <p className="text-2xl font-bold text-blue-600">{reportData.grossProfit?.toLocaleString('vi-VN')} ₫</p>
                 <p className="text-sm text-gray-500">Tỷ suất: {reportData.grossProfitMargin?.toFixed(2)}%</p>
               </div>
               <div className="bg-green-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600">Lợi nhuận hoạt động</p>
-                <p className="text-2xl font-bold text-green-600">{reportData.operatingProfit?.toLocaleString('vi-VN')} ₫</p>
-              </div>
-              <div className="bg-purple-50 p-4 rounded-lg">
                 <p className="text-sm text-gray-600">Lợi nhuận ròng</p>
-                <p className="text-2xl font-bold text-purple-600">{reportData.netProfit?.toLocaleString('vi-VN')} ₫</p>
+                <p className="text-2xl font-bold text-green-600">{reportData.netProfit?.toLocaleString('vi-VN')} ₫</p>
                 <p className="text-sm text-gray-500">Tỷ suất: {reportData.netProfitMargin?.toFixed(2)}%</p>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-orange-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-600">VAT (10%)</p>
+                <p className="text-xl font-bold text-orange-600">{reportData.vatAmount?.toLocaleString('vi-VN')} ₫</p>
+              </div>
+              <div className="bg-red-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-600">Thuế TNDN (20%)</p>
+                <p className="text-xl font-bold text-red-600">{(reportData.grossProfit * 0.2)?.toLocaleString('vi-VN')} ₫</p>
               </div>
             </div>
           </div>

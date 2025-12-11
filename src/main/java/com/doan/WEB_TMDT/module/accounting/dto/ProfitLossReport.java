@@ -18,12 +18,8 @@ public class ProfitLossReport {
     private BigDecimal otherRevenue;
     
     // Chi phí
-    private BigDecimal costOfGoodsSold;
     private BigDecimal shippingCosts;
     private BigDecimal paymentFees;
-    private BigDecimal marketingCosts;
-    private BigDecimal operationalCosts;
-    private BigDecimal otherExpenses;
     
     // Lợi nhuận
     private BigDecimal grossProfit;

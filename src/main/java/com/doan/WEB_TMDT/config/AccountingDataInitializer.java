@@ -67,94 +67,9 @@ public class AccountingDataInitializer implements CommandLineRunner {
     }
 
     private void initializeFinancialTransactions() {
-        if (transactionRepository.count() == 0) {
-            log.info("Initializing financial transactions...");
-
-            // Doanh thu từ bán hàng
-            FinancialTransaction revenue1 = FinancialTransaction.builder()
-                    .transactionCode("TXN001")
-                    .orderId("ORD001")
-                    .type(TransactionType.REVENUE)
-                    .category(TransactionCategory.SALES)
-                    .amount(BigDecimal.valueOf(1500000))
-                    .description("Doanh thu bán hàng đơn ORD001")
-                    .transactionDate(LocalDateTime.of(2024, 12, 1, 10, 0))
-                    .createdBy("System")
-                    .createdAt(LocalDateTime.now())
-                    .build();
-
-            // Chi phí vận chuyển
-            FinancialTransaction shipping1 = FinancialTransaction.builder()
-                    .transactionCode("TXN002")
-                    .orderId("ORD001")
-                    .type(TransactionType.EXPENSE)
-                    .category(TransactionCategory.SHIPPING)
-                    .amount(BigDecimal.valueOf(50000))
-                    .description("Phí vận chuyển đơn ORD001")
-                    .transactionDate(LocalDateTime.of(2024, 12, 1, 10, 0))
-                    .createdBy("System")
-                    .createdAt(LocalDateTime.now())
-                    .build();
-
-            // Chi phí thanh toán
-            FinancialTransaction payment1 = FinancialTransaction.builder()
-                    .transactionCode("TXN003")
-                    .orderId("ORD001")
-                    .type(TransactionType.EXPENSE)
-                    .category(TransactionCategory.PAYMENT_FEE)
-                    .amount(BigDecimal.valueOf(30000))
-                    .description("Phí thanh toán đơn ORD001")
-                    .transactionDate(LocalDateTime.of(2024, 12, 1, 10, 0))
-                    .createdBy("System")
-                    .createdAt(LocalDateTime.now())
-                    .build();
-
-            // Doanh thu đơn hàng thứ 2
-            FinancialTransaction revenue2 = FinancialTransaction.builder()
-                    .transactionCode("TXN004")
-                    .orderId("ORD002")
-                    .type(TransactionType.REVENUE)
-                    .category(TransactionCategory.SALES)
-                    .amount(BigDecimal.valueOf(2500000))
-                    .description("Doanh thu bán hàng đơn ORD002")
-                    .transactionDate(LocalDateTime.of(2024, 12, 2, 14, 30))
-                    .createdBy("System")
-                    .createdAt(LocalDateTime.now())
-                    .build();
-
-            // Chi phí marketing
-            FinancialTransaction marketing = FinancialTransaction.builder()
-                    .transactionCode("TXN005")
-                    .type(TransactionType.EXPENSE)
-                    .category(TransactionCategory.MARKETING)
-                    .amount(BigDecimal.valueOf(5000000))
-                    .description("Chi phí quảng cáo Facebook tháng 12")
-                    .transactionDate(LocalDateTime.of(2024, 12, 1, 0, 0))
-                    .createdBy("admin@company.com")
-                    .createdAt(LocalDateTime.now())
-                    .build();
-
-            // Chi phí vận hành
-            FinancialTransaction operational = FinancialTransaction.builder()
-                    .transactionCode("TXN006")
-                    .type(TransactionType.EXPENSE)
-                    .category(TransactionCategory.OPERATIONAL)
-                    .amount(BigDecimal.valueOf(3000000))
-                    .description("Tiền thuê văn phòng tháng 12")
-                    .transactionDate(LocalDateTime.of(2024, 12, 1, 0, 0))
-                    .createdBy("admin@company.com")
-                    .createdAt(LocalDateTime.now())
-                    .build();
-
-            transactionRepository.save(revenue1);
-            transactionRepository.save(shipping1);
-            transactionRepository.save(payment1);
-            transactionRepository.save(revenue2);
-            transactionRepository.save(marketing);
-            transactionRepository.save(operational);
-
-            log.info("Created {} financial transactions", 6);
-        }
+        // Không tạo dữ liệu mẫu
+        // Giao dịch sẽ được tự động tạo khi có đơn hàng thanh toán thành công
+        log.info("Financial transactions will be auto-generated from real orders");
     }
 
     private void initializeTaxReports() {

@@ -245,27 +245,27 @@ public class AccountingServiceImpl implements AccountingService {
         Map<String, Object> report = new HashMap<>();
         
         double revenue = order.getTotal();
-        double vat = revenue * 0.1; // VAT 10%
-        double costOfGoods = order.getSubtotal() * 0.6; // Giả định giá vốn 60%
         double shippingCost = order.getShippingFee();
         double paymentGatewayCost = revenue * 0.02; // Phí cổng thanh toán 2%
         
-        double grossProfit = revenue - vat - costOfGoods - shippingCost - paymentGatewayCost;
-        double corporateTax = grossProfit * 0.2; // Thuế TNDN 20%
-        double netProfit = grossProfit - corporateTax;
-        double actualReceived = revenue - paymentGatewayCost;
+        double totalCosts = shippingCost + paymentGatewayCost;
+        double grossProfit = revenue - totalCosts;
+        
+        double vat = grossProfit * 0.1; // VAT 10%
+        double profitAfterVAT = grossProfit - vat;
+        double corporateTax = profitAfterVAT * 0.2; // Thuế TNDN 20%
+        double netProfit = profitAfterVAT - corporateTax;
         
         report.put("orderId", order.getOrderCode());
         report.put("date", order.getCreatedAt().toLocalDate().toString());
         report.put("revenue", Math.round(revenue));
-        report.put("vat", Math.round(vat));
-        report.put("costOfGoods", Math.round(costOfGoods));
         report.put("shippingCost", Math.round(shippingCost));
         report.put("paymentGatewayCost", Math.round(paymentGatewayCost));
+        report.put("totalCosts", Math.round(totalCosts));
         report.put("grossProfit", Math.round(grossProfit));
+        report.put("vat", Math.round(vat));
         report.put("corporateTax", Math.round(corporateTax));
         report.put("netProfit", Math.round(netProfit));
-        report.put("actualReceived", Math.round(actualReceived));
         
         return report;
     }
@@ -292,36 +292,34 @@ public class AccountingServiceImpl implements AccountingService {
         Map<String, Object> report = new HashMap<>();
         
         double totalRevenue = 0;
-        double totalVat = 0;
-        double totalCostOfGoods = 0;
         double totalShippingCost = 0;
         double totalPaymentGatewayCost = 0;
         
         for (Order order : orders) {
             double revenue = order.getTotal();
             totalRevenue += revenue;
-            totalVat += revenue * 0.1;
-            totalCostOfGoods += order.getSubtotal() * 0.6;
             totalShippingCost += order.getShippingFee();
             totalPaymentGatewayCost += revenue * 0.02;
         }
         
-        double grossProfit = totalRevenue - totalVat - totalCostOfGoods - totalShippingCost - totalPaymentGatewayCost;
-        double corporateTax = grossProfit * 0.2;
-        double netProfit = grossProfit - corporateTax;
-        double actualReceived = totalRevenue - totalPaymentGatewayCost;
+        double totalCosts = totalShippingCost + totalPaymentGatewayCost;
+        double grossProfit = totalRevenue - totalCosts;
+        
+        double totalVat = grossProfit * 0.1;
+        double profitAfterVAT = grossProfit - totalVat;
+        double corporateTax = profitAfterVAT * 0.2;
+        double netProfit = profitAfterVAT - corporateTax;
         
         report.put("period", period);
         report.put("orderCount", orders.size());
         report.put("revenue", Math.round(totalRevenue));
-        report.put("vat", Math.round(totalVat));
-        report.put("costOfGoods", Math.round(totalCostOfGoods));
         report.put("shippingCost", Math.round(totalShippingCost));
         report.put("paymentGatewayCost", Math.round(totalPaymentGatewayCost));
+        report.put("totalCosts", Math.round(totalCosts));
         report.put("grossProfit", Math.round(grossProfit));
+        report.put("vat", Math.round(totalVat));
         report.put("corporateTax", Math.round(corporateTax));
         report.put("netProfit", Math.round(netProfit));
-        report.put("actualReceived", Math.round(actualReceived));
         
         return report;
     }

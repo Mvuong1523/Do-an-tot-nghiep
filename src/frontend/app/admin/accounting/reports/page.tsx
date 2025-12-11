@@ -188,16 +188,14 @@ export default function ReportsPage() {
                     {viewMode === 'ORDERS' ? 'Mã đơn' : 'Kỳ'}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ngày</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Doanh thu ròng</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">VAT (10%)</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Giá vốn</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Giá bán</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Doanh thu</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Chi phí VC</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Chi phí cổng TT</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Lãi ròng</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Phí cổng TT</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Tổng chi phí</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Lợi nhuận gộp</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">VAT (10%)</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Thuế TNDN (20%)</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">LN sau TNDN</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Thực thu</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Lợi nhuận ròng</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -209,35 +207,29 @@ export default function ReportsPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                       {item.date || item.period}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 font-medium">
-                      {(item.revenue - item.vat)?.toLocaleString('vi-VN')} ₫
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-red-600">
-                      {item.vat?.toLocaleString('vi-VN')} ₫
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-orange-600">
-                      {item.costOfGoods?.toLocaleString('vi-VN')} ₫
-                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-green-600 font-medium">
                       {item.revenue?.toLocaleString('vi-VN')} ₫
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-red-600">
-                      {item.shippingCost?.toLocaleString('vi-VN')} ₫
+                      -{item.shippingCost?.toLocaleString('vi-VN')} ₫
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-red-600">
-                      {item.paymentGatewayCost?.toLocaleString('vi-VN')} ₫
+                      -{item.paymentGatewayCost?.toLocaleString('vi-VN')} ₫
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-red-600 font-medium">
+                      -{item.totalCosts?.toLocaleString('vi-VN')} ₫
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-blue-600 font-bold">
                       {item.grossProfit?.toLocaleString('vi-VN')} ₫
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-red-600">
-                      {item.corporateTax?.toLocaleString('vi-VN')} ₫
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-orange-600">
+                      -{item.vat?.toLocaleString('vi-VN')} ₫
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-orange-600">
+                      -{item.corporateTax?.toLocaleString('vi-VN')} ₫
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-green-600 font-bold">
                       {item.netProfit?.toLocaleString('vi-VN')} ₫
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-purple-600 font-bold">
-                      {item.actualReceived?.toLocaleString('vi-VN')} ₫
                     </td>
                   </tr>
                 ))}
