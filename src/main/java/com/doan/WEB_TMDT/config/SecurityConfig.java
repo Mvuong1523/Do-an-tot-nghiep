@@ -120,7 +120,17 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000"));
+        
+        // Cho phép tất cả origins (bao gồm localhost, ngrok, production)
+        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
+        
+        // Hoặc cụ thể hơn (uncomment nếu muốn giới hạn):
+        // configuration.setAllowedOrigins(Arrays.asList(
+        //     "http://localhost:3000",
+        //     "https://*.ngrok-free.app",
+        //     "https://*.ngrok.io"
+        // ));
+        
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);

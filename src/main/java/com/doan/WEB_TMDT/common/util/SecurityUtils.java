@@ -18,7 +18,7 @@ public class SecurityUtils {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null) {
             return authentication.getAuthorities().stream()
-                    .anyRequest(auth -> auth.getAuthority().equals("ADMIN"));
+                    .anyMatch(auth -> auth.getAuthority().equals("ADMIN"));
         }
         return false;
     }

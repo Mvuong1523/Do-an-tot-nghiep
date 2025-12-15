@@ -14,10 +14,7 @@ public class OrderManagementController {
 
     private final OrderService orderService;
 
-    /**
-     * Lấy tất cả đơn hàng với phân trang và filter
-     * GET /api/admin/orders?status=PENDING&page=0&size=20&search=keyword
-     */
+   
     @GetMapping
     public ApiResponse getAllOrders(
             @RequestParam(required = false, defaultValue = "ALL") String status,
@@ -27,55 +24,30 @@ public class OrderManagementController {
         return orderService.getAllOrders(status, page, size);
     }
 
-    /**
-     * Lấy chi tiết đơn hàng theo ID
-     * GET /api/admin/orders/{orderId}
-     */
+    
     @GetMapping("/{orderId}")
     public ApiResponse getOrderById(@PathVariable Long orderId) {
         return orderService.getOrderById(orderId);
     }
 
-    /**
-     * Thống kê đơn hàng theo trạng thái
-     * GET /api/admin/orders/statistics
-     */
+    
     @GetMapping("/statistics")
     public ApiResponse getOrderStatistics() {
         return orderService.getOrderStatistics();
     }
 
-    /**
-     * Xác nhận đơn hàng (PENDING -> CONFIRMED)
-     * PUT /api/admin/orders/{orderId}/confirm
-     */
-    // @PutMapping("/{orderId}/confirm")
-    // public ApiResponse confirmOrder(@PathVariable Long orderId) {
-    //     return orderService.confirmOrder(orderId);
-    // }
-
-    /**
-     * Đánh dấu đang giao hàng (CONFIRMED -> SHIPPING)
-     * PUT /api/admin/orders/{orderId}/shipping
-     */
+    
     @PutMapping("/{orderId}/shipping")
     public ApiResponse markAsShipping(@PathVariable Long orderId) {
         return orderService.markAsShipping(orderId);
     }
 
-    /**
-     * Đánh dấu đã giao hàng (SHIPPING -> DELIVERED)
-     * PUT /api/admin/orders/{orderId}/delivered
-     */
     @PutMapping("/{orderId}/delivered")
     public ApiResponse markAsDelivered(@PathVariable Long orderId) {
         return orderService.markAsDelivered(orderId);
     }
 
-    /**
-     * Hủy đơn hàng (PENDING/CONFIRMED -> CANCELLED)
-     * PUT /api/admin/orders/{orderId}/cancel
-     */
+   
     @PutMapping("/{orderId}/cancel")
     public ApiResponse cancelOrder(
             @PathVariable Long orderId,
@@ -83,10 +55,7 @@ public class OrderManagementController {
         return orderService.cancelOrder(orderId, reason);
     }
 
-    /**
-     * Cập nhật trạng thái đơn hàng (flexible)
-     * PUT /api/admin/orders/{orderId}/status?status=CONFIRMED
-     */
+    
     @PutMapping("/{orderId}/status")
     public ApiResponse updateOrderStatus(
             @PathVariable Long orderId,
@@ -94,10 +63,7 @@ public class OrderManagementController {
         return orderService.updateOrderStatus(orderId, status);
     }
 
-    /**
-     * Xem trạng thái vận chuyển GHN (Admin)
-     * GET /api/admin/orders/{orderId}/shipping-status
-     */
+    
     @GetMapping("/{orderId}/shipping-status")
     public ApiResponse getShippingStatusAdmin(@PathVariable Long orderId) {
         return orderService.getShippingStatusAdmin(orderId);

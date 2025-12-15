@@ -29,7 +29,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String path = request.getServletPath();
 
-        // ✅ Chỉ bỏ qua các endpoint public (không cần JWT)
+        //  Chỉ bỏ qua các endpoint public (không cần JWT)
         if (path.equals("/api/auth/login") ||
             path.equals("/api/auth/register/send-otp") ||
             path.equals("/api/auth/register/verify-otp") ||
@@ -43,13 +43,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
         
-        // ✅ Cho phép GET public category endpoints (không cần JWT)
+        // Cho phép GET public category endpoints (không cần JWT)
         if (path.startsWith("/api/categories") && request.getMethod().equals("GET")) {
             chain.doFilter(request, response);
             return;
         }
         
-        // ✅ Cho phép GET public product endpoints (không cần JWT)
+        // Cho phép GET public product endpoints (không cần JWT)
         if (path.startsWith("/api/products") && request.getMethod().equals("GET")) {
             // Nhưng không cho phép warehouse endpoints
             if (!path.startsWith("/api/products/warehouse")) {
@@ -69,13 +69,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             email = jwtService.extractEmail(token);
         } catch (Exception e) {
-            System.out.println("❌ JWT Token invalid: " + e.getMessage());
+            System.out.println("JWT Token invalid: " + e.getMessage());
             chain.doFilter(request, response);
             return;
         }
 
         if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+            UserDetails userDetails;
+            try {
+                userDetails = userDetailsService.loadUserByUsername(email);
+            } catch (UsernameNotFoundException e) {
+                System.out.println("⚠️ User not found: " + email);
+                chain.doFilter(request, response);
+                return;
+            }
             if (jwtService.isTokenValid(token, userDetails)) {
 
                 Claims claims = jwtService.extractAllClaims(token);

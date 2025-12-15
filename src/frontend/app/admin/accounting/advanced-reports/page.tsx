@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { FiBarChart3, FiTrendingUp, FiPieChart, FiDownload } from 'react-icons/fi'
+import { FiBarChart, FiTrendingUp, FiPieChart, FiDownload } from 'react-icons/fi'
 
 export default function AdvancedReportsPage() {
   const router = useRouter()
@@ -285,7 +285,7 @@ export default function AdvancedReportsPage() {
                   : 'border-gray-200 hover:border-gray-300'
               }`}
             >
-              <FiBarChart3 className="mx-auto mb-2" size={24} />
+              <FiBarChart className="mx-auto mb-2" size={24} />
               <h3 className="font-medium">Báo cáo lãi lỗ</h3>
               <p className="text-sm text-gray-600">Doanh thu, chi phí, lợi nhuận</p>
             </button>

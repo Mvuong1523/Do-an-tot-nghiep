@@ -23,8 +23,10 @@ public class OrderEventListener {
         
         log.info("Processing order status change: {} -> {}", order.getOrderCode(), newStatus);
         
-        // Tạo giao dịch tài chính khi đơn hàng được thanh toán
-        if (newStatus == OrderStatus.PAID || newStatus == OrderStatus.CONFIRMED) {
+        // Tạo giao dịch tài chính khi đơn hàng được giao thành công (DELIVERED)
+        // hoặc khi đơn được xác nhận và đã thanh toán
+        if (newStatus == OrderStatus.DELIVERED || 
+            (newStatus == OrderStatus.CONFIRMED && order.getPaymentStatus() == com.doan.WEB_TMDT.module.order.entity.PaymentStatus.PAID)) {
             try {
                 financialTransactionService.createTransactionFromOrder(order.getOrderCode());
                 log.info("Created financial transactions for order: {}", order.getOrderCode());
@@ -35,7 +37,7 @@ public class OrderEventListener {
         
         // Tạo giao dịch hoàn tiền khi đơn hàng bị hủy sau khi đã thanh toán
         if (newStatus == OrderStatus.CANCELLED && 
-            (order.getStatus() == OrderStatus.PAID || order.getStatus() == OrderStatus.CONFIRMED)) {
+            order.getPaymentStatus() == com.doan.WEB_TMDT.module.order.entity.PaymentStatus.PAID) {
             try {
                 financialTransactionService.createRefundTransaction(
                     order.getOrderCode(), 
