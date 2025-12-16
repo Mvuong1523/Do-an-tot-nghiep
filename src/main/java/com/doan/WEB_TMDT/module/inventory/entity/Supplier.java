@@ -23,7 +23,11 @@ public class Supplier {
     @Column(name = "tax_code", nullable = false, unique = true)
     private String taxCode;
     private String bankAccount;
-    private String paymentTerm; // điều khoản thanh toán
+    private String paymentTerm; // điều khoản thanh toán (text mô tả)
+    
+    @Column(name = "payment_term_days")
+    private Integer paymentTermDays; // Số ngày nợ (VD: 30, 60, 90 ngày)
+    
     @Column(nullable = false)
     private Boolean active = true;
 }

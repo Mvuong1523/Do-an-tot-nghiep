@@ -12,7 +12,8 @@ public class CreateSupplierRequest {
     private String address;
     private String taxCode;
     private String bankAccount;
-    private String paymentTerm; // điều khoản thanh toán
+    private String paymentTerm; // điều khoản thanh toán (text mô tả)
+    private Integer paymentTermDays; // Số ngày nợ (VD: 30, 60, 90)
     @Column(nullable = false)
     private Boolean active = true;
 }

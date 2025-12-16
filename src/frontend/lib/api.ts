@@ -748,3 +748,104 @@ export const cartApi = {
 }
 
 export default apiClient
+
+
+// Supplier Payable API (Công nợ nhà cung cấp)
+export const payableApi = {
+  // Lấy tất cả công nợ
+  getAll: async (): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await apiClient.get('/accounting/payables')
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi lấy danh sách công nợ')
+    }
+  },
+
+  // Lấy công nợ theo ID
+  getById: async (id: number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get(`/accounting/payables/${id}`)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi lấy thông tin công nợ')
+    }
+  },
+
+  // Lấy công nợ theo nhà cung cấp
+  getBySupplier: async (supplierId: number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get(`/accounting/payables/supplier/${supplierId}`)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi lấy công nợ theo NCC')
+    }
+  },
+
+  // Lấy công nợ quá hạn
+  getOverdue: async (): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await apiClient.get('/accounting/payables/overdue')
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi lấy công nợ quá hạn')
+    }
+  },
+
+  // Lấy công nợ sắp đến hạn
+  getUpcoming: async (days: number = 7): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await apiClient.get(`/accounting/payables/upcoming?days=${days}`)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi lấy công nợ sắp đến hạn')
+    }
+  },
+
+  // Thanh toán công nợ
+  makePayment: async (data: {
+    payableId: number
+    amount: number
+    paymentDate: string
+    paymentMethod: 'CASH' | 'BANK_TRANSFER' | 'CHECK'
+    referenceNumber?: string
+    note?: string
+  }): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.post('/accounting/payables/payments', data)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi thanh toán')
+    }
+  },
+
+  // Lấy lịch sử thanh toán
+  getPaymentHistory: async (payableId: number): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await apiClient.get(`/accounting/payables/${payableId}/payments`)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi lấy lịch sử thanh toán')
+    }
+  },
+
+  // Thống kê công nợ
+  getStats: async (): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get('/accounting/payables/stats')
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi lấy thống kê')
+    }
+  },
+
+  // Báo cáo công nợ
+  getReport: async (startDate: string, endDate: string): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get(`/accounting/payables/report?startDate=${startDate}&endDate=${endDate}`)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi lấy báo cáo')
+    }
+  }
+}

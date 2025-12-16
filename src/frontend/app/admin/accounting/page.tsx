@@ -246,6 +246,21 @@ export default function AccountingPage() {
               </div>
             </div>
           </button>
+
+          <button
+            onClick={() => router.push('/admin/accounting/payables')}
+            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow text-left"
+          >
+            <div className="flex items-center space-x-4">
+              <div className="bg-pink-100 p-3 rounded-full">
+                <FiDollarSign className="text-pink-600" size={24} />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Công nợ NCC</h3>
+                <p className="text-sm text-gray-600 mt-1">Quản lý công nợ phải trả</p>
+              </div>
+            </div>
+          </button>
         </div>
       </div>
     </div>

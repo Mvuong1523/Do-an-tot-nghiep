@@ -35,6 +35,7 @@ public class InventoryServiceImpl implements InventoryService {
     private final com.doan.WEB_TMDT.module.inventory.service.ProductSpecificationService productSpecificationService;
     private final com.doan.WEB_TMDT.module.order.repository.OrderRepository orderRepository;
     private final ExportOrderItemRepository exportOrderItemRepository;
+    private final com.doan.WEB_TMDT.module.accounting.service.SupplierPayableService supplierPayableService;
     private String generateExportCode() {
         return "PX" + LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE)
                 + "-" + String.format("%03d", new Random().nextInt(999));
@@ -77,6 +78,7 @@ public class InventoryServiceImpl implements InventoryService {
                 .address(req.getAddress())
                 .bankAccount(req.getBankAccount())
                 .paymentTerm(req.getPaymentTerm())
+                .paymentTermDays(req.getPaymentTermDays())
                 .active(true)
                 .autoCreated(true)
                 .build();
@@ -109,6 +111,7 @@ public class InventoryServiceImpl implements InventoryService {
                                     .address(sreq.getAddress())
                                     .bankAccount(sreq.getBankAccount())
                                     .paymentTerm(sreq.getPaymentTerm())
+                                    .paymentTermDays(sreq.getPaymentTermDays())
                                     .active(true)
                                     .autoCreated(true)
                                     .build()
@@ -268,7 +271,20 @@ public class InventoryServiceImpl implements InventoryService {
         // 7️⃣ Cập nhật phiếu nhập
         po.setReceivedDate(req.getReceivedDate());
         po.setStatus(POStatus.RECEIVED);
-        purchaseOrderRepository.save(po);
+        PurchaseOrder savedPo = purchaseOrderRepository.save(po);
+
+        // 8️⃣ Tạo công nợ nhà cung cấp
+        try {
+            ApiResponse payableResponse = supplierPayableService.createPayableFromPurchaseOrder(savedPo);
+            if (payableResponse.isSuccess()) {
+                log.info("Created supplier payable for PO: {}", savedPo.getPoCode());
+            } else {
+                log.warn("Failed to create payable for PO {}: {}", savedPo.getPoCode(), payableResponse.getMessage());
+            }
+        } catch (Exception e) {
+            log.error("Error creating payable for PO {}: {}", savedPo.getPoCode(), e.getMessage(), e);
+            // Không throw exception để không ảnh hưởng đến việc nhập hàng
+        }
 
         return ApiResponse.success("Hoàn tất nhập hàng thành công!", po.getId());
     }
