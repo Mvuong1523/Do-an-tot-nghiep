@@ -88,9 +88,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 Claims claims = jwtService.extractAllClaims(token);
                 List<SimpleGrantedAuthority> authorities = new ArrayList<>();
 
+                // Add all claims as authorities
+                claims.forEach((key, value) -> {
+                    if (key.equals("role") || key.startsWith("ROLE_") || key.equals("position") || 
+                        key.equals("SALE") || key.equals("SALES") || key.equals("WAREHOUSE") || 
+                        key.equals("PRODUCT_MANAGER") || key.equals("ACCOUNTANT") || key.equals("CSKH") ||
+                        key.equals("ADMIN") || key.equals("EMPLOYEE") || key.equals("CUSTOMER")) {
+                        authorities.add(new SimpleGrantedAuthority(key));
+                        System.out.println("✅ Added authority: " + key);
+                    }
+                });
+
                 Object role = claims.get("role");
                 if (role != null) {
                     authorities.add(new SimpleGrantedAuthority(role.toString()));
+                    authorities.add(new SimpleGrantedAuthority("ROLE_" + role.toString()));
                     System.out.println("✅ User role: " + role.toString());
                 }
 

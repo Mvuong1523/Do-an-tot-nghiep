@@ -25,7 +25,7 @@ export default function SalesPage() {
       return
     }
 
-    if (user?.role !== 'EMPLOYEE' || user?.position !== 'SALES') {
+    if (user?.role !== 'EMPLOYEE' || (user?.position !== 'SALE' && user?.position !== 'SALES')) {
       toast.error('Bạn không có quyền truy cập trang này')
       router.push('/')
       return

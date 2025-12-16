@@ -19,6 +19,12 @@ export default function OrderManagementPage() {
   const loadOrders = async () => {
     try {
       setLoading(true)
+      
+      // Debug: Check token
+      const token = localStorage.getItem('token') || localStorage.getItem('auth_token')
+      console.log('🔑 Token exists:', !!token)
+      console.log('🔑 Token preview:', token?.substring(0, 50) + '...')
+      
       const response = await adminOrderApi.getAll(filter === 'ALL' ? undefined : filter)
       
       if (response.success && response.data) {
@@ -27,8 +33,10 @@ export default function OrderManagementPage() {
       } else {
         setOrders([])
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading orders:', error)
+      console.error('Error response:', error.response?.data)
+      console.error('Error status:', error.response?.status)
       toast.error('Lỗi khi tải đơn hàng')
       setOrders([])
     } finally {

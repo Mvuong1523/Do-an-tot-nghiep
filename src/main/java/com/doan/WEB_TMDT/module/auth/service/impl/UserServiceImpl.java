@@ -81,9 +81,11 @@ public class UserServiceImpl implements UserService {
         
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", user.getRole().name());
+        claims.put("ROLE_" + user.getRole().name(), true); // Add ROLE_ prefix for Spring Security
         
         if (user.getEmployee() != null && user.getEmployee().getPosition() != null) {
             claims.put("position", user.getEmployee().getPosition().name());
+            claims.put(user.getEmployee().getPosition().name(), true); // Add position without prefix
             claims.put("authorities", user.getEmployee().getPosition().name());
         } else {
             claims.put("authorities", user.getRole().name());
@@ -165,7 +167,7 @@ public class UserServiceImpl implements UserService {
 
         // Đổi mật khẩu
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-        emp.setFirstLogin(false); // ✅ Đánh dấu đã đổi mật khẩu
+        emp.setFirstLogin(false); //  Đánh dấu đã đổi mật khẩu
         userRepository.save(user);
 
         return ApiResponse.success("Đổi mật khẩu thành công!");

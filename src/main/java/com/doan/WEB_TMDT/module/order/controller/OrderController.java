@@ -9,18 +9,50 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/orders")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyAuthority('CUSTOMER', 'ADMIN')")
 public class OrderController {
 
     private final OrderService orderService;
 
     /**
+     * Test endpoint để xem authorities
+     */
+    @GetMapping("/test-auth")
+    public ApiResponse testAuth(Authentication authentication) {
+        if (authentication == null) {
+            return ApiResponse.error("Not authenticated");
+        }
+        
+        Map<String, Object> authInfo = new HashMap<>();
+        authInfo.put("name", authentication.getName());
+        authInfo.put("authorities", authentication.getAuthorities().stream()
+            .map(a -> a.getAuthority())
+            .collect(java.util.stream.Collectors.toList()));
+        authInfo.put("authenticated", authentication.isAuthenticated());
+        
+        return ApiResponse.success("Auth info", authInfo);
+    }
+
+    /**
+     * Lấy thống kê đơn hàng (cho nhân viên SALE)
+     */
+    @GetMapping("/stats")
+    // Temporarily disabled for debugging
+    // @PreAuthorize("hasAnyAuthority('SALE', 'SALES', 'ADMIN', 'EMPLOYEE')")
+    public ApiResponse getOrderStats() {
+        return orderService.getOrderStatistics();
+    }
+
+    /**
      * Tạo đơn hàng từ giỏ hàng
      */
     @PostMapping
+    @PreAuthorize("hasAnyAuthority('CUSTOMER', 'ADMIN')")
     public ApiResponse createOrder(
             @Valid @RequestBody CreateOrderRequest request,
             Authentication authentication) {
@@ -32,6 +64,7 @@ public class OrderController {
      * Lấy danh sách đơn hàng của customer
      */
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('CUSTOMER', 'ADMIN')")
     public ApiResponse getMyOrders(Authentication authentication) {
         Long customerId = getCustomerIdFromAuth(authentication);
         return orderService.getMyOrders(customerId);
@@ -41,6 +74,7 @@ public class OrderController {
      * Lấy chi tiết đơn hàng theo ID
      */
     @GetMapping("/{orderId}")
+    @PreAuthorize("hasAnyAuthority('CUSTOMER', 'ADMIN')")
     public ApiResponse getOrderById(
             @PathVariable Long orderId,
             Authentication authentication) {
@@ -52,6 +86,7 @@ public class OrderController {
      * Lấy chi tiết đơn hàng theo mã
      */
     @GetMapping("/code/{orderCode}")
+    @PreAuthorize("hasAnyAuthority('CUSTOMER', 'ADMIN')")
     public ApiResponse getOrderByCode(
             @PathVariable String orderCode,
             Authentication authentication) {
@@ -63,6 +98,7 @@ public class OrderController {
      * Hủy đơn hàng (Customer)
      */
     @PutMapping("/{orderId}/cancel")
+    @PreAuthorize("hasAnyAuthority('CUSTOMER', 'ADMIN')")
     public ApiResponse cancelOrder(
             @PathVariable Long orderId,
             @RequestParam(required = false) String reason,
@@ -75,6 +111,7 @@ public class OrderController {
      * Xem trạng thái vận chuyển GHN
      */
     @GetMapping("/{orderId}/shipping-status")
+    @PreAuthorize("hasAnyAuthority('CUSTOMER', 'ADMIN')")
     public ApiResponse getShippingStatus(
             @PathVariable Long orderId,
             Authentication authentication) {

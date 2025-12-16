@@ -159,7 +159,7 @@ public class EmployeeRegistrationServiceImpl implements EmployeeRegistrationServ
             msg.setText("Xin chào,\n\nTài khoản của bạn đã được duyệt.\n" +
                     "Email: " + email + "\n" +
                     "Mật khẩu: " + password + "\n\n" +
-                    "Vui lòng đăng nhập và đổi mật khẩu sau khi đăng nhập.\n\nTrân trọng,\nAdmin");
+                    "Trân trọng,\nAdmin");
             mailSender.send(msg);
         } catch (Exception e) {
             System.err.println("Không thể gửi email cho " + email + ": " + e.getMessage());

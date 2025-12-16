@@ -60,7 +60,7 @@ public class SecurityConfig {
                         
                         // Customer endpoints (Cart, Orders, Profile)
                         .requestMatchers("/api/cart/**").hasAnyAuthority("CUSTOMER", "ADMIN")
-                        .requestMatchers("/api/orders/**").hasAnyAuthority("CUSTOMER", "ADMIN")
+                        .requestMatchers("/api/orders/**").hasAnyAuthority("CUSTOMER", "ADMIN", "EMPLOYEE", "SALE", "SALES")
                         .requestMatchers("/api/customer/**").hasAnyAuthority("CUSTOMER", "ADMIN")
                         
                         // Warehouse endpoints (Inventory management)
@@ -77,7 +77,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/products/*/images/reorder").hasAnyAuthority("PRODUCT_MANAGER", "ADMIN") // Reorder
                         
                         // Admin order management (ADMIN + SALES_STAFF)
-                        .requestMatchers("/api/admin/orders/**").hasAnyAuthority("ADMIN", "SALES")
+                        .requestMatchers("/api/admin/orders/**").hasAnyAuthority("ADMIN", "SALE", "SALES", "EMPLOYEE")
                         
                         // Accounting endpoints (ADMIN + ACCOUNTANT)
                         .requestMatchers("/api/accounting/**").hasAnyAuthority("ADMIN", "ACCOUNTANT")

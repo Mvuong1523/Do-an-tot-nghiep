@@ -102,10 +102,27 @@ export default function PaymentPage() {
   }
 
   const startPolling = () => {
-    // Poll every 3 seconds to check payment status
+    console.log('🚀 Starting polling - will check every 15 seconds (optimized)')
+    let pollCount = 0
+    const maxPolls = 40 // 40 * 15s = 10 minutes max
+    
+    // Poll every 15 seconds (reduced from 3s to save server resources)
+    // Webhook is primary method, polling is just fallback
     pollingInterval.current = setInterval(async () => {
+      pollCount++
+      console.log(`⏰ Polling tick ${pollCount}/${maxPolls}`)
+      
+      // Stop polling after max attempts
+      if (pollCount >= maxPolls) {
+        console.log('⏹️ Max polling attempts reached, stopping...')
+        if (pollingInterval.current) {
+          clearInterval(pollingInterval.current)
+        }
+        return
+      }
+      
       await checkPaymentStatus()
-    }, 3000)
+    }, 15000) // Changed from 3000 to 15000 (15 seconds)
   }
 
   const checkPaymentStatus = async () => {
