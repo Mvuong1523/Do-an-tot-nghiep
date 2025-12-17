@@ -73,7 +73,7 @@ public class EmployeeRegistrationServiceImpl implements EmployeeRegistrationServ
 
             return ApiResponse.success("Gửi yêu cầu đăng ký nhân viên thành công, chờ admin duyệt!", saved);
         } catch (Exception e) {
-            System.err.println("❌ EXCEPTION in registerEmployee: " + e.getMessage());
+            System.err.println("EXCEPTION in registerEmployee: " + e.getMessage());
             e.printStackTrace();
             return ApiResponse.error("Lỗi khi đăng ký: " + e.getMessage());
         }
@@ -162,7 +162,7 @@ public class EmployeeRegistrationServiceImpl implements EmployeeRegistrationServ
                     "Trân trọng,\nAdmin");
             mailSender.send(msg);
         } catch (Exception e) {
-            System.err.println("Không thể gửi email cho " + email + ": " + e.getMessage());
+            System.err.println("Không thể gửi email tới " + email + ": " + e.getMessage());
         }
     }
     

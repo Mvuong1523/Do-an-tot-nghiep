@@ -81,9 +81,9 @@ public class AuthServiceImpl implements AuthService {
                     ",\n\nMã OTP của bạn là: " + otp +
                     "\nMã có hiệu lực trong 5 phút.\n\nTrân trọng,\nĐội ngũ hỗ trợ WEB_TMDT.");
             mailSender.send(message);
-            System.out.println("✅ OTP email sent successfully");
+            System.out.println("OTP email sent successfully");
         } catch (Exception e) {
-            System.err.println("❌ Failed to send OTP email: " + e.getMessage());
+            System.err.println("Failed to send OTP email: " + e.getMessage());
             e.printStackTrace();
             return ApiResponse.error("Không thể gửi email OTP. Vui lòng thử lại sau!");
         }
