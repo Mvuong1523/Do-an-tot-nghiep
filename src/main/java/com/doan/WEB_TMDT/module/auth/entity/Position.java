@@ -5,5 +5,6 @@ public enum Position {
     CSKH,
     PRODUCT_MANAGER,
     WAREHOUSE,
-    ACCOUNTANT
+    ACCOUNTANT,
+    SHIPPER
 }

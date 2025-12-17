@@ -25,6 +25,8 @@ export default function EmployeeRegisterPage() {
     { value: 'PRODUCT_MANAGER', label: 'Quản lý sản phẩm' },
     { value: 'WAREHOUSE', label: 'Nhân viên kho' },
     { value: 'ACCOUNTANT', label: 'Kế toán' },
+    { value: 'SHIPPER', label: 'Nhân viên giao hàng' },
+
   ]
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -71,8 +73,8 @@ export default function EmployeeRegisterPage() {
 
       if (data.success || response.ok) {
         if (data.data && data.data.id) {
-          console.log('✅ Registration saved with ID:', data.data.id)
-          toast.success(`Đăng ký thành công! ID: ${data.data.id}. Vui lòng chờ quản trị viên phê duyệt.`)
+          console.log('Registration saved with ID:', data.data.id)
+          toast.success(`Đăng ký thành công . Vui lòng chờ quản trị viên phê duyệt.`)
         } else {
           toast.success('Gửi yêu cầu đăng ký nhân viên thành công! Vui lòng chờ quản trị viên phê duyệt.')
         }

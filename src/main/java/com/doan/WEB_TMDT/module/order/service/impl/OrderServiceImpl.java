@@ -134,14 +134,19 @@ public class OrderServiceImpl implements OrderService {
                 .confirmedAt(confirmedTime)
                 .build();
 
-        // 6. Create order items and reserve stock
+        // 6. Create order items and reserve stock (giữ hàng)
+        // Note: stockQuantity không thay đổi ở đây
+        // Chỉ khi xuất kho (warehouse export) thì mới trừ stockQuantity
         List<OrderItem> orderItems = new ArrayList<>();
         for (CartItem cartItem : cart.getItems()) {
             Product product = cartItem.getProduct();
             
-            // Reserve stock (giữ hàng)
+            // Reserve stock (giữ hàng để không bán cho người khác)
             Long currentReserved = product.getReservedQuantity() != null ? product.getReservedQuantity() : 0L;
             product.setReservedQuantity(currentReserved + cartItem.getQuantity());
+            
+            log.info("Product {} reserved: {} -> {} (ordered: {})", 
+                product.getName(), currentReserved, currentReserved + cartItem.getQuantity(), cartItem.getQuantity());
             
             OrderItem orderItem = OrderItem.builder()
                     .order(order)
@@ -319,6 +324,22 @@ public class OrderServiceImpl implements OrderService {
         if (order.getPaymentStatus() == PaymentStatus.PAID) {
             // TODO: Tích hợp API hoàn tiền
             log.warn("Order {} đã thanh toán, cần xử lý hoàn tiền", order.getOrderCode());
+        }
+
+        // Restore stock for cancelled order
+        for (OrderItem item : order.getItems()) {
+            Product product = item.getProduct();
+            Long currentStock = product.getStockQuantity();
+            Long restoredStock = currentStock + item.getQuantity();
+            product.setStockQuantity(restoredStock);
+            
+            // Update reserved quantity
+            Long currentReserved = product.getReservedQuantity() != null ? product.getReservedQuantity() : 0L;
+            Long newReserved = Math.max(0, currentReserved - item.getQuantity());
+            product.setReservedQuantity(newReserved);
+            
+            log.info("Restored stock for product {}: {} -> {} (returned: {})", 
+                product.getName(), currentStock, restoredStock, item.getQuantity());
         }
 
         // Cancel order (chuyển status sang CANCELLED)
@@ -625,6 +646,22 @@ public class OrderServiceImpl implements OrderService {
             return ApiResponse.error("Không thể hủy đơn hàng đã giao thành công");
         }
 
+        // Restore stock for cancelled order
+        for (OrderItem item : order.getItems()) {
+            Product product = item.getProduct();
+            Long currentStock = product.getStockQuantity();
+            Long restoredStock = currentStock + item.getQuantity();
+            product.setStockQuantity(restoredStock);
+            
+            // Update reserved quantity
+            Long currentReserved = product.getReservedQuantity() != null ? product.getReservedQuantity() : 0L;
+            Long newReserved = Math.max(0, currentReserved - item.getQuantity());
+            product.setReservedQuantity(newReserved);
+            
+            log.info("Restored stock for product {}: {} -> {} (returned: {})", 
+                product.getName(), currentStock, restoredStock, item.getQuantity());
+        }
+        
         // Cancel order
         order.setStatus(OrderStatus.CANCELLED);
         order.setCancelledAt(LocalDateTime.now());

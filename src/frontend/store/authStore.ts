@@ -15,7 +15,7 @@ export interface User {
   gender?: string
   birthDate?: string
   role: 'CUSTOMER' | 'ADMIN' | 'EMPLOYEE'
-  position?: 'WAREHOUSE' | 'PRODUCT_MANAGER' | 'ACCOUNTANT' | 'SALE' | 'SALES' | 'CSKH'
+  position?: 'WAREHOUSE' | 'PRODUCT_MANAGER' | 'ACCOUNTANT' | 'SALE' | 'SALES' | 'CSKH' | 'SHIPPER'
   status?: string
   customer?: {
     fullName?: string

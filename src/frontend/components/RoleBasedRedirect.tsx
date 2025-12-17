@@ -33,6 +33,9 @@ export default function RoleBasedRedirect() {
         case 'CSKH':
           router.push('/admin')
           break
+        case 'SHIPPER':
+          router.push('/shipper')
+          break
         default:
           router.push('/admin')
       }

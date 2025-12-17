@@ -28,7 +28,7 @@ NEXT_PUBLIC_API_URL=https://yourdomain.com/api
 
 ## 3. Build và chạy
 
-### Option A: Build và chạy với PM2 (Khuyến nghị)
+### Option A: Build và chạy với PM2 
 
 ```bash
 # Install dependencies
