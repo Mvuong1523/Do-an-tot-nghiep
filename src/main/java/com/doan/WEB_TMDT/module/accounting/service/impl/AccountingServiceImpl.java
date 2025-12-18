@@ -59,46 +59,120 @@ public class AccountingServiceImpl implements AccountingService {
         LocalDateTime startDateTime = request.getStartDate().atStartOfDay();
         LocalDateTime endDateTime = request.getEndDate().atTime(23, 59, 59);
 
-        List<PaymentReconciliation> reconciliations;
+        // Lấy TẤT CẢ đơn hàng trong khoảng thời gian (kể cả chưa thanh toán)
+        List<Order> allOrders = orderRepo.findByCreatedAtBetween(startDateTime, endDateTime);
         
+        // Lấy dữ liệu đối soát đã import từ cổng thanh toán
+        List<PaymentReconciliation> existingReconciliations;
         if ("ALL".equals(request.getGateway())) {
-            reconciliations = reconciliationRepo.findByTransactionDateBetween(startDateTime, endDateTime);
+            existingReconciliations = reconciliationRepo.findByTransactionDateBetween(startDateTime, endDateTime);
         } else {
-            reconciliations = reconciliationRepo.findByGatewayAndTransactionDateBetween(
+            existingReconciliations = reconciliationRepo.findByGatewayAndTransactionDateBetween(
                     request.getGateway(), startDateTime, endDateTime);
         }
-
-        // Tự động đối soát với dữ liệu hệ thống
-        for (PaymentReconciliation reconciliation : reconciliations) {
-            Optional<Order> orderOpt = orderRepo.findByOrderCode(reconciliation.getOrderId());
-            if (orderOpt.isPresent()) {
-                Order order = orderOpt.get();
-                BigDecimal systemAmount = BigDecimal.valueOf(order.getTotal());
+        
+        // Tạo map để tra cứu nhanh
+        Map<String, PaymentReconciliation> reconciliationMap = new HashMap<>();
+        for (PaymentReconciliation rec : existingReconciliations) {
+            reconciliationMap.put(rec.getOrderId(), rec);
+        }
+        
+        // Tạo danh sách kết quả bao gồm TẤT CẢ đơn hàng
+        List<Map<String, Object>> results = new ArrayList<>();
+        
+        for (Order order : allOrders) {
+            Map<String, Object> item = new HashMap<>();
+            
+            item.put("orderId", order.getOrderCode());
+            item.put("orderStatus", order.getStatus().name());
+            item.put("paymentStatus", order.getPaymentStatus().name());
+            item.put("systemAmount", BigDecimal.valueOf(order.getTotal()));
+            item.put("transactionDate", order.getCreatedAt());
+            
+            // Kiểm tra xem có dữ liệu đối soát từ gateway không
+            PaymentReconciliation reconciliation = reconciliationMap.get(order.getOrderCode());
+            
+            if (reconciliation != null) {
+                // Có dữ liệu từ gateway
+                item.put("transactionId", reconciliation.getTransactionId());
+                item.put("gateway", reconciliation.getGateway());
+                item.put("gatewayAmount", reconciliation.getGatewayAmount());
+                item.put("discrepancy", reconciliation.getDiscrepancy());
+                item.put("status", reconciliation.getStatus().name());
                 
-                // Cập nhật số tiền hệ thống nếu khác
+                // Cập nhật system amount nếu cần
+                BigDecimal systemAmount = BigDecimal.valueOf(order.getTotal());
                 if (!systemAmount.equals(reconciliation.getSystemAmount())) {
                     reconciliation.setSystemAmount(systemAmount);
                     reconciliation.setDiscrepancy(systemAmount.subtract(reconciliation.getGatewayAmount()).abs());
                     
-                    // Cập nhật trạng thái
                     if (reconciliation.getDiscrepancy().compareTo(BigDecimal.ZERO) == 0) {
                         reconciliation.setStatus(ReconciliationStatus.MATCHED);
                     } else {
                         reconciliation.setStatus(ReconciliationStatus.MISMATCHED);
                     }
+                    reconciliationRepo.save(reconciliation);
+                    
+                    item.put("discrepancy", reconciliation.getDiscrepancy());
+                    item.put("status", reconciliation.getStatus().name());
+                }
+            } else {
+                // Chưa có dữ liệu từ gateway
+                item.put("transactionId", "-");
+                item.put("gateway", "-");
+                item.put("gatewayAmount", BigDecimal.ZERO);
+                item.put("discrepancy", BigDecimal.ZERO);
+                
+                // Xác định trạng thái dựa vào payment status
+                if (order.getPaymentStatus().name().equals("PAID")) {
+                    item.put("status", "MISSING_IN_GATEWAY"); // Đã thanh toán nhưng chưa có trong gateway
+                } else {
+                    item.put("status", "PENDING_PAYMENT"); // Chưa thanh toán
                 }
             }
+            
+            results.add(item);
         }
-
-        // Lưu các thay đổi
-        reconciliationRepo.saveAll(reconciliations);
-
-        // Calculate summary
+        
+        // Tính summary
+        Map<String, Object> summary = calculateSummaryFromResults(results);
+        
         Map<String, Object> result = new HashMap<>();
-        result.put("data", reconciliations);
-        result.put("summary", calculateSummary(reconciliations));
+        result.put("data", results);
+        result.put("summary", summary);
 
         return ApiResponse.success("Dữ liệu đối soát", result);
+    }
+    
+    private Map<String, Object> calculateSummaryFromResults(List<Map<String, Object>> results) {
+        Map<String, Object> summary = new HashMap<>();
+        
+        long total = results.size();
+        long matched = results.stream().filter(r -> "MATCHED".equals(r.get("status"))).count();
+        long mismatched = results.stream().filter(r -> "MISMATCHED".equals(r.get("status"))).count();
+        long missing = results.stream().filter(r -> 
+            "MISSING_IN_SYSTEM".equals(r.get("status")) || 
+            "MISSING_IN_GATEWAY".equals(r.get("status"))
+        ).count();
+        long pending = results.stream().filter(r -> "PENDING_PAYMENT".equals(r.get("status"))).count();
+        
+        BigDecimal totalAmount = results.stream()
+                .map(r -> (BigDecimal) r.get("systemAmount"))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        BigDecimal discrepancyAmount = results.stream()
+                .map(r -> (BigDecimal) r.get("discrepancy"))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        summary.put("total", total);
+        summary.put("matched", matched);
+        summary.put("mismatched", mismatched);
+        summary.put("missing", missing);
+        summary.put("pending", pending);
+        summary.put("totalAmount", totalAmount);
+        summary.put("discrepancyAmount", discrepancyAmount);
+        
+        return summary;
     }
 
     @Override
@@ -463,29 +537,4 @@ public class AccountingServiceImpl implements AccountingService {
         }
     }
 
-    private Map<String, Object> calculateSummary(List<PaymentReconciliation> reconciliations) {
-        Map<String, Object> summary = new HashMap<>();
-        
-        summary.put("total", reconciliations.size());
-        summary.put("matched", reconciliations.stream()
-                .filter(r -> r.getStatus() == ReconciliationStatus.MATCHED).count());
-        summary.put("mismatched", reconciliations.stream()
-                .filter(r -> r.getStatus() == ReconciliationStatus.MISMATCHED).count());
-        summary.put("missing", reconciliations.stream()
-                .filter(r -> r.getStatus() == ReconciliationStatus.MISSING_IN_SYSTEM || 
-                            r.getStatus() == ReconciliationStatus.MISSING_IN_GATEWAY).count());
-        
-        BigDecimal totalAmount = reconciliations.stream()
-                .map(PaymentReconciliation::getSystemAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        
-        BigDecimal discrepancyAmount = reconciliations.stream()
-                .map(PaymentReconciliation::getDiscrepancy)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        
-        summary.put("totalAmount", totalAmount);
-        summary.put("discrepancyAmount", discrepancyAmount);
-        
-        return summary;
-    }
 }

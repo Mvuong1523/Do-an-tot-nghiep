@@ -185,9 +185,9 @@ export default function ReconciliationPage() {
 
         {/* Summary */}
         {summary && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
             <div className="bg-white rounded-lg shadow p-4">
-              <p className="text-sm text-gray-600">Tổng giao dịch</p>
+              <p className="text-sm text-gray-600">Tổng đơn hàng</p>
               <p className="text-2xl font-bold text-gray-900">{summary.total}</p>
             </div>
             <div className="bg-white rounded-lg shadow p-4">
@@ -199,8 +199,12 @@ export default function ReconciliationPage() {
               <p className="text-2xl font-bold text-red-600">{summary.mismatched}</p>
             </div>
             <div className="bg-white rounded-lg shadow p-4">
-              <p className="text-sm text-gray-600">Thiếu</p>
+              <p className="text-sm text-gray-600">Thiếu gateway</p>
               <p className="text-2xl font-bold text-orange-600">{summary.missing}</p>
+            </div>
+            <div className="bg-white rounded-lg shadow p-4">
+              <p className="text-sm text-gray-600">Chưa thanh toán</p>
+              <p className="text-2xl font-bold text-blue-600">{summary.pending || 0}</p>
             </div>
           </div>
         )}
@@ -212,6 +216,8 @@ export default function ReconciliationPage() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mã đơn</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">TT Đơn</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">TT Thanh toán</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mã GD</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cổng TT</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Hệ thống</th>
@@ -222,27 +228,60 @@ export default function ReconciliationPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {data.map((item, index) => (
-                  <tr key={index}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.orderId}</td>
+                  <tr key={index} className={item.paymentStatus === 'PENDING' ? 'bg-gray-50' : ''}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.orderId}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        item.orderStatus === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                        item.orderStatus === 'DELIVERED' ? 'bg-blue-100 text-blue-800' :
+                        item.orderStatus === 'CONFIRMED' ? 'bg-purple-100 text-purple-800' :
+                        item.orderStatus === 'CANCELLED' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {item.orderStatus === 'PENDING_PAYMENT' ? 'Chờ TT' :
+                         item.orderStatus === 'CONFIRMED' ? 'Đã xác nhận' :
+                         item.orderStatus === 'PROCESSING' ? 'Đang xử lý' :
+                         item.orderStatus === 'SHIPPING' ? 'Đang giao' :
+                         item.orderStatus === 'DELIVERED' ? 'Đã giao' :
+                         item.orderStatus === 'COMPLETED' ? 'Hoàn thành' :
+                         item.orderStatus === 'CANCELLED' ? 'Đã hủy' : item.orderStatus}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        item.paymentStatus === 'PAID' ? 'bg-green-100 text-green-800' :
+                        item.paymentStatus === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {item.paymentStatus === 'PAID' ? 'Đã thanh toán' :
+                         item.paymentStatus === 'PENDING' ? 'Chờ thanh toán' :
+                         item.paymentStatus === 'FAILED' ? 'Thất bại' : item.paymentStatus}
+                      </span>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{item.transactionId}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{item.gateway}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
                       {item.systemAmount?.toLocaleString('vi-VN')} ₫
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                      {item.gatewayAmount?.toLocaleString('vi-VN')} ₫
+                      {item.gatewayAmount > 0 ? item.gatewayAmount?.toLocaleString('vi-VN') + ' ₫' : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-red-600">
-                      {item.discrepancy?.toLocaleString('vi-VN')} ₫
+                      {item.discrepancy > 0 ? item.discrepancy?.toLocaleString('vi-VN') + ' ₫' : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <span className={`px-2 py-1 text-xs rounded-full ${
                         item.status === 'MATCHED' ? 'bg-green-100 text-green-800' :
                         item.status === 'MISMATCHED' ? 'bg-red-100 text-red-800' :
-                        'bg-orange-100 text-orange-800'
+                        item.status === 'PENDING_PAYMENT' ? 'bg-yellow-100 text-yellow-800' :
+                        item.status === 'MISSING_IN_GATEWAY' ? 'bg-orange-100 text-orange-800' :
+                        'bg-gray-100 text-gray-800'
                       }`}>
                         {item.status === 'MATCHED' ? 'Khớp' :
-                         item.status === 'MISMATCHED' ? 'Sai lệch' : 'Thiếu'}
+                         item.status === 'MISMATCHED' ? 'Sai lệch' :
+                         item.status === 'PENDING_PAYMENT' ? 'Chưa TT' :
+                         item.status === 'MISSING_IN_GATEWAY' ? 'Thiếu gateway' :
+                         item.status === 'MISSING_IN_SYSTEM' ? 'Thiếu hệ thống' : item.status}
                       </span>
                     </td>
                   </tr>
