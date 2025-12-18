@@ -5,7 +5,6 @@ import com.doan.WEB_TMDT.module.order.entity.Order;
 import com.doan.WEB_TMDT.module.order.entity.OrderStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionalEventListener;
 
