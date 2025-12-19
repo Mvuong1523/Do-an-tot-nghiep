@@ -504,18 +504,30 @@ export const adminOrderApi = {
     }
   },
 
-  markAsShipping: async (orderId: number): Promise<ApiResponse<any>> => {
+  // DEPRECATED: Không dùng nữa - chỉ cho phép cập nhật từ READY_TO_SHIP
+  // markAsShipping: async (orderId: number): Promise<ApiResponse<any>> => {
+  //   try {
+  //     const response = await apiClient.put(`/admin/orders/${orderId}/shipping`)
+  //     return response.data
+  //   } catch (error: any) {
+  //     throw new Error(error.response?.data?.message || 'Lỗi khi cập nhật trạng thái')
+  //   }
+  // },
+
+  markAsDelivered: async (orderId: number): Promise<ApiResponse<any>> => {
     try {
-      const response = await apiClient.put(`/admin/orders/${orderId}/shipping`)
+      const response = await apiClient.put(`/admin/orders/${orderId}/delivered`)
       return response.data
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Lỗi khi cập nhật trạng thái')
     }
   },
 
-  markAsDelivered: async (orderId: number): Promise<ApiResponse<any>> => {
+  // Cập nhật từ READY_TO_SHIP sang SHIPPING (CHỈ endpoint này được dùng)
+  // Không cho phép cập nhật từ CONFIRMED hoặc các trạng thái khác
+  markShippingFromReady: async (orderId: number): Promise<ApiResponse<any>> => {
     try {
-      const response = await apiClient.put(`/admin/orders/${orderId}/delivered`)
+      const response = await apiClient.put(`/admin/orders/${orderId}/mark-shipping-from-ready`)
       return response.data
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Lỗi khi cập nhật trạng thái')

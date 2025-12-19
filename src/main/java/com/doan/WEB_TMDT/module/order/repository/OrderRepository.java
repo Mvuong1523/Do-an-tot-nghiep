@@ -37,4 +37,10 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
            "AND o.paymentStatus = com.doan.WEB_TMDT.module.order.entity.PaymentStatus.PAID")
     Long countPaidOrdersBetween(@Param("startDate") LocalDateTime startDate, 
                                 @Param("endDate") LocalDateTime endDate);
+    
+    // Warehouse queries - Lấy đơn CONFIRMED chưa xuất kho
+    @Query("SELECT o FROM Order o WHERE o.status = :status " +
+           "AND NOT EXISTS (SELECT 1 FROM ExportOrder e WHERE e.orderId = o.id) " +
+           "ORDER BY o.confirmedAt DESC")
+    List<Order> findByStatusAndNotExported(@Param("status") OrderStatus status);
 }

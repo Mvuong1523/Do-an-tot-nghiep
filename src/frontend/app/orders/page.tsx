@@ -84,6 +84,8 @@ export default function OrdersPage() {
         return <FiClock className="text-yellow-500" size={20} />
       case 'confirmed':
         return <FiPackage className="text-blue-500" size={20} />
+      case 'ready_to_ship':
+        return <FiTruck className="text-purple-600" size={20} />
       case 'processing':
         return <FiPackage className="text-blue-500" size={20} />
       case 'shipping':
@@ -105,14 +107,16 @@ export default function OrdersPage() {
         return 'Chờ xác nhận'
       case 'confirmed':
         return 'Đã xác nhận'
-      case 'processing':
-        return 'Đang xử lý'
+      case 'ready_to_ship':
+        return 'Đã chuẩn bị hàng - Đợi tài xế'
       case 'shipping':
         return 'Đang giao hàng'
       case 'delivered':
         return 'Đã giao hàng'
       case 'cancelled':
         return 'Đã hủy'
+      case 'processing':
+        return 'Đang xử lý'
       default:
         return status
     }
@@ -126,6 +130,8 @@ export default function OrdersPage() {
         return 'bg-yellow-100 text-yellow-800'
       case 'confirmed':
         return 'bg-blue-100 text-blue-800'
+      case 'ready_to_ship':
+        return 'bg-purple-100 text-purple-800 border-2 border-purple-300'
       case 'processing':
         return 'bg-blue-100 text-blue-800'
       case 'shipping':
@@ -175,6 +181,7 @@ export default function OrdersPage() {
               { key: 'all', label: 'Tất cả' },
               { key: 'pending_payment', label: 'Chờ thanh toán' },
               { key: 'confirmed', label: 'Đã xác nhận' },
+              { key: 'ready_to_ship', label: '🚚 Đợi tài xế lấy hàng', highlight: true },
               { key: 'shipping', label: 'Đang giao' },
               { key: 'delivered', label: 'Đã giao' },
               { key: 'cancelled', label: 'Đã hủy' },
@@ -184,8 +191,8 @@ export default function OrdersPage() {
                 onClick={() => setFilter(tab.key)}
                 className={`px-6 py-4 font-medium whitespace-nowrap border-b-2 transition-colors ${
                   filter === tab.key
-                    ? 'border-red-500 text-red-500'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                    ? (tab.highlight ? 'border-purple-500 text-purple-600 bg-purple-50' : 'border-red-500 text-red-500')
+                    : (tab.highlight ? 'border-transparent text-purple-600 hover:text-purple-700 hover:bg-purple-50' : 'border-transparent text-gray-600 hover:text-gray-900')
                 }`}
               >
                 {tab.label}
@@ -242,8 +249,8 @@ export default function OrdersPage() {
                     </p>
                   </div>
 
-                  {/* Right: Action Button */}
-                  <div>
+                  {/* Right: Action Buttons */}
+                  <div className="flex flex-col gap-2">
                     <Link
                       href={`/orders/${order.orderId}`}
                       className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
@@ -251,6 +258,34 @@ export default function OrdersPage() {
                       <FiEye className="mr-2" />
                       Xem chi tiết
                     </Link>
+                    
+                    {/* Nút cập nhật sang Đang giao - CHỈ hiện khi READY_TO_SHIP */}
+                    {order.status?.toUpperCase() === 'READY_TO_SHIP' && (
+                      <button
+                        onClick={async () => {
+                          if (confirm('⚠️ Xác nhận chuyển đơn hàng sang "Đang giao hàng"?\n\n✅ Chỉ nhấn khi tài xế đã đến lấy hàng hoặc hàng đã được giao cho đơn vị vận chuyển.')) {
+                            try {
+                              const { adminOrderApi } = await import('@/lib/api')
+                              const response = await adminOrderApi.markShippingFromReady(order.orderId)
+                              if (response.success) {
+                                toast.success('✅ Đã cập nhật sang "Đang giao hàng"')
+                                // Reload orders
+                                const ordersResponse = await orderApi.getAll()
+                                if (ordersResponse.success && ordersResponse.data) {
+                                  setOrders(Array.isArray(ordersResponse.data) ? ordersResponse.data : [])
+                                }
+                              }
+                            } catch (error: any) {
+                              toast.error(error.message || 'Lỗi khi cập nhật trạng thái')
+                            }
+                          }
+                        }}
+                        className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium shadow-md hover:shadow-lg"
+                      >
+                        <FiTruck className="mr-2" />
+                        🚚 Chuyển sang Đang giao
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

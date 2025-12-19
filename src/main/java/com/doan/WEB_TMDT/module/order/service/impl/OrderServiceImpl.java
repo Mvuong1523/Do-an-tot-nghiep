@@ -102,8 +102,12 @@ public class OrderServiceImpl implements OrderService {
 
         // 5. Create order
         String orderCode = generateOrderCode();
+        // Build full address with proper order: address, ward name, district, province
+        String wardDisplay = request.getWardName() != null && !request.getWardName().isEmpty() 
+                ? request.getWardName() 
+                : request.getWard(); // Fallback to ward code if name not available
         String fullAddress = String.format("%s, %s, %s, %s",
-                request.getAddress(), request.getWard(), 
+                request.getAddress(), wardDisplay, 
                 request.getDistrict(), request.getProvince());
 
         // Xác định status dựa trên payment method
@@ -123,6 +127,11 @@ public class OrderServiceImpl implements OrderService {
                 .orderCode(orderCode)
                 .customer(customer)
                 .shippingAddress(fullAddress)
+                .province(request.getProvince())
+                .district(request.getDistrict())
+                .ward(request.getWard())
+                .wardName(request.getWardName())
+                .address(request.getAddress())
                 .note(request.getNote())
                 .subtotal(subtotal)
                 .shippingFee(shippingFee)
@@ -166,48 +175,18 @@ public class OrderServiceImpl implements OrderService {
         // 7. Save order
         Order savedOrder = orderRepository.save(order);
 
-        // 8. Create GHN order (if not free ship)
-        if (shippingFee > 0 && !shippingService.isHanoiInnerCity(request.getProvince(), request.getDistrict())) {
-            try {
-                log.info("Creating GHN order for {}", orderCode);
-                
-                // Build GHN order request
-                com.doan.WEB_TMDT.module.shipping.dto.CreateGHNOrderRequest ghnRequest = 
-                    com.doan.WEB_TMDT.module.shipping.dto.CreateGHNOrderRequest.builder()
-                        .toName(customer.getFullName())
-                        .toPhone(customer.getPhone())
-                        .toAddress(fullAddress)
-                        .toWardCode("") // Ward code - optional for now
-                        .toDistrictId(getDistrictIdForGHN(request.getProvince(), request.getDistrict()))
-                        .note(request.getNote())
-                        .codAmount("COD".equals(request.getPaymentMethod()) ? total.intValue() : 0)
-                        .weight(1000) // Default 1kg
-                        .length(20)
-                        .width(20)
-                        .height(10)
-                        .serviceTypeId(2) // Standard service
-                        .paymentTypeId("COD".equals(request.getPaymentMethod()) ? 2 : 1) // 1=Shop trả, 2=Người nhận trả
-                        .items(buildGHNItems(savedOrder))
-                        .build();
-                
-                com.doan.WEB_TMDT.module.shipping.dto.CreateGHNOrderResponse ghnResponse = 
-                    shippingService.createGHNOrder(ghnRequest);
-                
-                // Update order with GHN info
-                savedOrder.setGhnOrderCode(ghnResponse.getOrderCode());
-                savedOrder.setGhnShippingStatus("created");
-                savedOrder.setGhnCreatedAt(LocalDateTime.now());
-                savedOrder.setGhnExpectedDeliveryTime(ghnResponse.getExpectedDeliveryTime());
-                orderRepository.save(savedOrder);
-                
-                log.info("✅ GHN order created: {}", ghnResponse.getOrderCode());
-                
-            } catch (Exception e) {
-                log.error("❌ Failed to create GHN order for {}: {}", orderCode, e.getMessage());
-                // Don't fail the whole order, just log the error
-                // Admin can manually create GHN order later
-            }
-        }
+        // 8. GHN order will be created later when warehouse exports the order
+        // Store shipping info for later GHN creation
+        log.info("✅ Order created: {}", orderCode);
+        log.info("   - Shipping method: {}", shippingFee > 0 && !shippingService.isHanoiInnerCity(request.getProvince(), request.getDistrict()) ? "GHN" : "Internal");
+        log.info("   - Ward code: {}", request.getWard());
+        log.info("   - GHN order will be created when warehouse exports this order");
+        
+        // Note: GHN order creation moved to warehouse export process
+        // When warehouse staff:
+        // 1. Creates export slip
+        // 2. Assigns serial numbers
+        // 3. Confirms export → Then call GHN API
 
         // 9. Clear cart
         cart.clearItems();
@@ -423,6 +402,11 @@ public class OrderServiceImpl implements OrderService {
                 .customerPhone(customer.getPhone())
                 .customerEmail(customer.getUser().getEmail())
                 .shippingAddress(order.getShippingAddress())
+                .province(order.getProvince())
+                .district(order.getDistrict())
+                .ward(order.getWard())
+                .wardName(order.getWardName())
+                .address(order.getAddress())
                 .note(order.getNote())
                 .items(items)
                 .subtotal(order.getSubtotal())
@@ -575,6 +559,31 @@ public class OrderServiceImpl implements OrderService {
 
         OrderResponse response = toOrderResponse(order);
         return ApiResponse.success("Đã chuyển đơn hàng sang đang giao", response);
+    }
+
+    @Override
+    @Transactional
+    public ApiResponse markShippingFromReady(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
+
+        // Chỉ cho phép chuyển từ READY_TO_SHIP sang SHIPPING
+        if (order.getStatus() != OrderStatus.READY_TO_SHIP) {
+            return ApiResponse.error("Chỉ có thể chuyển sang đang giao hàng từ trạng thái 'Đã chuẩn bị hàng - Đợi tài xế'");
+        }
+
+        OrderStatus oldStatus = order.getStatus();
+        order.setStatus(OrderStatus.SHIPPING);
+        order.setShippedAt(LocalDateTime.now());
+        orderRepository.save(order);
+
+        // Publish event for accounting module
+        publishOrderStatusChangeEvent(order, oldStatus, OrderStatus.SHIPPING);
+
+        log.info("✅ Sales staff manually marked order {} as SHIPPING (from READY_TO_SHIP)", order.getOrderCode());
+
+        OrderResponse response = toOrderResponse(order);
+        return ApiResponse.success("Đã chuyển đơn hàng sang đang giao hàng", response);
     }
 
     @Override
@@ -742,5 +751,18 @@ public class OrderServiceImpl implements OrderService {
         }
         
         return items;
+    }
+    
+    @Override
+    public ApiResponse getOrdersPendingExport() {
+        // Lấy các đơn CONFIRMED mà chưa có trong export_orders
+        List<Order> orders = orderRepository.findByStatusAndNotExported(OrderStatus.CONFIRMED);
+        
+        List<OrderResponse> responses = orders.stream()
+                .map(this::toOrderResponse)
+                .toList();
+        
+        log.info("Found {} orders pending export (CONFIRMED and not exported yet)", orders.size());
+        return ApiResponse.success("Danh sách đơn hàng chờ xuất kho", responses);
     }
 }

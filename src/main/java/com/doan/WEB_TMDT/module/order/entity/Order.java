@@ -33,6 +33,13 @@ public class Order {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String shippingAddress;
     
+    // Địa chỉ chi tiết (for GHN integration)
+    private String province;  // Tỉnh/Thành phố
+    private String district;  // Quận/Huyện
+    private String ward;      // Phường/Xã ward code (for GHN API)
+    private String wardName;  // Tên phường/xã (for display)
+    private String address;   // Địa chỉ cụ thể (số nhà, tên đường)
+    
     private String note; // Ghi chú của khách hàng
     
     // Giá tiền

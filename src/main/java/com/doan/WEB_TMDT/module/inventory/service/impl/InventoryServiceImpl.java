@@ -36,6 +36,7 @@ public class InventoryServiceImpl implements InventoryService {
     private final com.doan.WEB_TMDT.module.order.repository.OrderRepository orderRepository;
     private final ExportOrderItemRepository exportOrderItemRepository;
     private final com.doan.WEB_TMDT.module.accounting.service.SupplierPayableService supplierPayableService;
+    private final com.doan.WEB_TMDT.module.shipping.service.ShippingService shippingService;
     private String generateExportCode() {
         return "PX" + LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE)
                 + "-" + String.format("%03d", new Random().nextInt(999));
@@ -612,6 +613,7 @@ public class InventoryServiceImpl implements InventoryService {
                 .note(req.getNote())
                 .createdBy(req.getCreatedBy())
                 .exportDate(LocalDateTime.now())
+                .orderId(req.getOrderId())  // ✅ Link export order với order
                 .build();
 
         List<ExportOrderItem> orderItems = new ArrayList<>();
@@ -672,7 +674,118 @@ public class InventoryServiceImpl implements InventoryService {
         exportOrder.setItems(orderItems);
         exportOrderRepository.save(exportOrder);
 
+        // ✅ Create GHN order after successful warehouse export
+        if (req.getOrderId() != null) {
+            try {
+                createGHNOrderForExport(req.getOrderId(), exportOrder);
+            } catch (Exception e) {
+                log.error("❌ Failed to create GHN order for export {}: {}", exportOrder.getExportCode(), e.getMessage());
+                // Don't fail the export, just log the error
+                // Admin can manually create GHN order later
+            }
+        }
+
         return ApiResponse.success("Xuất kho bán hàng thành công", exportOrder.getExportCode());
+    }
+    
+    private void createGHNOrderForExport(Long orderId, ExportOrder exportOrder) {
+        log.info("🚚 Creating GHN order for order ID: {}", orderId);
+        
+        // Get order details
+        com.doan.WEB_TMDT.module.order.entity.Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
+        
+        // Check if already has GHN order
+        if (order.getGhnOrderCode() != null && !order.getGhnOrderCode().isEmpty()) {
+            log.warn("⚠️ Order {} already has GHN order code: {}", order.getOrderCode(), order.getGhnOrderCode());
+            return;
+        }
+        
+        // Check if need GHN shipping (not free ship)
+        if (order.getShippingFee() == 0 || shippingService.isHanoiInnerCity(order.getProvince(), order.getDistrict())) {
+            log.info("ℹ️ Order {} uses internal shipping (no GHN), updating status to READY_TO_SHIP", order.getOrderCode());
+            
+            // ✅ Cập nhật status cho đơn nội thành / miễn phí ship
+            order.setStatus(com.doan.WEB_TMDT.module.order.entity.OrderStatus.READY_TO_SHIP);
+            order.setShippedAt(LocalDateTime.now());
+            orderRepository.save(order);
+            
+            return;
+        }
+        
+        // Build full address with ward name (not code) for display
+        String wardDisplay = (order.getWardName() != null && !order.getWardName().isEmpty()) 
+                ? order.getWardName() 
+                : order.getWard(); // Fallback to ward code if name not available
+        String fullAddress = String.join(", ", 
+            order.getAddress(),
+            wardDisplay != null ? wardDisplay : "",
+            order.getDistrict(),
+            order.getProvince()
+        ).replaceAll(", ,", ",").trim();
+        
+        // Build GHN order request
+        com.doan.WEB_TMDT.module.shipping.dto.CreateGHNOrderRequest ghnRequest = 
+            com.doan.WEB_TMDT.module.shipping.dto.CreateGHNOrderRequest.builder()
+                .toName(order.getCustomer().getFullName())
+                .toPhone(order.getCustomer().getPhone())
+                .toAddress(fullAddress)
+                .toWardCode(order.getWard()) // Ward code from order
+                .toDistrictId(getDistrictIdForGHN(order.getProvince(), order.getDistrict()))
+                .note(order.getNote())
+                .codAmount("COD".equals(order.getPaymentMethod()) ? order.getTotal().intValue() : 0)
+                .weight(1000) // Default 1kg
+                .length(20)
+                .width(20)
+                .height(10)
+                .serviceTypeId(2) // Standard service
+                .paymentTypeId("COD".equals(order.getPaymentMethod()) ? 2 : 1) // 1=Shop trả, 2=Người nhận trả
+                .items(buildGHNItemsFromOrder(order))
+                .build();
+        
+        // Call GHN API
+        com.doan.WEB_TMDT.module.shipping.dto.CreateGHNOrderResponse ghnResponse = 
+            shippingService.createGHNOrder(ghnRequest);
+        
+        // Update order with GHN info and change status to READY_TO_SHIP
+        order.setGhnOrderCode(ghnResponse.getOrderCode());
+        order.setGhnShippingStatus("created");
+        order.setGhnCreatedAt(LocalDateTime.now());
+        order.setGhnExpectedDeliveryTime(ghnResponse.getExpectedDeliveryTime());
+        
+        // ✅ Update order status to READY_TO_SHIP (Đã xuất kho, đợi tài xế lấy hàng)
+        order.setStatus(com.doan.WEB_TMDT.module.order.entity.OrderStatus.READY_TO_SHIP);
+        order.setShippedAt(LocalDateTime.now());
+        
+        orderRepository.save(order);
+        
+        log.info("✅ GHN order created successfully!");
+        log.info("   - Order Code: {}", order.getOrderCode());
+        log.info("   - GHN Order Code: {}", ghnResponse.getOrderCode());
+        log.info("   - Order Status: {} → SHIPPING", order.getStatus());
+        log.info("   - Export Code: {}", exportOrder.getExportCode());
+    }
+    
+    private Integer getDistrictIdForGHN(String province, String district) {
+        // Simple implementation - return default
+        // In production, you should call GHN API to get district ID
+        return 1485; // Default Hà Đông district
+    }
+    
+    private List<com.doan.WEB_TMDT.module.shipping.dto.CreateGHNOrderRequest.GHNOrderItem> buildGHNItemsFromOrder(
+            com.doan.WEB_TMDT.module.order.entity.Order order) {
+        List<com.doan.WEB_TMDT.module.shipping.dto.CreateGHNOrderRequest.GHNOrderItem> items = new ArrayList<>();
+        
+        for (com.doan.WEB_TMDT.module.order.entity.OrderItem item : order.getItems()) {
+            items.add(com.doan.WEB_TMDT.module.shipping.dto.CreateGHNOrderRequest.GHNOrderItem.builder()
+                    .name(item.getProductName())
+                    .code(item.getProduct().getSku())
+                    .quantity(item.getQuantity())
+                    .price(item.getPrice().intValue())
+                    .build());
+        }
+        
+        return items;
     }
 
 

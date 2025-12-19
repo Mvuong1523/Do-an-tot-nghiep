@@ -35,6 +35,7 @@ export default function WarehouseOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState<'pending' | 'exported'>('pending');
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -52,15 +53,25 @@ export default function WarehouseOrdersPage() {
       return;
     }
 
-    fetchPendingOrders();
-  }, [isAuthenticated, user, router]);
+    fetchOrders();
+  }, [isAuthenticated, user, router, activeTab]);
 
-  const fetchPendingOrders = async () => {
+  const fetchOrders = async () => {
     try {
       setLoading(true);
+      setError('');
       const token = localStorage.getItem('token');
       
-      const response = await fetch('http://localhost:8080/api/inventory/orders/pending-export', {
+      let url = '';
+      if (activeTab === 'pending') {
+        // Lấy đơn chờ xuất kho (CONFIRMED)
+        url = 'http://localhost:8080/api/inventory/orders/pending-export';
+      } else {
+        // Lấy đơn đã xuất kho (SHIPPING)
+        url = 'http://localhost:8080/api/inventory/orders/exported';
+      }
+      
+      const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -69,7 +80,15 @@ export default function WarehouseOrdersPage() {
       const result = await response.json();
       
       if (result.success) {
-        setOrders(result.data || []);
+        // Filter để đảm bảo đúng status
+        const filteredOrders = (result.data || []).filter((order: Order) => {
+          if (activeTab === 'pending') {
+            return order.status === 'CONFIRMED';
+          } else {
+            return order.status === 'READY_TO_SHIP';
+          }
+        });
+        setOrders(filteredOrders);
       } else {
         setError(result.message || 'Không thể tải danh sách đơn hàng');
       }
@@ -96,10 +115,46 @@ export default function WarehouseOrdersPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">🛒 Đơn hàng cần xuất kho</h1>
+        <h1 className="text-3xl font-bold mb-2">� Quả n lý xuất kho</h1>
         <p className="text-gray-600">
-          Danh sách đơn hàng đã xác nhận, cần chuẩn bị hàng và xuất kho
+          Quản lý đơn hàng cần xuất kho và đơn hàng đã xuất
         </p>
+      </div>
+
+      {/* Tabs */}
+      <div className="mb-6 border-b border-gray-200">
+        <div className="flex gap-4">
+          <button
+            onClick={() => setActiveTab('pending')}
+            className={`pb-4 px-2 font-medium transition-colors relative ${
+              activeTab === 'pending'
+                ? 'text-blue-600 border-b-2 border-blue-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            ⏳ Chờ xuất kho
+            {activeTab === 'pending' && orders.length > 0 && (
+              <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-600 rounded-full text-xs font-bold">
+                {orders.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('exported')}
+            className={`pb-4 px-2 font-medium transition-colors relative ${
+              activeTab === 'exported'
+                ? 'text-green-600 border-b-2 border-green-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            ✅ Đã xuất kho
+            {activeTab === 'exported' && orders.length > 0 && (
+              <span className="ml-2 px-2 py-1 bg-green-100 text-green-600 rounded-full text-xs font-bold">
+                {orders.length}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -110,8 +165,17 @@ export default function WarehouseOrdersPage() {
 
       {orders.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-8 text-center">
-          <p className="text-gray-500 text-lg">✅ Không có đơn hàng nào cần xuất kho</p>
-          <p className="text-gray-400 text-sm mt-2">Tất cả đơn hàng đã được xử lý</p>
+          {activeTab === 'pending' ? (
+            <>
+              <p className="text-gray-500 text-lg">✅ Không có đơn hàng nào cần xuất kho</p>
+              <p className="text-gray-400 text-sm mt-2">Tất cả đơn hàng đã được xử lý</p>
+            </>
+          ) : (
+            <>
+              <p className="text-gray-500 text-lg">📦 Chưa có đơn hàng nào đã xuất kho</p>
+              <p className="text-gray-400 text-sm mt-2">Các đơn đã xuất sẽ hiển thị ở đây</p>
+            </>
+          )}
         </div>
       ) : (
         <div className="space-y-4">
@@ -129,9 +193,15 @@ export default function WarehouseOrdersPage() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <span className="inline-block px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
-                      ⏳ Chờ xuất kho
-                    </span>
+                    {activeTab === 'pending' ? (
+                      <span className="inline-block px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
+                        ⏳ Chờ xuất kho
+                      </span>
+                    ) : (
+                      <span className="inline-block px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                        ✅ Đã xuất kho
+                      </span>
+                    )}
                     <p className="text-lg font-bold text-gray-900 mt-2">
                       {order.total.toLocaleString('vi-VN')} ₫
                     </p>
@@ -174,7 +244,7 @@ export default function WarehouseOrdersPage() {
                     onClick={() => handleViewDetail(order.orderId)}
                     className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
                   >
-                    📦 Xem chi tiết & Xuất kho
+                    {activeTab === 'pending' ? '📦 Xem chi tiết & Xuất kho' : '👁️ Xem chi tiết'}
                   </button>
                 </div>
               </div>
@@ -185,14 +255,25 @@ export default function WarehouseOrdersPage() {
 
       {/* Summary */}
       {orders.length > 0 && (
-        <div className="mt-6 bg-blue-50 rounded-lg p-4">
+        <div className={`mt-6 rounded-lg p-4 ${
+          activeTab === 'pending' ? 'bg-blue-50' : 'bg-green-50'
+        }`}>
           <div className="flex justify-between items-center">
-            <p className="text-lg font-semibold text-blue-900">
-              Tổng cộng: {orders.length} đơn hàng cần xuất kho
+            <p className={`text-lg font-semibold ${
+              activeTab === 'pending' ? 'text-blue-900' : 'text-green-900'
+            }`}>
+              {activeTab === 'pending' 
+                ? `Tổng cộng: ${orders.length} đơn hàng cần xuất kho`
+                : `Tổng cộng: ${orders.length} đơn hàng đã xuất kho`
+              }
             </p>
             <button
-              onClick={fetchPendingOrders}
-              className="px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+              onClick={fetchOrders}
+              className={`px-4 py-2 bg-white rounded-lg transition-colors ${
+                activeTab === 'pending' 
+                  ? 'text-blue-600 hover:bg-blue-100' 
+                  : 'text-green-600 hover:bg-green-100'
+              }`}
             >
               🔄 Làm mới
             </button>

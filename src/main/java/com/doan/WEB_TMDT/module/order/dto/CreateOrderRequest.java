@@ -20,8 +20,11 @@ public class CreateOrderRequest {
     @NotBlank(message = "Quận/Huyện không được để trống")
     private String district;
     
-    // Phường/Xã không bắt buộc (có thể để trống)
+    // Phường/Xã (ward code for GHN)
     private String ward;
+    
+    // Tên phường/xã (for display)
+    private String wardName;
     
     @NotBlank(message = "Địa chỉ cụ thể không được để trống")
     private String address;

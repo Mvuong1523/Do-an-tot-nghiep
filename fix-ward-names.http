@@ -1,0 +1,12 @@
+### Fix Ward Names cho tất cả đơn hàng
+### API này sẽ cập nhật wardName cho các đơn hàng chỉ có ward code
+POST http://localhost:8080/api/shipping/fix-ward-names
+Authorization: Bearer {{admin_token}}
+
+### Kiểm tra một đơn hàng cụ thể
+GET http://localhost:8080/api/inventory/orders/1
+Authorization: Bearer {{admin_token}}
+
+### Lấy danh sách đơn hàng cần xuất kho
+GET http://localhost:8080/api/inventory/orders/pending-export?page=0&size=10
+Authorization: Bearer {{admin_token}}

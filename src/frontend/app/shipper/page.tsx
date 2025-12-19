@@ -34,7 +34,7 @@ export default function ShipperPage() {
         const data = await response.json()
         // Filter orders that are ready for shipping or being shipped
         const shippingOrders = data.data?.filter((order: any) => 
-          ['CONFIRMED', 'SHIPPING', 'DELIVERED'].includes(order.status)
+          ['READY_TO_SHIP', 'SHIPPING', 'DELIVERED'].includes(order.status)
         ) || []
         setOrders(shippingOrders)
       }
@@ -72,7 +72,7 @@ export default function ShipperPage() {
 
   const getStatusBadge = (status: string) => {
     const statusMap: any = {
-      'CONFIRMED': { label: 'Đã xác nhận', color: 'bg-blue-100 text-blue-800', icon: FiClock },
+      'READY_TO_SHIP': { label: 'Chờ lấy hàng', color: 'bg-blue-100 text-blue-800', icon: FiPackage },
       'SHIPPING': { label: 'Đang giao', color: 'bg-yellow-100 text-yellow-800', icon: FiTruck },
       'DELIVERED': { label: 'Đã giao', color: 'bg-green-100 text-green-800', icon: FiCheckCircle }
     }
@@ -113,12 +113,12 @@ export default function ShipperPage() {
           <div className="bg-white p-6 rounded-lg shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">Chờ giao</p>
+                <p className="text-gray-600 text-sm">Chờ lấy hàng</p>
                 <p className="text-2xl font-bold text-blue-600">
-                  {orders.filter(o => o.status === 'CONFIRMED').length}
+                  {orders.filter(o => o.status === 'READY_TO_SHIP').length}
                 </p>
               </div>
-              <FiClock className="w-10 h-10 text-blue-500" />
+              <FiPackage className="w-10 h-10 text-blue-500" />
             </div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
@@ -186,12 +186,12 @@ export default function ShipperPage() {
                       <td className="px-6 py-4">{getStatusBadge(order.status)}</td>
                       <td className="px-6 py-4">
                         <div className="flex gap-2">
-                          {order.status === 'CONFIRMED' && (
+                          {order.status === 'READY_TO_SHIP' && (
                             <button
                               onClick={() => updateOrderStatus(order.id, 'SHIPPING')}
                               className="px-3 py-1 bg-yellow-500 text-white text-sm rounded hover:bg-yellow-600"
                             >
-                              Bắt đầu giao
+                              Nhận đơn & Bắt đầu giao
                             </button>
                           )}
                           {order.status === 'SHIPPING' && (

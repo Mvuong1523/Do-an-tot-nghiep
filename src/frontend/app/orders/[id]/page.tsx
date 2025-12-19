@@ -42,16 +42,43 @@ export default function OrderDetailPage() {
         ? await orderApi.getById(orderId)
         : await orderApi.getByCode(orderId)
       
-      console.log('Order detail response:', response)
+      console.log('📦 ===== ORDER DETAIL RESPONSE =====')
+      console.log('Full response:', response)
       
       if (response.success && response.data) {
-        setOrder(response.data)
+        const orderData = response.data
+        setOrder(orderData)
+        
+        // Log GHN information
+        console.log('🚚 ===== GHN SHIPPING INFO =====')
+        console.log('GHN Order Code:', orderData.ghnOrderCode)
+        console.log('GHN Shipping Status:', orderData.ghnShippingStatus)
+        console.log('GHN Created At:', orderData.ghnCreatedAt)
+        console.log('GHN Expected Delivery Time:', orderData.ghnExpectedDeliveryTime)
+        console.log('================================')
+        
+        // Log all order data
+        console.log('📋 ===== FULL ORDER DATA =====')
+        console.log('Order Code:', orderData.orderCode)
+        console.log('Status:', orderData.status)
+        console.log('Payment Status:', orderData.paymentStatus)
+        console.log('Payment Method:', orderData.paymentMethod)
+        console.log('Customer:', orderData.customerName)
+        console.log('Phone:', orderData.customerPhone)
+        console.log('Address:', orderData.shippingAddress)
+        console.log('Total:', orderData.total)
+        console.log('Shipping Fee:', orderData.shippingFee)
+        console.log('Created At:', orderData.createdAt)
+        console.log('Confirmed At:', orderData.confirmedAt)
+        console.log('Shipped At:', orderData.shippedAt)
+        console.log('Delivered At:', orderData.deliveredAt)
+        console.log('================================')
       } else {
         toast.error('Không thể tải thông tin đơn hàng')
         router.push('/orders')
       }
     } catch (error) {
-      console.error('Error loading order:', error)
+      console.error('❌ Error loading order:', error)
       toast.error('Lỗi khi tải thông tin đơn hàng')
       router.push('/orders')
     } finally {
@@ -90,14 +117,16 @@ export default function OrderDetailPage() {
         return 'Chờ xác nhận'
       case 'CONFIRMED':
         return 'Đã xác nhận - Đang chuẩn bị hàng'
-      case 'PROCESSING':
-        return 'Đang xử lý'
+      case 'READY_TO_SHIP':
+        return '🚚 Đã chuẩn bị hàng - Đợi tài xế lấy'
       case 'SHIPPING':
         return 'Đang giao hàng'
       case 'DELIVERED':
         return 'Đã giao hàng'
       case 'CANCELLED':
         return 'Đã hủy'
+      case 'PROCESSING':
+        return 'Đang xử lý'
       default:
         return status
     }
@@ -111,6 +140,8 @@ export default function OrderDetailPage() {
         return 'bg-yellow-100 text-yellow-800'
       case 'CONFIRMED':
         return 'bg-blue-100 text-blue-800'
+      case 'READY_TO_SHIP':
+        return 'bg-purple-100 text-purple-800 border-2 border-purple-400 font-bold'
       case 'PROCESSING':
         return 'bg-blue-100 text-blue-800'
       case 'SHIPPING':
@@ -188,6 +219,36 @@ export default function OrderDetailPage() {
                 >
                   💳 Tiếp tục thanh toán
                 </Link>
+              )}
+              
+              {/* Nút cập nhật sang Đang giao - CHỈ hiện khi READY_TO_SHIP */}
+              {order.status?.toUpperCase() === 'READY_TO_SHIP' && (
+                <div className="space-y-2">
+                  <button
+                    onClick={async () => {
+                      if (confirm('⚠️ Xác nhận chuyển đơn hàng sang "Đang giao hàng"?\n\n✅ Chỉ nhấn khi:\n- Tài xế đã đến lấy hàng\n- Hàng đã được giao cho đơn vị vận chuyển\n\n❌ Không nhấn nếu hàng vẫn còn ở kho!')) {
+                        try {
+                          const { adminOrderApi } = await import('@/lib/api')
+                          const response = await adminOrderApi.markShippingFromReady(order.orderId)
+                          if (response.success) {
+                            toast.success('✅ Đã cập nhật sang "Đang giao hàng"')
+                            // Reload order details
+                            loadOrderDetails()
+                          }
+                        } catch (error: any) {
+                          toast.error(error.message || 'Lỗi khi cập nhật trạng thái')
+                        }
+                      }
+                    }}
+                    className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg font-bold text-center hover:bg-purple-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                  >
+                    <span>🚚</span>
+                    <span>Chuyển sang Đang giao</span>
+                  </button>
+                  <p className="text-xs text-gray-600 text-center">
+                    💡 Chỉ cập nhật khi tài xế đã lấy hàng
+                  </p>
+                </div>
               )}
             </div>
           </div>
@@ -304,6 +365,32 @@ export default function OrderDetailPage() {
               <p className="text-sm text-gray-600">Địa chỉ giao hàng</p>
               <p className="font-medium text-gray-900">{order.shippingAddress}</p>
             </div>
+            
+            {/* GHN Expected Delivery Time */}
+            {order.ghnExpectedDeliveryTime && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800 font-medium flex items-center">
+                  <FiClock className="mr-2" />
+                  Thời gian giao hàng dự kiến
+                </p>
+                <p className="font-bold text-blue-900 mt-1">
+                  {formatDate(order.ghnExpectedDeliveryTime)}
+                </p>
+              </div>
+            )}
+            
+            {/* GHN Order Code */}
+            {order.ghnOrderCode && (
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600">Mã vận đơn GHN</p>
+                <p className="font-mono font-bold text-gray-900">{order.ghnOrderCode}</p>
+                {order.ghnShippingStatus && (
+                  <p className="text-sm text-gray-600 mt-1">
+                    Trạng thái: <span className="font-medium">{order.ghnShippingStatus}</span>
+                  </p>
+                )}
+              </div>
+            )}
             
             {order.note && (
               <div>

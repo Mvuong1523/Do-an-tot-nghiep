@@ -58,6 +58,35 @@ public class InventoryController {
     public ApiResponse export(@RequestBody CreateExportOrderRequest req) {
         return inventoryService.createExportOrder(req);
     }
+    
+    @PostMapping("/export-for-sale")
+    @PreAuthorize("hasAnyAuthority('WAREHOUSE', 'ADMIN')")
+    public ApiResponse exportForSale(@RequestBody SaleExportRequest req, Authentication auth) {
+        // Set createdBy từ user đang đăng nhập
+        String actor = auth != null ? auth.getName() : "system";
+        req.setCreatedBy(actor);
+        
+        // Validate manually sau khi set createdBy
+        if (req.getOrderId() == null) {
+            return ApiResponse.error("Order ID không được để trống");
+        }
+        if (req.getReason() == null || req.getReason().isBlank()) {
+            return ApiResponse.error("Lý do xuất kho không được để trống");
+        }
+        if (req.getItems() == null || req.getItems().isEmpty()) {
+            return ApiResponse.error("Danh sách sản phẩm không được để trống");
+        }
+        
+        return inventoryService.exportForSale(req);
+    }
+    
+    @PostMapping("/export-for-warranty")
+    @PreAuthorize("hasAnyAuthority('WAREHOUSE', 'ADMIN')")
+    public ApiResponse exportForWarranty(@Valid @RequestBody WarrantyExportRequest req, Authentication auth) {
+        String actor = auth != null ? auth.getName() : "system";
+        req.setCreatedBy(actor);
+        return inventoryService.exportForWarranty(req);
+    }
 
     // ===== Search by Specifications =====
     @GetMapping("/search")

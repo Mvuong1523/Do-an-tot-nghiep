@@ -55,8 +55,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/products/filter-by-specs").permitAll()
                         .requestMatchers("/api/product/**").permitAll()
                         
-                        // Public shipping endpoint (for calculating shipping fee)
+                        // Public shipping endpoints (for calculating shipping fee and address selection)
                         .requestMatchers("/api/shipping/calculate-fee").permitAll()
+                        .requestMatchers("/api/shipping/provinces").permitAll()
+                        .requestMatchers("/api/shipping/districts/**").permitAll()
+                        .requestMatchers("/api/shipping/wards/**").permitAll()
                         
                         // Customer endpoints (Cart, Orders, Profile)
                         .requestMatchers("/api/cart/**").hasAnyAuthority("CUSTOMER", "ADMIN")
