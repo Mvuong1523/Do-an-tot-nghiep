@@ -43,4 +43,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
            "AND NOT EXISTS (SELECT 1 FROM ExportOrder e WHERE e.orderId = o.id) " +
            "ORDER BY o.confirmedAt DESC")
     List<Order> findByStatusAndNotExported(@Param("status") OrderStatus status);
+    
+    // Dashboard queries
+    Long countByStatus(OrderStatus status);
+    Long countByCreatedAtAfter(LocalDateTime date);
+    List<Order> findByCreatedAtAfter(LocalDateTime date);
 }

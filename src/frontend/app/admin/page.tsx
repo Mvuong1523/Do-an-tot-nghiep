@@ -10,25 +10,61 @@ import {
   FiDollarSign,
   FiTrendingUp,
   FiTrendingDown,
-  FiArrowRight
+  FiArrowRight,
+  FiClock
 } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { useTranslation } from '@/hooks/useTranslation'
 import { useAuthStore } from '@/store/authStore'
+import api from '@/lib/api'
+
+interface DashboardStats {
+  totalOrders: number
+  totalRevenue: number
+  totalProfit: number
+  profitMargin: number
+  totalProducts: number
+  totalCustomers: number
+  pendingOrders: number
+  lowStockProducts: number
+  ordersChangePercent: number
+  revenueChangePercent: number
+  profitChangePercent: number
+  productsChangePercent: number
+  customersChangePercent: number
+}
+
+interface RecentOrder {
+  id: number
+  orderCode: string
+  totalAmount: number
+  status: string
+  createdAt: string
+  customerName: string
+  customerEmail: string
+}
 
 export default function AdminDashboard() {
   const { t } = useTranslation()
   const router = useRouter()
   const { user, isAuthenticated } = useAuthStore()
   
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<DashboardStats>({
     totalOrders: 0,
     totalRevenue: 0,
+    totalProfit: 0,
+    profitMargin: 0,
     totalProducts: 0,
     totalCustomers: 0,
     pendingOrders: 0,
     lowStockProducts: 0,
+    ordersChangePercent: 0,
+    revenueChangePercent: 0,
+    profitChangePercent: 0,
+    productsChangePercent: 0,
+    customersChangePercent: 0,
   })
+  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
 
@@ -57,16 +93,15 @@ export default function AdminDashboard() {
 
   const loadDashboardData = async () => {
     try {
-      // TODO: Call dashboard API
-      setStats({
-        totalOrders: 1250,
-        totalRevenue: 450000000,
-        totalProducts: 350,
-        totalCustomers: 5420,
-        pendingOrders: 23,
-        lowStockProducts: 12,
-      })
+      // Load dashboard stats
+      const statsResponse = await api.get('/api/dashboard/stats')
+      setStats(statsResponse.data)
+
+      // Load recent orders
+      const ordersResponse = await api.get('/api/dashboard/recent-orders?limit=5')
+      setRecentOrders(ordersResponse.data)
     } catch (error) {
+      console.error('Error loading dashboard data:', error)
       toast.error('Lỗi khi tải dữ liệu')
     } finally {
       setLoading(false)
@@ -78,6 +113,38 @@ export default function AdminDashboard() {
       style: 'currency',
       currency: 'VND'
     }).format(price)
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  const getStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      PENDING: 'bg-yellow-100 text-yellow-800',
+      CONFIRMED: 'bg-blue-100 text-blue-800',
+      SHIPPING: 'bg-purple-100 text-purple-800',
+      DELIVERED: 'bg-green-100 text-green-800',
+      CANCELLED: 'bg-red-100 text-red-800',
+    }
+    return colors[status] || 'bg-gray-100 text-gray-800'
+  }
+
+  const getStatusText = (status: string) => {
+    const texts: Record<string, string> = {
+      PENDING: 'Chờ xác nhận',
+      CONFIRMED: 'Đã xác nhận',
+      SHIPPING: 'Đang giao',
+      DELIVERED: 'Đã giao',
+      CANCELLED: 'Đã hủy',
+    }
+    return texts[status] || status
   }
 
   if (!mounted || loading) {
@@ -108,10 +175,14 @@ export default function AdminDashboard() {
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                 <FiShoppingCart className="text-blue-500" size={24} />
               </div>
-              <span className="flex items-center text-green-500 text-sm font-medium">
-                <FiTrendingUp className="mr-1" />
-                +12%
-              </span>
+              {stats.ordersChangePercent !== 0 && (
+                <span className={`flex items-center text-sm font-medium ${
+                  stats.ordersChangePercent > 0 ? 'text-green-500' : 'text-red-500'
+                }`}>
+                  {stats.ordersChangePercent > 0 ? <FiTrendingUp className="mr-1" /> : <FiTrendingDown className="mr-1" />}
+                  {Math.abs(stats.ordersChangePercent)}%
+                </span>
+              )}
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-1">{stats.totalOrders}</h3>
             <p className="text-gray-600 text-sm">Tổng đơn hàng</p>
@@ -123,15 +194,45 @@ export default function AdminDashboard() {
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                 <FiDollarSign className="text-green-500" size={24} />
               </div>
-              <span className="flex items-center text-green-500 text-sm font-medium">
-                <FiTrendingUp className="mr-1" />
-                +8%
-              </span>
+              {stats.revenueChangePercent !== 0 && (
+                <span className={`flex items-center text-sm font-medium ${
+                  stats.revenueChangePercent > 0 ? 'text-green-500' : 'text-red-500'
+                }`}>
+                  {stats.revenueChangePercent > 0 ? <FiTrendingUp className="mr-1" /> : <FiTrendingDown className="mr-1" />}
+                  {Math.abs(stats.revenueChangePercent)}%
+                </span>
+              )}
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-1">
               {formatPrice(stats.totalRevenue)}
             </h3>
             <p className="text-gray-600 text-sm">Doanh thu</p>
+          </div>
+
+          {/* Total Profit */}
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
+                <FiTrendingUp className="text-emerald-500" size={24} />
+              </div>
+              {stats.profitChangePercent !== 0 && (
+                <span className={`flex items-center text-sm font-medium ${
+                  stats.profitChangePercent > 0 ? 'text-green-500' : 'text-red-500'
+                }`}>
+                  {stats.profitChangePercent > 0 ? <FiTrendingUp className="mr-1" /> : <FiTrendingDown className="mr-1" />}
+                  {Math.abs(stats.profitChangePercent)}%
+                </span>
+              )}
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-1">
+              {formatPrice(stats.totalProfit)}
+            </h3>
+            <p className="text-gray-600 text-sm">
+              Lợi nhuận 
+              <span className="ml-2 text-emerald-600 font-semibold">
+                ({stats.profitMargin}%)
+              </span>
+            </p>
           </div>
 
           {/* Total Products */}
@@ -140,10 +241,14 @@ export default function AdminDashboard() {
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                 <FiPackage className="text-purple-500" size={24} />
               </div>
-              <span className="flex items-center text-red-500 text-sm font-medium">
-                <FiTrendingDown className="mr-1" />
-                -3%
-              </span>
+              {stats.productsChangePercent !== 0 && (
+                <span className={`flex items-center text-sm font-medium ${
+                  stats.productsChangePercent > 0 ? 'text-green-500' : 'text-red-500'
+                }`}>
+                  {stats.productsChangePercent > 0 ? <FiTrendingUp className="mr-1" /> : <FiTrendingDown className="mr-1" />}
+                  {Math.abs(stats.productsChangePercent)}%
+                </span>
+              )}
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-1">{stats.totalProducts}</h3>
             <p className="text-gray-600 text-sm">Sản phẩm</p>
@@ -155,13 +260,93 @@ export default function AdminDashboard() {
               <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
                 <FiUsers className="text-red-500" size={24} />
               </div>
-              <span className="flex items-center text-green-500 text-sm font-medium">
-                <FiTrendingUp className="mr-1" />
-                +15%
-              </span>
+              {stats.customersChangePercent !== 0 && (
+                <span className={`flex items-center text-sm font-medium ${
+                  stats.customersChangePercent > 0 ? 'text-green-500' : 'text-red-500'
+                }`}>
+                  {stats.customersChangePercent > 0 ? <FiTrendingUp className="mr-1" /> : <FiTrendingDown className="mr-1" />}
+                  {Math.abs(stats.customersChangePercent)}%
+                </span>
+              )}
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-1">{stats.totalCustomers}</h3>
             <p className="text-gray-600 text-sm">Khách hàng</p>
+          </div>
+        </div>
+
+        {/* Recent Orders - Moved up */}
+        <div className="bg-white rounded-lg shadow-sm mb-8">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold text-gray-900">Đơn hàng gần đây</h2>
+              <Link href="/admin/orders" className="text-red-500 hover:text-red-600 font-medium flex items-center">
+                Xem tất cả
+                <FiArrowRight className="ml-1" />
+              </Link>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            {recentOrders.length > 0 ? (
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Mã đơn
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Khách hàng
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Tổng tiền
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Trạng thái
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Thời gian
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {recentOrders.map((order) => (
+                    <tr key={order.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <Link 
+                          href={`/admin/orders/${order.id}`}
+                          className="text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          {order.orderCode}
+                        </Link>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{order.customerName}</div>
+                        <div className="text-sm text-gray-500">{order.customerEmail}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {formatPrice(order.totalAmount)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(order.status)}`}>
+                          {getStatusText(order.status)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div className="flex items-center">
+                          <FiClock className="mr-1" />
+                          {formatDate(order.createdAt)}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="p-6">
+                <p className="text-gray-600 text-center py-8">
+                  Chưa có đơn hàng nào
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -202,7 +387,7 @@ export default function AdminDashboard() {
             </Link>
 
             <Link
-              href="/admin/reports"
+              href="/admin/accounting"
               className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
             >
               <div className="flex items-center justify-between mb-4">
@@ -322,23 +507,6 @@ export default function AdminDashboard() {
                 {stats.totalOrders} đơn hàng
               </div>
             </Link>
-          </div>
-        </div>
-
-        {/* Recent Orders */}
-        <div className="bg-white rounded-lg shadow-sm">
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-900">Đơn hàng gần đây</h2>
-              <Link href="/admin/orders" className="text-red-500 hover:text-red-600 font-medium">
-                Xem tất cả
-              </Link>
-            </div>
-          </div>
-          <div className="p-6">
-            <p className="text-gray-600 text-center py-8">
-              Chưa có đơn hàng nào
-            </p>
           </div>
         </div>
       </div>
