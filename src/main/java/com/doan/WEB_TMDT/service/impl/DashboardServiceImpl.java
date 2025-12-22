@@ -49,6 +49,16 @@ public class DashboardServiceImpl implements DashboardService {
         Long pendingOrders = orderRepository.countByStatus(OrderStatus.PENDING_PAYMENT);
         Long lowStockProducts = 0L; // Will be implemented later if needed
 
+        // Calculate overdue orders (orders older than 4 days that are not delivered or cancelled)
+        LocalDateTime fourDaysAgo = LocalDateTime.now().minusDays(4);
+        Long overdueOrders = orderRepository.findAll().stream()
+                .filter(order -> order.getCreatedAt().isBefore(fourDaysAgo))
+                .filter(order -> order.getStatus() != OrderStatus.DELIVERED && order.getStatus() != OrderStatus.CANCELLED)
+                .count();
+
+        // Calculate overdue payables (will be 0 for now, needs accounting module integration)
+        Long overduePayables = 0L; // TODO: Integrate with accounting module
+
         // Calculate percentage changes (comparing with last month)
         LocalDateTime lastMonth = LocalDateTime.now().minusMonths(1);
         Long lastMonthOrders = orderRepository.countByCreatedAtAfter(lastMonth);
@@ -74,6 +84,8 @@ public class DashboardServiceImpl implements DashboardService {
                 .totalCustomers(totalCustomers)
                 .pendingOrders(pendingOrders)
                 .lowStockProducts(lowStockProducts)
+                .overdueOrders(overdueOrders)
+                .overduePayables(overduePayables)
                 .ordersChangePercent(ordersChangePercent)
                 .revenueChangePercent(revenueChangePercent)
                 .profitChangePercent(profitChangePercent)

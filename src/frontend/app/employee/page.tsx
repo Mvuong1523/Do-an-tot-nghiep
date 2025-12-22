@@ -7,7 +7,10 @@ import {
   FiShoppingCart, 
   FiTrendingUp,
   FiClock,
-  FiArrowRight
+  FiArrowRight,
+  FiAlertTriangle,
+  FiDollarSign,
+  FiUsers
 } from 'react-icons/fi'
 import { useAuthStore } from '@/store/authStore'
 import { POSITION_NAMES, type Position } from '@/lib/permissions'
@@ -18,7 +21,11 @@ interface DashboardStats {
   totalOrders: number
   totalRevenue: number
   totalProducts: number
+  totalCustomers: number
   pendingOrders: number
+  lowStockProducts: number
+  overdueOrders: number
+  overduePayables: number
 }
 
 interface RecentOrder {
@@ -36,7 +43,11 @@ export default function EmployeeDashboard() {
     totalOrders: 0,
     totalRevenue: 0,
     totalProducts: 0,
+    totalCustomers: 0,
     pendingOrders: 0,
+    lowStockProducts: 0,
+    overdueOrders: 0,
+    overduePayables: 0,
   })
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([])
   const [loading, setLoading] = useState(true)
@@ -152,7 +163,7 @@ export default function EmployeeDashboard() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {/* Total Orders */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="bg-white rounded-lg shadow-sm p-6 border-l-4 border-blue-500">
           <div className="flex items-center justify-between mb-4">
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
               <FiShoppingCart className="text-blue-500" size={24} />
@@ -163,7 +174,7 @@ export default function EmployeeDashboard() {
         </div>
 
         {/* Total Revenue */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="bg-white rounded-lg shadow-sm p-6 border-l-4 border-green-500">
           <div className="flex items-center justify-between mb-4">
             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
               <FiTrendingUp className="text-green-500" size={24} />
@@ -176,7 +187,7 @@ export default function EmployeeDashboard() {
         </div>
 
         {/* Total Products */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="bg-white rounded-lg shadow-sm p-6 border-l-4 border-purple-500">
           <div className="flex items-center justify-between mb-4">
             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
               <FiPackage className="text-purple-500" size={24} />
@@ -186,16 +197,106 @@ export default function EmployeeDashboard() {
           <p className="text-gray-600 text-sm">Sản phẩm</p>
         </div>
 
-        {/* Pending Orders */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
+        {/* Total Customers */}
+        <div className="bg-white rounded-lg shadow-sm p-6 border-l-4 border-indigo-500">
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-              <FiClock className="text-yellow-500" size={24} />
+            <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
+              <FiUsers className="text-indigo-500" size={24} />
             </div>
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-1">{stats.pendingOrders}</h3>
-          <p className="text-gray-600 text-sm">Đơn chờ xử lý</p>
+          <h3 className="text-2xl font-bold text-gray-900 mb-1">{stats.totalCustomers}</h3>
+          <p className="text-gray-600 text-sm">Khách hàng</p>
         </div>
+      </div>
+
+      {/* Warning Alerts - Cảnh báo quan trọng */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {/* Đơn hàng chờ xử lý */}
+        <Link href="/employee/orders">
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-6 rounded-lg cursor-pointer hover:shadow-md transition-all">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <FiClock className="h-6 w-6 text-yellow-600" />
+              </div>
+              <div className="ml-3 flex-1">
+                <h3 className="text-sm font-medium text-yellow-800">
+                  Đơn hàng chờ xử lý
+                </h3>
+                <div className="mt-2">
+                  <p className="text-3xl font-bold text-yellow-900">
+                    {stats.pendingOrders}
+                  </p>
+                  <p className="text-xs text-yellow-700 mt-1">
+                    Đơn hàng cần xác nhận và xử lý
+                  </p>
+                </div>
+                <div className="mt-3">
+                  <span className="text-sm text-yellow-800 hover:text-yellow-900 font-medium">
+                    Xem chi tiết →
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Link>
+
+        {/* Đơn hàng quá hạn giao */}
+        <Link href="/employee/orders">
+          <div className="bg-red-50 border-l-4 border-red-400 p-6 rounded-lg cursor-pointer hover:shadow-md transition-all">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <FiAlertTriangle className="h-6 w-6 text-red-600" />
+              </div>
+              <div className="ml-3 flex-1">
+                <h3 className="text-sm font-medium text-red-800">
+                  Đơn hàng quá hạn giao
+                </h3>
+                <div className="mt-2">
+                  <p className="text-3xl font-bold text-red-900">
+                    {stats.overdueOrders}
+                  </p>
+                  <p className="text-xs text-red-700 mt-1">
+                    Đơn quá 4 ngày chưa giao xong
+                  </p>
+                </div>
+                <div className="mt-3">
+                  <span className="text-sm text-red-800 hover:text-red-900 font-medium">
+                    Xem chi tiết →
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Link>
+
+        {/* Sản phẩm hết hàng */}
+        <Link href="/employee/inventory">
+          <div className="bg-orange-50 border-l-4 border-orange-400 p-6 rounded-lg cursor-pointer hover:shadow-md transition-all">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <FiPackage className="h-6 w-6 text-orange-600" />
+              </div>
+              <div className="ml-3 flex-1">
+                <h3 className="text-sm font-medium text-orange-800">
+                  Sản phẩm hết hàng
+                </h3>
+                <div className="mt-2">
+                  <p className="text-3xl font-bold text-orange-900">
+                    {stats.lowStockProducts}
+                  </p>
+                  <p className="text-xs text-orange-700 mt-1">
+                    Sản phẩm cần nhập thêm hàng
+                  </p>
+                </div>
+                <div className="mt-3">
+                  <span className="text-sm text-orange-800 hover:text-orange-900 font-medium">
+                    Xem chi tiết →
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Link>
       </div>
 
       {/* Recent Orders */}

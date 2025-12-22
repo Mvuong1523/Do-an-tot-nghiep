@@ -18,6 +18,8 @@ public class DashboardStatsDTO {
     private Long totalCustomers;
     private Long pendingOrders;
     private Long lowStockProducts;
+    private Long overdueOrders;
+    private Long overduePayables;
     
     // Percentage changes
     private Double ordersChangePercent;

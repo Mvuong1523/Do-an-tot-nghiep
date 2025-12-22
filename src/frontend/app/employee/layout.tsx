@@ -10,8 +10,6 @@ import {
   FiUsers,
   FiTruck,
   FiDollarSign,
-  FiMenu,
-  FiX,
   FiLogOut,
   FiUser,
   FiGrid,
@@ -40,7 +38,6 @@ export default function EmployeeLayout({
   const pathname = usePathname()
   const router = useRouter()
   const { user, employee, logout, isAuthenticated } = useAuthStore()
-  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -169,11 +166,7 @@ export default function EmployeeLayout({
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Sidebar */}
-      <aside
-        className={`fixed top-0 left-0 z-40 h-screen transition-transform ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } bg-white border-r border-gray-200 w-64`}
-      >
+      <aside className="fixed top-0 left-0 z-40 h-screen bg-white border-r border-gray-200 w-64">
         <div className="h-full flex flex-col">
           {/* Logo */}
           <div className="p-4 border-b border-gray-200">
@@ -225,29 +218,7 @@ export default function EmployeeLayout({
       </aside>
 
       {/* Main content */}
-      <div className={`${sidebarOpen ? 'ml-64' : 'ml-0'} transition-all`}>
-        {/* Top bar */}
-        <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
-          <div className="px-4 py-3 flex items-center justify-between">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 rounded-lg hover:bg-gray-100"
-            >
-              {sidebarOpen ? <FiX size={24} /> : <FiMenu size={24} />}
-            </button>
-
-            <div className="flex items-center space-x-4">
-              <Link
-                href="/profile"
-                className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100"
-              >
-                <FiUser size={20} />
-                <span className="text-sm">Hồ sơ</span>
-              </Link>
-            </div>
-          </div>
-        </header>
-
+      <div className="ml-64">
         {/* Page content */}
         <main className="p-6">
           {children}
