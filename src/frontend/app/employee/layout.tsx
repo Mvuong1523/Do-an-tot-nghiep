@@ -21,6 +21,7 @@ import {
 import { useAuthStore } from '@/store/authStore'
 import toast from 'react-hot-toast'
 import { hasPermission, POSITION_NAMES, type Position } from '@/lib/permissions'
+import NotificationBell from '@/components/NotificationBell'
 
 interface MenuItem {
   title: string
@@ -224,6 +225,9 @@ export default function EmployeeLayout({
           {children}
         </main>
       </div>
+
+      {/* Floating Notification Bell */}
+      <NotificationBell floating />
     </div>
   )
 }

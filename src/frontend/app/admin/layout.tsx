@@ -2,6 +2,7 @@
 
 import AdminSidebar from '@/components/admin/AdminSidebar'
 import HydratedLayout from '@/components/HydratedLayout'
+import NotificationBell from '@/components/NotificationBell'
 
 export default function AdminLayout({
   children,
@@ -20,6 +21,9 @@ export default function AdminLayout({
             {children}
           </div>
         </main>
+
+        {/* Floating Notification Bell */}
+        <NotificationBell floating />
       </div>
     </HydratedLayout>
   )
