@@ -24,10 +24,19 @@ export interface User {
     gender?: string
     birthDate?: string
   }
+  employee?: {
+    id?: number
+    fullName?: string
+    phone?: string
+    address?: string
+    position?: 'WAREHOUSE' | 'PRODUCT_MANAGER' | 'ACCOUNTANT' | 'SALE' | 'SALES' | 'CSKH' | 'SHIPPER'
+    firstLogin?: boolean
+  }
 }
 
 interface AuthStore {
   user: User | null
+  employee: User['employee'] | null
   token: string | null
   isAuthenticated: boolean
   login: (user: User) => void
@@ -40,9 +49,14 @@ export const useAuthStore = create<AuthStore>()(
   persist(
     (set: any) => ({
       user: null,
+      employee: null,
       token: null,
       isAuthenticated: false,
-      login: (user: User) => set({ user, isAuthenticated: true }),
+      login: (user: User) => set({ 
+        user, 
+        employee: user.employee || null,
+        isAuthenticated: true 
+      }),
       logout: () => {
         if (typeof window !== 'undefined') {
           localStorage.removeItem('auth_token')
@@ -51,9 +65,13 @@ export const useAuthStore = create<AuthStore>()(
           // Xóa giỏ hàng khi đăng xuất
           localStorage.removeItem('cart-storage')
         }
-        set({ user: null, isAuthenticated: false, token: null })
+        set({ user: null, employee: null, isAuthenticated: false, token: null })
       },
-      setUser: (user: User | null) => set({ user, isAuthenticated: !!user }),
+      setUser: (user: User | null) => set({ 
+        user, 
+        employee: user?.employee || null,
+        isAuthenticated: !!user 
+      }),
       setAuth: (user: User, token: string) => {
         if (typeof window !== 'undefined') {
           // Xóa giỏ hàng cũ khi đăng nhập tài khoản mới
@@ -66,7 +84,12 @@ export const useAuthStore = create<AuthStore>()(
           localStorage.setItem('auth_token', token)
           localStorage.setItem('token', token)
         }
-        set({ user, token, isAuthenticated: true })
+        set({ 
+          user, 
+          employee: user.employee || null,
+          token, 
+          isAuthenticated: true 
+        })
       },
     }),
     {

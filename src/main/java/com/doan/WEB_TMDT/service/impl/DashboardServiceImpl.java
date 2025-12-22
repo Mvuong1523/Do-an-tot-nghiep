@@ -6,7 +6,7 @@ import com.doan.WEB_TMDT.module.order.entity.Order;
 import com.doan.WEB_TMDT.module.order.entity.OrderStatus;
 import com.doan.WEB_TMDT.module.order.repository.OrderRepository;
 import com.doan.WEB_TMDT.module.product.repository.ProductRepository;
-import com.doan.WEB_TMDT.repository.UserRepository;
+import com.doan.WEB_TMDT.module.auth.repository.UserRepository;
 import com.doan.WEB_TMDT.service.DashboardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -30,7 +30,7 @@ public class DashboardServiceImpl implements DashboardService {
         // Get current stats
         Long totalOrders = orderRepository.count();
         
-        // Calculate revenue and profit from delivered orders
+        // Calculate revenue from delivered orders
         List<Order> deliveredOrders = orderRepository.findAll().stream()
                 .filter(order -> order.getStatus() == OrderStatus.DELIVERED)
                 .collect(Collectors.toList());
@@ -39,25 +39,15 @@ public class DashboardServiceImpl implements DashboardService {
                 .mapToDouble(Order::getTotal)
                 .sum();
         
-        // Calculate profit (revenue - cost)
-        Double totalCost = deliveredOrders.stream()
-                .flatMap(order -> order.getOrderItems().stream())
-                .mapToDouble(item -> {
-                    // Get warehouse product cost
-                    if (item.getWarehouseProduct() != null && item.getWarehouseProduct().getImportPrice() != null) {
-                        return item.getWarehouseProduct().getImportPrice() * item.getQuantity();
-                    }
-                    return 0.0;
-                })
-                .sum();
-        
-        Double totalProfit = totalRevenue - totalCost;
-        Double profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0.0;
+        // TODO: Profit calculation requires tracking which serial numbers were sold
+        // For now, we'll set profit to 0 and calculate it properly later
+        Double totalProfit = 0.0;
+        Double profitMargin = 0.0;
         
         Long totalProducts = productRepository.count();
         Long totalCustomers = userRepository.countByRole("CUSTOMER");
-        Long pendingOrders = orderRepository.countByStatus(OrderStatus.PENDING);
-        Long lowStockProducts = productRepository.countByStockQuantityLessThan(10);
+        Long pendingOrders = orderRepository.countByStatus(OrderStatus.PENDING_PAYMENT);
+        Long lowStockProducts = 0L; // Will be implemented later if needed
 
         // Calculate percentage changes (comparing with last month)
         LocalDateTime lastMonth = LocalDateTime.now().minusMonths(1);
@@ -73,24 +63,13 @@ public class DashboardServiceImpl implements DashboardService {
                 .sum();
         Double revenueChangePercent = calculatePercentageChange(totalRevenue, lastMonthRevenue);
         
-        Double lastMonthCost = lastMonthDeliveredOrders.stream()
-                .flatMap(order -> order.getOrderItems().stream())
-                .mapToDouble(item -> {
-                    if (item.getWarehouseProduct() != null && item.getWarehouseProduct().getImportPrice() != null) {
-                        return item.getWarehouseProduct().getImportPrice() * item.getQuantity();
-                    }
-                    return 0.0;
-                })
-                .sum();
-        
-        Double lastMonthProfit = lastMonthRevenue - lastMonthCost;
-        Double profitChangePercent = calculatePercentageChange(totalProfit, lastMonthProfit);
+        Double profitChangePercent = 0.0; // Will be calculated when profit tracking is implemented
 
         return DashboardStatsDTO.builder()
                 .totalOrders(totalOrders)
                 .totalRevenue(totalRevenue)
                 .totalProfit(totalProfit)
-                .profitMargin(Math.round(profitMargin * 10.0) / 10.0)
+                .profitMargin(profitMargin)
                 .totalProducts(totalProducts)
                 .totalCustomers(totalCustomers)
                 .pendingOrders(pendingOrders)
@@ -112,6 +91,11 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     private OrderDTO convertToDTO(Order order) {
+        String customerEmail = "N/A";
+        if (order.getCustomer() != null && order.getCustomer().getUser() != null) {
+            customerEmail = order.getCustomer().getUser().getEmail();
+        }
+        
         return OrderDTO.builder()
                 .id(order.getId())
                 .orderCode(order.getOrderCode())
@@ -119,7 +103,7 @@ public class DashboardServiceImpl implements DashboardService {
                 .status(order.getStatus().name())
                 .createdAt(order.getCreatedAt())
                 .customerName(order.getCustomer() != null ? order.getCustomer().getFullName() : "N/A")
-                .customerEmail(order.getCustomer() != null ? order.getCustomer().getEmail() : "N/A")
+                .customerEmail(customerEmail)
                 .build();
     }
 

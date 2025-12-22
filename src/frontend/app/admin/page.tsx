@@ -94,11 +94,11 @@ export default function AdminDashboard() {
   const loadDashboardData = async () => {
     try {
       // Load dashboard stats
-      const statsResponse = await api.get('/api/dashboard/stats')
+      const statsResponse = await api.get('/dashboard/stats')
       setStats(statsResponse.data)
 
       // Load recent orders
-      const ordersResponse = await api.get('/api/dashboard/recent-orders?limit=5')
+      const ordersResponse = await api.get('/dashboard/recent-orders?limit=5')
       setRecentOrders(ordersResponse.data)
     } catch (error) {
       console.error('Error loading dashboard data:', error)
@@ -229,10 +229,17 @@ export default function AdminDashboard() {
             </h3>
             <p className="text-gray-600 text-sm">
               Lợi nhuận 
-              <span className="ml-2 text-emerald-600 font-semibold">
-                ({stats.profitMargin}%)
-              </span>
+              {stats.profitMargin > 0 && (
+                <span className="ml-2 text-emerald-600 font-semibold">
+                  ({stats.profitMargin}%)
+                </span>
+              )}
             </p>
+            {stats.totalProfit === 0 && (
+              <p className="text-xs text-gray-400 mt-1">
+                (Sẽ được tính sau)
+              </p>
+            )}
           </div>
 
           {/* Total Products */}

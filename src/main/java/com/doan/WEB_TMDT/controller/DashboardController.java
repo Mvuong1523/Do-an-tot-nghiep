@@ -19,13 +19,13 @@ public class DashboardController {
     private final DashboardService dashboardService;
 
     @GetMapping("/stats")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_EMPLOYEE')")
     public ResponseEntity<DashboardStatsDTO> getDashboardStats() {
         return ResponseEntity.ok(dashboardService.getDashboardStats());
     }
 
     @GetMapping("/recent-orders")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_EMPLOYEE')")
     public ResponseEntity<List<OrderDTO>> getRecentOrders(
             @RequestParam(defaultValue = "10") int limit
     ) {
