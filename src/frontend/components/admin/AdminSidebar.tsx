@@ -28,6 +28,11 @@ const menuItems: MenuItem[] = [
     ]
   },
   { 
+    icon: FiShoppingCart, 
+    label: 'Quản lý đơn hàng',
+    href: '/admin/orders'
+  },
+  { 
     icon: FiPackage, 
     label: 'Quản lý sản phẩm',
     children: [

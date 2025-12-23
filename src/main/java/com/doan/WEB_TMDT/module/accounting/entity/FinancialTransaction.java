@@ -21,11 +21,11 @@ public class FinancialTransaction {
     private String transactionCode;
     
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 20)
     private TransactionType type; // REVENUE, EXPENSE, REFUND
     
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 30)
     private TransactionCategory category; // SALES, SHIPPING, PAYMENT_FEE, TAX, SUPPLIER_PAYMENT, etc.
     
     @Column(nullable = false)

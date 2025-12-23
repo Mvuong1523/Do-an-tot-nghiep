@@ -11,6 +11,8 @@ export default function TaxPage() {
   const [taxReports, setTaxReports] = useState<any[]>([])
   const [taxSummary, setTaxSummary] = useState<any>(null)
   const [selectedType, setSelectedType] = useState('ALL')
+  const [selectedPeriod, setSelectedPeriod] = useState('ALL')
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString())
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingReport, setEditingReport] = useState<any>(null)
 
@@ -40,12 +42,12 @@ export default function TaxPage() {
 
     loadTaxReports()
     loadTaxSummary()
-  }, [router, selectedType])
+  }, [router, selectedType, selectedPeriod, selectedYear])
 
   const loadTaxReports = async () => {
     try {
       setLoading(true)
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('auth_token')
       const url = selectedType === 'ALL' 
         ? 'http://localhost:8080/api/accounting/tax/reports'
         : `http://localhost:8080/api/accounting/tax/reports/${selectedType}`
@@ -58,7 +60,32 @@ export default function TaxPage() {
 
       const result = await response.json()
       if (result.success) {
-        setTaxReports(result.data || [])
+        let filteredReports = result.data || []
+        
+        // Filter by period (month, quarter, year)
+        if (selectedPeriod !== 'ALL') {
+          filteredReports = filteredReports.filter((report: any) => {
+            const startDate = new Date(report.periodStart)
+            const year = startDate.getFullYear()
+            const month = startDate.getMonth() + 1
+            const quarter = Math.ceil(month / 3)
+            
+            if (year.toString() !== selectedYear) return false
+            
+            if (selectedPeriod.startsWith('Q')) {
+              const selectedQuarter = parseInt(selectedPeriod.substring(1))
+              return quarter === selectedQuarter
+            } else if (selectedPeriod.startsWith('M')) {
+              const selectedMonth = parseInt(selectedPeriod.substring(1))
+              return month === selectedMonth
+            } else if (selectedPeriod === 'YEAR') {
+              return true
+            }
+            return true
+          })
+        }
+        
+        setTaxReports(filteredReports)
       } else {
         toast.error(result.message || 'Lỗi khi tải báo cáo thuế')
       }
@@ -72,7 +99,7 @@ export default function TaxPage() {
 
   const loadTaxSummary = async () => {
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('auth_token')
       const response = await fetch('http://localhost:8080/api/accounting/tax/summary', {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -95,7 +122,7 @@ export default function TaxPage() {
 
     try {
       setLoading(true)
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('auth_token')
       const response = await fetch(`http://localhost:8080/api/accounting/tax/reports/${id}/submit`, {
         method: 'POST',
         headers: {
@@ -126,7 +153,7 @@ export default function TaxPage() {
 
     try {
       setLoading(true)
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('auth_token')
       const response = await fetch(`http://localhost:8080/api/accounting/tax/reports/${id}/mark-paid`, {
         method: 'POST',
         headers: {
@@ -221,16 +248,52 @@ export default function TaxPage() {
 
         {/* Filters and Actions */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="flex justify-between items-center">
-            <div className="flex space-x-4">
+          <div className="flex justify-between items-center flex-wrap gap-4">
+            <div className="flex space-x-4 flex-wrap gap-2">
               <select
                 value={selectedType}
                 onChange={(e) => setSelectedType(e.target.value)}
                 className="border border-gray-300 rounded-lg px-4 py-2"
               >
-                <option value="ALL">Tất cả</option>
+                <option value="ALL">Tất cả loại thuế</option>
                 <option value="VAT">Thuế VAT</option>
                 <option value="CORPORATE_TAX">Thuế TNDN</option>
+              </select>
+
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                className="border border-gray-300 rounded-lg px-4 py-2"
+              >
+                {[...Array(5)].map((_, i) => {
+                  const year = new Date().getFullYear() - i
+                  return <option key={year} value={year}>{year}</option>
+                })}
+              </select>
+
+              <select
+                value={selectedPeriod}
+                onChange={(e) => setSelectedPeriod(e.target.value)}
+                className="border border-gray-300 rounded-lg px-4 py-2"
+              >
+                <option value="ALL">Tất cả kỳ</option>
+                <option value="YEAR">Cả năm</option>
+                <option value="Q1">Quý 1 (T1-T3)</option>
+                <option value="Q2">Quý 2 (T4-T6)</option>
+                <option value="Q3">Quý 3 (T7-T9)</option>
+                <option value="Q4">Quý 4 (T10-T12)</option>
+                <option value="M1">Tháng 1</option>
+                <option value="M2">Tháng 2</option>
+                <option value="M3">Tháng 3</option>
+                <option value="M4">Tháng 4</option>
+                <option value="M5">Tháng 5</option>
+                <option value="M6">Tháng 6</option>
+                <option value="M7">Tháng 7</option>
+                <option value="M8">Tháng 8</option>
+                <option value="M9">Tháng 9</option>
+                <option value="M10">Tháng 10</option>
+                <option value="M11">Tháng 11</option>
+                <option value="M12">Tháng 12</option>
               </select>
             </div>
             <button
@@ -379,7 +442,7 @@ function TaxReportModal({ report, onClose, onSuccess }: any) {
 
     try {
       setLoading(true)
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('auth_token')
       const url = report
         ? `http://localhost:8080/api/accounting/tax/reports/${report.id}`
         : 'http://localhost:8080/api/accounting/tax/reports'

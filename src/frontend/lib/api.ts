@@ -484,6 +484,30 @@ export const adminOrderApi = {
     }
   },
 
+  getById: async (orderId: number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get(`/admin/orders/${orderId}`)
+      return {
+        success: true,
+        data: response.data?.data || response.data,
+      }
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi lấy thông tin đơn hàng')
+    }
+  },
+
+  getShippingStatus: async (orderId: number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get(`/admin/orders/${orderId}/shipping-status`)
+      return {
+        success: true,
+        data: response.data?.data || response.data,
+      }
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi lấy thông tin vận chuyển')
+    }
+  },
+
   confirmOrder: async (orderId: number): Promise<ApiResponse<any>> => {
     try {
       const response = await apiClient.put(`/admin/orders/${orderId}/confirm`)
