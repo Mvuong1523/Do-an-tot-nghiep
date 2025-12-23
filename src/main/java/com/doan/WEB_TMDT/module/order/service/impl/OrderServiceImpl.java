@@ -509,6 +509,7 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 
         try {
+            OrderStatus oldStatus = order.getStatus();
             OrderStatus newStatus = OrderStatus.valueOf(status.toUpperCase());
             order.setStatus(newStatus);
             
@@ -538,6 +539,10 @@ public class OrderServiceImpl implements OrderService {
             }
             
             orderRepository.save(order);
+            
+            // Publish event for accounting automation
+            publishOrderStatusChangeEvent(order, oldStatus, newStatus);
+            
             log.info("Updated order {} status to {}", order.getOrderCode(), newStatus);
 
             OrderResponse response = toOrderResponse(order);
@@ -602,10 +607,14 @@ public class OrderServiceImpl implements OrderService {
             return ApiResponse.error("Chỉ có thể chuyển sang đã giao từ trạng thái đang giao hàng");
         }
 
+        OrderStatus oldStatus = order.getStatus();
         order.setStatus(OrderStatus.DELIVERED);
         order.setDeliveredAt(LocalDateTime.now());
         order.setPaymentStatus(PaymentStatus.PAID); // Mark as paid when delivered (COD)
         orderRepository.save(order);
+
+        // Publish event for accounting automation
+        publishOrderStatusChangeEvent(order, oldStatus, OrderStatus.DELIVERED);
 
         log.info("Marked order {} as delivered", order.getOrderCode());
 

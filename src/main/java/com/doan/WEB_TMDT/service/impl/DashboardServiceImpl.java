@@ -2,6 +2,7 @@ package com.doan.WEB_TMDT.service.impl;
 
 import com.doan.WEB_TMDT.dto.DashboardStatsDTO;
 import com.doan.WEB_TMDT.dto.OrderDTO;
+import com.doan.WEB_TMDT.module.auth.entity.Role;
 import com.doan.WEB_TMDT.module.order.entity.Order;
 import com.doan.WEB_TMDT.module.order.entity.OrderStatus;
 import com.doan.WEB_TMDT.module.order.repository.OrderRepository;
@@ -27,71 +28,103 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     public DashboardStatsDTO getDashboardStats() {
-        // Get current stats
-        Long totalOrders = orderRepository.count();
-        
-        // Calculate revenue from delivered orders
-        List<Order> deliveredOrders = orderRepository.findAll().stream()
-                .filter(order -> order.getStatus() == OrderStatus.DELIVERED)
-                .collect(Collectors.toList());
-        
-        Double totalRevenue = deliveredOrders.stream()
-                .mapToDouble(Order::getTotal)
-                .sum();
-        
-        // TODO: Profit calculation requires tracking which serial numbers were sold
-        // For now, we'll set profit to 0 and calculate it properly later
-        Double totalProfit = 0.0;
-        Double profitMargin = 0.0;
-        
-        Long totalProducts = productRepository.count();
-        Long totalCustomers = userRepository.countByRole("CUSTOMER");
-        Long pendingOrders = orderRepository.countByStatus(OrderStatus.PENDING_PAYMENT);
-        Long lowStockProducts = 0L; // Will be implemented later if needed
+        try {
+            // Get current stats with null safety
+            Long totalOrders = orderRepository.count();
+            
+            // Calculate revenue from delivered orders
+            List<Order> deliveredOrders = orderRepository.findAll().stream()
+                    .filter(order -> order != null && order.getStatus() == OrderStatus.DELIVERED)
+                    .collect(Collectors.toList());
+            
+            Double totalRevenue = deliveredOrders.stream()
+                    .mapToDouble(order -> order.getTotal() != null ? order.getTotal() : 0.0)
+                    .sum();
+            
+            // TODO: Profit calculation requires tracking which serial numbers were sold
+            // For now, we'll set profit to 0 and calculate it properly later
+            Double totalProfit = 0.0;
+            Double profitMargin = 0.0;
+            
+            Long totalProducts = productRepository.count();
+            Long totalCustomers = userRepository.countByRole(Role.CUSTOMER);
+            if (totalCustomers == null) totalCustomers = 0L;
+            
+            Long pendingOrders = orderRepository.countByStatus(OrderStatus.PENDING_PAYMENT);
+            if (pendingOrders == null) pendingOrders = 0L;
+            
+            Long lowStockProducts = 0L; // Will be implemented later if needed
 
-        // Calculate overdue orders (orders older than 4 days that are not delivered or cancelled)
-        LocalDateTime fourDaysAgo = LocalDateTime.now().minusDays(4);
-        Long overdueOrders = orderRepository.findAll().stream()
-                .filter(order -> order.getCreatedAt().isBefore(fourDaysAgo))
-                .filter(order -> order.getStatus() != OrderStatus.DELIVERED && order.getStatus() != OrderStatus.CANCELLED)
-                .count();
+            // Calculate overdue orders (orders older than 4 days that are not delivered or cancelled)
+            LocalDateTime fourDaysAgo = LocalDateTime.now().minusDays(4);
+            Long overdueOrders = orderRepository.findAll().stream()
+                    .filter(order -> order != null && order.getCreatedAt() != null)
+                    .filter(order -> order.getCreatedAt().isBefore(fourDaysAgo))
+                    .filter(order -> order.getStatus() != OrderStatus.DELIVERED && order.getStatus() != OrderStatus.CANCELLED)
+                    .count();
 
-        // Calculate overdue payables (will be 0 for now, needs accounting module integration)
-        Long overduePayables = 0L; // TODO: Integrate with accounting module
+            // Calculate overdue payables (will be 0 for now, needs accounting module integration)
+            Long overduePayables = 0L; // TODO: Integrate with accounting module
 
-        // Calculate percentage changes (comparing with last month)
-        LocalDateTime lastMonth = LocalDateTime.now().minusMonths(1);
-        Long lastMonthOrders = orderRepository.countByCreatedAtAfter(lastMonth);
-        Double ordersChangePercent = calculatePercentageChange(totalOrders, lastMonthOrders);
+            // Calculate percentage changes (comparing with last month)
+            LocalDateTime lastMonth = LocalDateTime.now().minusMonths(1);
+            Long lastMonthOrders = orderRepository.countByCreatedAtAfter(lastMonth);
+            if (lastMonthOrders == null) lastMonthOrders = 0L;
+            
+            Double ordersChangePercent = calculatePercentageChange(totalOrders, lastMonthOrders);
 
-        List<Order> lastMonthDeliveredOrders = orderRepository.findByCreatedAtAfter(lastMonth).stream()
-                .filter(order -> order.getStatus() == OrderStatus.DELIVERED)
-                .collect(Collectors.toList());
-        
-        Double lastMonthRevenue = lastMonthDeliveredOrders.stream()
-                .mapToDouble(Order::getTotal)
-                .sum();
-        Double revenueChangePercent = calculatePercentageChange(totalRevenue, lastMonthRevenue);
-        
-        Double profitChangePercent = 0.0; // Will be calculated when profit tracking is implemented
+            List<Order> lastMonthDeliveredOrders = orderRepository.findByCreatedAtAfter(lastMonth).stream()
+                    .filter(order -> order != null && order.getStatus() == OrderStatus.DELIVERED)
+                    .collect(Collectors.toList());
+            
+            Double lastMonthRevenue = lastMonthDeliveredOrders.stream()
+                    .mapToDouble(order -> order.getTotal() != null ? order.getTotal() : 0.0)
+                    .sum();
+            Double revenueChangePercent = calculatePercentageChange(totalRevenue, lastMonthRevenue);
+            
+            Double profitChangePercent = 0.0; // Will be calculated when profit tracking is implemented
 
-        return DashboardStatsDTO.builder()
-                .totalOrders(totalOrders)
-                .totalRevenue(totalRevenue)
-                .totalProfit(totalProfit)
-                .profitMargin(profitMargin)
-                .totalProducts(totalProducts)
-                .totalCustomers(totalCustomers)
-                .pendingOrders(pendingOrders)
-                .lowStockProducts(lowStockProducts)
-                .overdueOrders(overdueOrders)
-                .overduePayables(overduePayables)
-                .ordersChangePercent(ordersChangePercent)
-                .revenueChangePercent(revenueChangePercent)
-                .profitChangePercent(profitChangePercent)
-                .productsChangePercent(0.0) // Can be calculated if needed
-                .customersChangePercent(0.0) // Can be calculated if needed
-                .build();
+            return DashboardStatsDTO.builder()
+                    .totalOrders(totalOrders)
+                    .totalRevenue(totalRevenue)
+                    .totalProfit(totalProfit)
+                    .profitMargin(profitMargin)
+                    .totalProducts(totalProducts)
+                    .totalCustomers(totalCustomers)
+                    .pendingOrders(pendingOrders)
+                    .lowStockProducts(lowStockProducts)
+                    .overdueOrders(overdueOrders)
+                    .overduePayables(overduePayables)
+                    .ordersChangePercent(ordersChangePercent)
+                    .revenueChangePercent(revenueChangePercent)
+                    .profitChangePercent(profitChangePercent)
+                    .productsChangePercent(0.0) // Can be calculated if needed
+                    .customersChangePercent(0.0) // Can be calculated if needed
+                    .build();
+        } catch (Exception e) {
+            // Log the error and return default values
+            System.err.println("Error calculating dashboard stats: " + e.getMessage());
+            e.printStackTrace();
+            
+            // Return default stats to prevent frontend errors
+            return DashboardStatsDTO.builder()
+                    .totalOrders(0L)
+                    .totalRevenue(0.0)
+                    .totalProfit(0.0)
+                    .profitMargin(0.0)
+                    .totalProducts(0L)
+                    .totalCustomers(0L)
+                    .pendingOrders(0L)
+                    .lowStockProducts(0L)
+                    .overdueOrders(0L)
+                    .overduePayables(0L)
+                    .ordersChangePercent(0.0)
+                    .revenueChangePercent(0.0)
+                    .profitChangePercent(0.0)
+                    .productsChangePercent(0.0)
+                    .customersChangePercent(0.0)
+                    .build();
+        }
     }
 
     @Override

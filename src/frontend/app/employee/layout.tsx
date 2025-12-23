@@ -132,24 +132,39 @@ export default function EmployeeLayout({
       path: '/employee/accounting',
       children: [
         {
-          title: 'Đối soát',
+          title: 'Tổng quan',
           icon: <FiFileText size={18} />,
-          path: '/employee/accounting/reconciliation',
+          path: '/employee/accounting',
+        },
+        {
+          title: 'Giao dịch tài chính',
+          icon: <FiFileText size={18} />,
+          path: '/employee/accounting/transactions',
+        },
+        {
+          title: 'Kỳ kế toán',
+          icon: <FiFileText size={18} />,
+          path: '/employee/accounting/periods',
+        },
+        {
+          title: 'Quản lý thuế',
+          icon: <FiDollarSign size={18} />,
+          path: '/employee/accounting/tax',
+        },
+        {
+          title: 'Báo cáo nâng cao',
+          icon: <FiFileText size={18} />,
+          path: '/employee/accounting/advanced-reports',
+        },
+        {
+          title: 'Đối soát vận chuyển',
+          icon: <FiTruck size={18} />,
+          path: '/employee/accounting/shipping',
         },
         {
           title: 'Công nợ NCC',
           icon: <FiDollarSign size={18} />,
           path: '/employee/accounting/payables',
-        },
-        {
-          title: 'Báo cáo tài chính',
-          icon: <FiFileText size={18} />,
-          path: '/employee/accounting/statements',
-        },
-        {
-          title: 'Tài khoản ngân hàng',
-          icon: <FiDollarSign size={18} />,
-          path: '/employee/accounting/bank-accounts',
         },
       ]
     },

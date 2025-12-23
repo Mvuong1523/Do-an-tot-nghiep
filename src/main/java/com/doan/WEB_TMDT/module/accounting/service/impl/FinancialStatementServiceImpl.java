@@ -113,17 +113,17 @@ public class FinancialStatementServiceImpl implements FinancialStatementService 
         for (var tx : transactions) {
             if (tx.getType() == TransactionType.EXPENSE) {
                 switch (tx.getCategory()) {
-                    case COST_OF_GOODS:
-                        costOfGoodsSold = costOfGoodsSold.add(tx.getAmount());
+                    case SUPPLIER_PAYMENT:
+                        costOfGoodsSold = costOfGoodsSold.add(BigDecimal.valueOf(tx.getAmount()));
                         break;
                     case SHIPPING:
-                        shippingExpense = shippingExpense.add(tx.getAmount());
+                        shippingExpense = shippingExpense.add(BigDecimal.valueOf(tx.getAmount()));
                         break;
                     case PAYMENT_FEE:
-                        paymentFee = paymentFee.add(tx.getAmount());
+                        paymentFee = paymentFee.add(BigDecimal.valueOf(tx.getAmount()));
                         break;
                     default:
-                        otherExpense = otherExpense.add(tx.getAmount());
+                        otherExpense = otherExpense.add(BigDecimal.valueOf(tx.getAmount()));
                         break;
                 }
             }
