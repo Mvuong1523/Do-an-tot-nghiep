@@ -15,8 +15,14 @@ import com.doan.WEB_TMDT.module.order.entity.OrderStatus;
 import com.doan.WEB_TMDT.module.order.entity.PaymentStatus;
 import com.doan.WEB_TMDT.module.order.repository.OrderRepository;
 import com.doan.WEB_TMDT.module.order.service.OrderService;
+import com.doan.WEB_TMDT.module.payment.service.PaymentService;
 import com.doan.WEB_TMDT.module.product.entity.Product;
 import com.doan.WEB_TMDT.module.accounting.listener.OrderStatusChangedEvent;
+import com.doan.WEB_TMDT.module.product.repository.ProductImageRepository;
+import com.doan.WEB_TMDT.module.shipping.dto.CalculateShippingFeeRequest;
+import com.doan.WEB_TMDT.module.shipping.dto.CreateGHNOrderRequest;
+import com.doan.WEB_TMDT.module.shipping.dto.GHNOrderDetailResponse;
+import com.doan.WEB_TMDT.module.shipping.service.ShippingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -39,9 +45,9 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final CartRepository cartRepository;
     private final CustomerRepository customerRepository;
-    private final com.doan.WEB_TMDT.module.payment.service.PaymentService paymentService;
-    private final com.doan.WEB_TMDT.module.shipping.service.ShippingService shippingService;
-    private final com.doan.WEB_TMDT.module.product.repository.ProductImageRepository productImageRepository;
+    private final PaymentService paymentService;
+    private final ShippingService shippingService;
+    private final ProductImageRepository productImageRepository;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -352,7 +358,7 @@ public class OrderServiceImpl implements OrderService {
 
         try {
             // Get GHN order detail
-            com.doan.WEB_TMDT.module.shipping.dto.GHNOrderDetailResponse ghnDetail = 
+            GHNOrderDetailResponse ghnDetail =
                 shippingService.getGHNOrderDetail(order.getGhnOrderCode());
             
             // Update order status from GHN
@@ -695,7 +701,7 @@ public class OrderServiceImpl implements OrderService {
 
         try {
             // Get GHN order detail
-            com.doan.WEB_TMDT.module.shipping.dto.GHNOrderDetailResponse ghnDetail = 
+            GHNOrderDetailResponse ghnDetail =
                 shippingService.getGHNOrderDetail(order.getGhnOrderCode());
             
             // Update order status from GHN
@@ -719,8 +725,8 @@ public class OrderServiceImpl implements OrderService {
         // For now, return a default or call a helper
         // This is a simplified version - in production, you'd want to cache this
         try {
-            com.doan.WEB_TMDT.module.shipping.dto.CalculateShippingFeeRequest feeRequest = 
-                com.doan.WEB_TMDT.module.shipping.dto.CalculateShippingFeeRequest.builder()
+            CalculateShippingFeeRequest feeRequest =
+                CalculateShippingFeeRequest.builder()
                     .province(province)
                     .district(district)
                     .weight(1000.0)
@@ -738,11 +744,11 @@ public class OrderServiceImpl implements OrderService {
         }
     }
     
-    private List<com.doan.WEB_TMDT.module.shipping.dto.CreateGHNOrderRequest.GHNOrderItem> buildGHNItems(Order order) {
-        List<com.doan.WEB_TMDT.module.shipping.dto.CreateGHNOrderRequest.GHNOrderItem> items = new ArrayList<>();
+    private List<CreateGHNOrderRequest.GHNOrderItem> buildGHNItems(Order order) {
+        List<CreateGHNOrderRequest.GHNOrderItem> items = new ArrayList<>();
         
         for (OrderItem item : order.getItems()) {
-            items.add(com.doan.WEB_TMDT.module.shipping.dto.CreateGHNOrderRequest.GHNOrderItem.builder()
+            items.add(CreateGHNOrderRequest.GHNOrderItem.builder()
                     .name(item.getProductName())
                     .code(item.getProduct().getSku())
                     .quantity(item.getQuantity())

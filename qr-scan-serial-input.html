@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quét QR - Nhập Serial Sản Phẩm</title>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        #reader {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            flex: 1;
+            min-width: 150px;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-start {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-start:hover {
+            background: #059669;
+            transform: translateY(-2px);
+        }
+        
+        .btn-stop {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-stop:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+        }
+        
+        .btn-clear {
+            background: #f59e0b;
+            color: white;
+        }
+        
+        .btn-clear:hover {
+            background: #d97706;
+            transform: translateY(-2px);
+        }
+        
+        .btn-export {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn-export:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .serial-list {
+            background: #f9fafb;
+            border-radius: 10px;
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .serial-list h3 {
+            color: #374151;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        .serial-item {
+            background: white;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        .serial-number {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            color: #667eea;
+            font-size: 16px;
+        }
+        
+        .serial-time {
+            color: #6b7280;
+            font-size: 12px;
+        }
+        
+        .serial-delete {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .serial-delete:hover {
+            background: #dc2626;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            flex: 1;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #9ca3af;
+        }
+        
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .alert.success {
+            background: #d1fae5;
+            color: #065f46;
+            border-left: 4px solid #10b981;
+        }
+        
+        .alert.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+        
+        .alert.show {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📦 Quét QR - Nhập Serial</h1>
+            <p>Quét mã QR hoặc barcode để nhập serial sản phẩm nhanh chóng</p>
+        </div>
+        
+        <div class="content">
+            <div id="alert" class="alert"></div>
+            
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalCount">0</div>
+                    <div class="stat-label">Tổng số serial</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="lastScanned">---</div>
+                    <div class="stat-label">Serial cuối cùng</div>
+                </div>
+            </div>
+            
+            <div id="reader"></div>
+            
+            <div class="controls">
+                <button id="startBtn" class="btn-start" onclick="startScanner()">
+                    🎥 Bắt đầu quét
+                </button>
+                <button id="stopBtn" class="btn-stop" onclick="stopScanner()" disabled>
+                    ⏹️ Dừng quét
+                </button>
+                <button class="btn-clear" onclick="clearSerials()">
+                    🗑️ Xóa tất cả
+                </button>
+                <button class="btn-export" onclick="exportToExcel()">
+                    📊 Xuất Excel
+                </button>
+            </div>
+            
+            <div class="serial-list">
+                <h3>📋 Danh sách Serial đã quét (<span id="count">0</span>)</h3>
+                <div id="serialList">
+                    <div class="empty-state">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
+                        </svg>
+                        <p>Chưa có serial nào được quét</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let html5QrCode;
+        let scannedSerials = [];
+        let isScanning = false;
+
+        // Load saved serials from localStorage
+        window.onload = function() {
+            const saved = localStorage.getItem('scannedSerials');
+            if (saved) {
+                scannedSerials = JSON.parse(saved);
+                updateSerialList();
+            }
+        };
+
+        function startScanner() {
+            if (isScanning) return;
+            
+            html5QrCode = new Html5Qrcode("reader");
+            
+            html5QrCode.start(
+                { facingMode: "environment" },
+                {
+                    fps: 10,
+                    qrbox: { width: 250, height: 250 }
+                },
+                onScanSuccess,
+                onScanError
+            ).then(() => {
+                isScanning = true;
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                showAlert('Camera đã được bật', 'success');
+            }).catch(err => {
+                showAlert('Không thể khởi động camera: ' + err, 'error');
+            });
+        }
+
+        function stopScanner() {
+            if (!isScanning) return;
+            
+            html5QrCode.stop().then(() => {
+                isScanning = false;
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+                showAlert('Camera đã được tắt', 'success');
+            }).catch(err => {
+                showAlert('Lỗi khi tắt camera: ' + err, 'error');
+            });
+        }
+
+        function onScanSuccess(decodedText, decodedResult) {
+            // Check for duplicates
+            if (scannedSerials.some(item => item.serial === decodedText)) {
+                showAlert('Serial đã tồn tại: ' + decodedText, 'error');
+                return;
+            }
+
+            const serialData = {
+                serial: decodedText,
+                timestamp: new Date().toLocaleString('vi-VN')
+            };
+
+            scannedSerials.unshift(serialData);
+            updateSerialList();
+            saveToLocalStorage();
+            showAlert('✅ Đã thêm serial: ' + decodedText, 'success');
+            
+            // Play success sound (optional)
+            playBeep();
+        }
+
+        function onScanError(errorMessage) {
+            // Ignore scan errors (too noisy)
+        }
+
+        function updateSerialList() {
+            const listDiv = document.getElementById('serialList');
+            const countSpan = document.getElementById('count');
+            const totalCount = document.getElementById('totalCount');
+            const lastScanned = document.getElementById('lastScanned');
+
+            countSpan.textContent = scannedSerials.length;
+            totalCount.textContent = scannedSerials.length;
+            
+            if (scannedSerials.length === 0) {
+                listDiv.innerHTML = `
+                    <div class="empty-state">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
+                        </svg>
+                        <p>Chưa có serial nào được quét</p>
+                    </div>
+                `;
+                lastScanned.textContent = '---';
+                return;
+            }
+
+            lastScanned.textContent = scannedSerials[0].serial.substring(0, 10) + '...';
+
+            listDiv.innerHTML = scannedSerials.map((item, index) => `
+                <div class="serial-item">
+                    <div>
+                        <div class="serial-number">${item.serial}</div>
+                        <div class="serial-time">${item.timestamp}</div>
+                    </div>
+                    <button class="serial-delete" onclick="deleteSerial(${index})">Xóa</button>
+                </div>
+            `).join('');
+        }
+
+        function deleteSerial(index) {
+            scannedSerials.splice(index, 1);
+            updateSerialList();
+            saveToLocalStorage();
+            showAlert('Đã xóa serial', 'success');
+        }
+
+        function clearSerials() {
+            if (scannedSerials.length === 0) return;
+            
+            if (confirm('Bạn có chắc muốn xóa tất cả ' + scannedSerials.length + ' serial?')) {
+                scannedSerials = [];
+                updateSerialList();
+                saveToLocalStorage();
+                showAlert('Đã xóa tất cả serial', 'success');
+            }
+        }
+
+        function exportToExcel() {
+            if (scannedSerials.length === 0) {
+                showAlert('Không có dữ liệu để xuất', 'error');
+                return;
+            }
+
+            let csv = 'Serial,Thời gian quét\n';
+            scannedSerials.forEach(item => {
+                csv += `"${item.serial}","${item.timestamp}"\n`;
+            });
+
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            
+            link.setAttribute('href', url);
+            link.setAttribute('download', 'serials_' + new Date().getTime() + '.csv');
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showAlert('✅ Đã xuất ' + scannedSerials.length + ' serial ra file CSV', 'success');
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem('scannedSerials', JSON.stringify(scannedSerials));
+        }
+
+        function showAlert(message, type) {
+            const alert = document.getElementById('alert');
+            alert.textContent = message;
+            alert.className = 'alert ' + type + ' show';
+            
+            setTimeout(() => {
+                alert.classList.remove('show');
+            }, 3000);
+        }
+
+        function playBeep() {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 800;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.1);
+        }
+
+        // Cleanup on page unload
+        window.onbeforeunload = function() {
+            if (isScanning) {
+                stopScanner();
+            }
+        };
+    </script>
+</body>
+</html>
