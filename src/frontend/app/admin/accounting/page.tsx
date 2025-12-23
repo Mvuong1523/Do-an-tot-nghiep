@@ -1,17 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import toast from 'react-hot-toast'
-import { FiDollarSign, FiAlertCircle, FiCheckCircle, FiFileText } from 'react-icons/fi'
+import { FiFileText, FiCalendar, FiDollarSign, FiBarChart, FiTruck } from 'react-icons/fi'
 
 export default function AccountingPage() {
   const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState<any>(null)
 
   useEffect(() => {
-    // Đọc từ auth-storage (zustand persist)
     const authStorage = localStorage.getItem('auth-storage')
     if (!authStorage) {
       router.push('/login')
@@ -21,246 +17,92 @@ export default function AccountingPage() {
     const authData = JSON.parse(authStorage)
     const userData = authData.state?.user
     
-    if (!userData) {
-      router.push('/login')
-      return
-    }
-
-    // Admin hoặc Employee với position ACCOUNTANT
-    const isAdmin = userData.role === 'ADMIN'
-    const isAccountant = userData.position === 'ACCOUNTANT'
-    
-    if (!isAdmin && !isAccountant) {
-      toast.error('Bạn không có quyền truy cập trang này')
+    if (!userData || userData.role !== 'ADMIN') {
       router.push('/')
       return
     }
-
-    loadStats()
   }, [router])
 
-  const loadStats = async () => {
-    try {
-      setLoading(true)
-      const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:8080/api/accounting/stats', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      const result = await response.json()
-      if (result.success) {
-        setStats(result.data)
-      }
-    } catch (error) {
-      console.error('Error loading stats:', error)
-      toast.error('Lỗi khi tải thống kê')
-    } finally {
-      setLoading(false)
+  const modules = [
+    {
+      title: 'Giao dịch tài chính',
+      description: 'Quản lý các giao dịch thu chi',
+      icon: FiFileText,
+      href: '/admin/accounting/transactions',
+      color: 'blue'
+    },
+    {
+      title: 'Kỳ kế toán',
+      description: 'Quản lý và chốt kỳ kế toán',
+      icon: FiCalendar,
+      href: '/admin/accounting/periods',
+      color: 'green'
+    },
+    {
+      title: 'Quản lý thuế',
+      description: 'Báo cáo và theo dõi thuế',
+      icon: FiDollarSign,
+      href: '/admin/accounting/tax',
+      color: 'orange'
+    },
+    {
+      title: 'Báo cáo nâng cao',
+      description: 'Phân tích lãi lỗ, dòng tiền, chi phí',
+      icon: FiBarChart,
+      href: '/admin/accounting/advanced-reports',
+      color: 'purple'
+    },
+    {
+      title: 'Đối soát vận chuyển',
+      description: 'So sánh phí vận chuyển và chi phí',
+      icon: FiTruck,
+      href: '/admin/accounting/shipping',
+      color: 'red'
     }
-  }
+  ]
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Đang tải...</p>
-        </div>
-      </div>
-    )
+  const getColorClasses = (color: string) => {
+    const colors: any = {
+      blue: 'bg-blue-100 text-blue-600',
+      green: 'bg-green-100 text-green-600',
+      orange: 'bg-orange-100 text-orange-600',
+      purple: 'bg-purple-100 text-purple-600',
+      red: 'bg-red-100 text-red-600'
+    }
+    return colors[color] || colors.blue
   }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Kế toán & Đối soát</h1>
-          <p className="mt-2 text-gray-600">Quản lý tài chính và đối soát thanh toán</p>
+          <h1 className="text-3xl font-bold text-gray-900">Kế toán</h1>
+          <p className="mt-2 text-gray-600">Quản lý tài chính và kế toán doanh nghiệp</p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Tổng doanh thu</p>
-                <p className="text-2xl font-bold text-gray-900 mt-2">
-                  {stats?.totalRevenue?.toLocaleString('vi-VN')} ₫
-                </p>
-              </div>
-              <div className="bg-green-100 p-3 rounded-full">
-                <FiDollarSign className="text-green-600" size={24} />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Chờ đối soát</p>
-                <p className="text-2xl font-bold text-orange-600 mt-2">
-                  {stats?.pendingReconciliation || 0}
-                </p>
-              </div>
-              <div className="bg-orange-100 p-3 rounded-full">
-                <FiAlertCircle className="text-orange-600" size={24} />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Đã đối soát</p>
-                <p className="text-2xl font-bold text-green-600 mt-2">
-                  {stats?.completedReconciliation || 0}
-                </p>
-              </div>
-              <div className="bg-green-100 p-3 rounded-full">
-                <FiCheckCircle className="text-green-600" size={24} />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Sai lệch</p>
-                <p className="text-2xl font-bold text-red-600 mt-2">
-                  {stats?.discrepancyAmount?.toLocaleString('vi-VN')} ₫
-                </p>
-              </div>
-              <div className="bg-red-100 p-3 rounded-full">
-                <FiAlertCircle className="text-red-600" size={24} />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <button
-            onClick={() => router.push('/admin/accounting/reconciliation')}
-            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow text-left"
-          >
-            <div className="flex items-center space-x-4">
-              <div className="bg-blue-100 p-3 rounded-full">
-                <FiCheckCircle className="text-blue-600" size={24} />
+          {modules.map((module) => (
+            <button
+              key={module.href}
+              onClick={() => router.push(module.href)}
+              className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow p-6 text-left"
+            >
+              <div className={`inline-flex p-3 rounded-lg ${getColorClasses(module.color)} mb-4`}>
+                <module.icon size={24} />
               </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">Đối soát thanh toán</h3>
-                <p className="text-sm text-gray-600 mt-1">So sánh với cổng thanh toán</p>
-              </div>
-            </div>
-          </button>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">{module.title}</h3>
+              <p className="text-sm text-gray-600">{module.description}</p>
+            </button>
+          ))}
+        </div>
 
-          <button
-            onClick={() => router.push('/admin/accounting/reports')}
-            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow text-left"
-          >
-            <div className="flex items-center space-x-4">
-              <div className="bg-purple-100 p-3 rounded-full">
-                <FiFileText className="text-purple-600" size={24} />
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">Báo cáo tài chính</h3>
-                <p className="text-sm text-gray-600 mt-1">Xem báo cáo chi tiết</p>
-              </div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => router.push('/admin/accounting/periods')}
-            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow text-left"
-          >
-            <div className="flex items-center space-x-4">
-              <div className="bg-green-100 p-3 rounded-full">
-                <FiDollarSign className="text-green-600" size={24} />
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">Quản lý kỳ</h3>
-                <p className="text-sm text-gray-600 mt-1">Chốt sổ và mở khóa kỳ</p>
-              </div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => router.push('/admin/accounting/tax')}
-            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow text-left"
-          >
-            <div className="flex items-center space-x-4">
-              <div className="bg-red-100 p-3 rounded-full">
-                <FiAlertCircle className="text-red-600" size={24} />
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">Quản lý thuế</h3>
-                <p className="text-sm text-gray-600 mt-1">VAT, thuế TNDN</p>
-              </div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => router.push('/admin/accounting/transactions')}
-            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow text-left"
-          >
-            <div className="flex items-center space-x-4">
-              <div className="bg-orange-100 p-3 rounded-full">
-                <FiFileText className="text-orange-600" size={24} />
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">Giao dịch tài chính</h3>
-                <p className="text-sm text-gray-600 mt-1">Quản lý thu chi</p>
-              </div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => router.push('/admin/accounting/shipping')}
-            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow text-left"
-          >
-            <div className="flex items-center space-x-4">
-              <div className="bg-yellow-100 p-3 rounded-full">
-                <FiFileText className="text-yellow-600" size={24} />
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">Đối soát vận chuyển</h3>
-                <p className="text-sm text-gray-600 mt-1">Chi phí vận chuyển</p>
-              </div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => router.push('/admin/accounting/advanced-reports')}
-            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow text-left"
-          >
-            <div className="flex items-center space-x-4">
-              <div className="bg-indigo-100 p-3 rounded-full">
-                <FiFileText className="text-indigo-600" size={24} />
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">Báo cáo nâng cao</h3>
-                <p className="text-sm text-gray-600 mt-1">Phân tích chi tiết</p>
-              </div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => router.push('/admin/accounting/payables')}
-            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow text-left"
-          >
-            <div className="flex items-center space-x-4">
-              <div className="bg-pink-100 p-3 rounded-full">
-                <FiDollarSign className="text-pink-600" size={24} />
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">Công nợ NCC</h3>
-                <p className="text-sm text-gray-600 mt-1">Quản lý công nợ phải trả</p>
-              </div>
-            </div>
-          </button>
+        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h3 className="text-sm font-medium text-blue-900 mb-2">📌 Lưu ý:</h3>
+          <ul className="text-sm text-blue-800 space-y-1">
+            <li>• Tất cả module kế toán chỉ dành cho Admin và Kế toán viên</li>
+            <li>• Dữ liệu được tự động đồng bộ từ các giao dịch và đơn hàng</li>
+            <li>• Hãy chốt kỳ kế toán định kỳ để theo dõi tài chính chính xác</li>
+          </ul>
         </div>
       </div>
     </div>

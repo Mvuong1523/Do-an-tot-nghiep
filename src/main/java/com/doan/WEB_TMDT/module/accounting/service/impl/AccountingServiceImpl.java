@@ -6,7 +6,6 @@ import com.doan.WEB_TMDT.module.accounting.dto.ReconciliationRequest;
 import com.doan.WEB_TMDT.module.accounting.entity.*;
 import com.doan.WEB_TMDT.module.accounting.repository.*;
 import com.doan.WEB_TMDT.module.accounting.service.AccountingService;
-import com.doan.WEB_TMDT.module.accounting.service.ExcelExportService;
 import com.doan.WEB_TMDT.module.order.entity.Order;
 import com.doan.WEB_TMDT.module.order.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +20,6 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.Base64;
 
 @Service
 @RequiredArgsConstructor
@@ -30,7 +28,6 @@ public class AccountingServiceImpl implements AccountingService {
     private final PaymentReconciliationRepository reconciliationRepo;
     private final AccountingPeriodRepository periodRepo;
     private final OrderRepository orderRepo;
-    private final ExcelExportService excelExportService;
 
     @Override
     public ApiResponse getStats() {
@@ -413,14 +410,17 @@ public class AccountingServiceImpl implements AccountingService {
                 reports.add(report);
             }
             
-            byte[] excelData = excelExportService.exportFinancialReport(reports);
-            String base64Excel = Base64.getEncoder().encodeToString(excelData);
+            // TODO: Implement Excel export functionality
+            return ApiResponse.error("Chức năng xuất Excel đang được phát triển");
             
-            Map<String, Object> result = new HashMap<>();
-            result.put("fileName", "BaoCaoTaiChinh_" + startDate + "_" + endDate + ".xlsx");
-            result.put("data", base64Excel);
-            
-            return ApiResponse.success("Xuất báo cáo thành công!", result);
+            // byte[] excelData = excelExportService.exportFinancialReport(reports);
+            // String base64Excel = Base64.getEncoder().encodeToString(excelData);
+            //
+            // Map<String, Object> result = new HashMap<>();
+            // result.put("fileName", "BaoCaoTaiChinh_" + startDate + "_" + endDate + ".xlsx");
+            // result.put("data", base64Excel);
+            //
+            // return ApiResponse.success("Xuất báo cáo thành công!", result);
         } catch (Exception e) {
             return ApiResponse.error("Lỗi khi xuất báo cáo: " + e.getMessage());
         }
@@ -455,8 +455,7 @@ public class AccountingServiceImpl implements AccountingService {
         if (totalDiscrepancy == null) totalDiscrepancy = 0.0;
         
         // Cập nhật thông tin kỳ
-        period.setTotalRevenue(BigDecimal.valueOf(actualRevenue));
-        period.setDiscrepancyAmount(BigDecimal.valueOf(totalDiscrepancy));
+        period.setTotalRevenue(actualRevenue);
         
         // Tính tỷ lệ sai số
         double discrepancyRate = actualRevenue > 0 ? (totalDiscrepancy / actualRevenue) * 100 : 0;
@@ -470,10 +469,6 @@ public class AccountingServiceImpl implements AccountingService {
                 "Tổng sai lệch: %,.0f ₫ / Tổng doanh thu: %,.0f ₫", 
                 discrepancyRate, totalDiscrepancy, actualRevenue));
         }
-        
-        // Đếm số đơn hàng trong kỳ
-        Long orderCount = orderRepo.countPaidOrdersBetween(startDateTime, endDateTime);
-        period.setTotalOrders(orderCount != null ? orderCount.intValue() : 0);
         
         String currentUser = SecurityUtils.getCurrentUserEmail();
         
@@ -524,14 +519,17 @@ public class AccountingServiceImpl implements AccountingService {
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> details = (List<Map<String, Object>>) data.get("details");
             
-            byte[] excelData = excelExportService.exportShippingReconciliation(details);
-            String base64Excel = Base64.getEncoder().encodeToString(excelData);
+            // TODO: Implement Excel export functionality
+            return ApiResponse.error("Chức năng xuất Excel đang được phát triển");
             
-            Map<String, Object> result = new HashMap<>();
-            result.put("fileName", "DoiSoatVanChuyen_" + startDate + "_" + endDate + ".xlsx");
-            result.put("data", base64Excel);
-            
-            return ApiResponse.success("Xuất báo cáo đối soát vận chuyển thành công!", result);
+            // byte[] excelData = excelExportService.exportShippingReconciliation(details);
+            // String base64Excel = Base64.getEncoder().encodeToString(excelData);
+            //
+            // Map<String, Object> result = new HashMap<>();
+            // result.put("fileName", "DoiSoatVanChuyen_" + startDate + "_" + endDate + ".xlsx");
+            // result.put("data", base64Excel);
+            //
+            // return ApiResponse.success("Xuất báo cáo đối soát vận chuyển thành công!", result);
         } catch (Exception e) {
             return ApiResponse.error("Lỗi khi xuất báo cáo: " + e.getMessage());
         }
