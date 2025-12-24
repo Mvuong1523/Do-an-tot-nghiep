@@ -2,16 +2,692 @@
 
 ## Tổng Quan
 
-Tài liệu này mô tả chi tiết các luồng kế toán tự động trong hệ thống TMDT, bao gồm:
-1. Ghi nhận doanh thu tự động (Automatic Revenue Recognition)
-2. Quản lý công nợ nhà cung cấp (Supplier Payable Management)
-3. Cơ chế event-driven accounting entries
+Tài liệu này mô tả chi tiết các luồng kế toán trong hệ thống TMDT, bao gồm 7 chức năng chính:
 
-Hệ thống kế toán được thiết kế theo mô hình event-driven, tự động ghi nhận các bút toán khi có sự kiện nghiệp vụ xảy ra.
+### Các Chức Năng Kế Toán
+
+1. **Tổng quan (Dashboard)**: Hiển thị tổng quan tình hình tài chính
+2. **Giao dịch tài chính (Financial Transactions)**: Quản lý các bút toán thu chi
+3. **Kỳ kế toán (Accounting Periods)**: Quản lý và đóng kỳ kế toán
+4. **Quản lý thuế (Tax Management)**: Tạo và quản lý báo cáo thuế
+5. **Báo cáo nâng cao (Advanced Reports)**: Báo cáo phân tích chi tiết (P&L, Cash Flow, Expense Analysis)
+6. **Đối soát vận chuyển (Shipping Reconciliation)**: Đối soát phí vận chuyển với GHN
+7. **Công nợ NCC (Supplier Payables)**: Quản lý công nợ nhà cung cấp
+
+### Kiến Trúc Hệ Thống
+
+Hệ thống kế toán được thiết kế theo mô hình event-driven:
+- **Tự động hóa**: Ghi nhận bút toán tự động khi có sự kiện nghiệp vụ (thanh toán online)
+- **Thủ công**: Kế toán viên tạo bút toán cho các trường hợp đặc biệt (COD, điều chỉnh)
+- **Tách biệt**: Business logic tách biệt với accounting logic
+- **Audit trail**: Mọi giao dịch đều có người tạo và thời gian
+
+## Sơ Đồ Tổng Quan - Kiến Trúc Module Kế Toán
+
+```mermaid
+graph TB
+    subgraph User_Interface[User Interface - Frontend]
+        Dashboard[1. Tổng quan<br/>Dashboard]
+        Transactions[2. Giao dịch tài chính<br/>Financial Transactions]
+        Periods[3. Kỳ kế toán<br/>Accounting Periods]
+        Tax[4. Quản lý thuế<br/>Tax Management]
+        AdvReports[5. Báo cáo nâng cao<br/>Advanced Reports]
+        ShipRecon[6. Đối soát vận chuyển<br/>Shipping Reconciliation]
+        Payables[7. Công nợ NCC<br/>Supplier Payables]
+    end
+    
+    subgraph Controllers[Controllers Layer]
+        DashCtrl[DashboardController]
+        TxnCtrl[FinancialTransactionController]
+        PeriodCtrl[AccountingPeriodController]
+        TaxCtrl[TaxReportController]
+        AdvCtrl[AdvancedReportController]
+        ShipCtrl[ShippingReconciliationController]
+        PayableCtrl[SupplierPayableController]
+    end
+    
+    subgraph Services[Services Layer]
+        DashSvc[DashboardService]
+        TxnSvc[FinancialTransactionService]
+        PeriodSvc[AccountingPeriodService]
+        TaxSvc[TaxReportService]
+        AdvSvc[AdvancedReportService]
+        ShipSvc[ShippingReconciliationService]
+        PayableSvc[SupplierPayableService]
+    end
+    
+    subgraph Event_System[Event-Driven System]
+        OrderEvent[OrderStatusChangedEvent]
+        PaymentEvent[PaymentCompletedEvent]
+        EventListener[OrderEventListener]
+    end
+    
+    subgraph Database[Database Tables]
+        FinTxnDB[(financial_transactions)]
+        PeriodDB[(accounting_periods)]
+        TaxDB[(tax_reports)]
+        PayableDB[(supplier_payables)]
+        PaymentDB[(supplier_payments)]
+        OrderDB[(orders)]
+    end
+    
+    Dashboard --> DashCtrl --> DashSvc
+    Transactions --> TxnCtrl --> TxnSvc
+    Periods --> PeriodCtrl --> PeriodSvc
+    Tax --> TaxCtrl --> TaxSvc
+    AdvReports --> AdvCtrl --> AdvSvc
+    ShipRecon --> ShipCtrl --> ShipSvc
+    Payables --> PayableCtrl --> PayableSvc
+    
+    OrderEvent --> EventListener
+    PaymentEvent --> EventListener
+    EventListener --> TxnSvc
+    
+    DashSvc --> FinTxnDB
+    DashSvc --> OrderDB
+    TxnSvc --> FinTxnDB
+    PeriodSvc --> PeriodDB
+    PeriodSvc --> FinTxnDB
+    TaxSvc --> TaxDB
+    TaxSvc --> FinTxnDB
+    AdvSvc --> FinTxnDB
+    ShipSvc --> OrderDB
+    PayableSvc --> PayableDB
+    PayableSvc --> PaymentDB
+    
+    classDef uiStyle fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef ctrlStyle fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef svcStyle fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    classDef eventStyle fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    classDef dbStyle fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    
+    class Dashboard,Transactions,Periods,Tax,AdvReports,ShipRecon,Payables uiStyle
+    class DashCtrl,TxnCtrl,PeriodCtrl,TaxCtrl,AdvCtrl,ShipCtrl,PayableCtrl ctrlStyle
+    class DashSvc,TxnSvc,PeriodSvc,TaxSvc,AdvSvc,ShipSvc,PayableSvc svcStyle
+    class OrderEvent,PaymentEvent,EventListener eventStyle
+    class FinTxnDB,PeriodDB,TaxDB,PayableDB,PaymentDB,OrderDB dbStyle
+```
+
+## Mô Tả Chi Tiết Các Chức Năng
+
+### 1. Tổng quan (Dashboard)
+**Mục đích**: Hiển thị tổng quan tình hình tài chính của doanh nghiệp
+
+**Thông tin hiển thị**:
+- Doanh thu tháng hiện tại
+- Chi phí tháng hiện tại
+- Lợi nhuận tháng hiện tại
+- So sánh với tháng trước (%)
+- Biểu đồ doanh thu theo thời gian
+- Biểu đồ chi phí theo category
+- Top 5 đơn hàng có giá trị cao nhất
+- Cảnh báo: Công nợ quá hạn, kỳ kế toán cần đóng
+
+**Endpoint**: `GET /api/dashboard/stats`
+
+### 2. Giao dịch tài chính (Financial Transactions)
+**Mục đích**: Quản lý tất cả các bút toán thu chi trong hệ thống
+
+**Chức năng**:
+- Xem danh sách giao dịch (có filter, search, pagination)
+- Tạo giao dịch thủ công (cho COD, điều chỉnh, chi phí khác)
+- Xem chi tiết giao dịch
+- Filter theo: Type (REVENUE/EXPENSE), Category, Date range, Order ID
+- Export Excel
+
+**Giao dịch tự động**:
+- Revenue + Payment Fee: Khi đơn hàng thanh toán online thành công
+- Shipping Expense: Khi đơn hàng delivered (cần tạo thủ công hiện tại)
+
+**Giao dịch thủ công**:
+- Revenue cho đơn COD
+- Shipping expense
+- Other expenses (marketing, utilities, etc.)
+- Adjustments
+
+**Endpoint**: `GET/POST /api/accounting/transactions`
+
+### 3. Kỳ kế toán (Accounting Periods)
+**Mục đích**: Quản lý các kỳ kế toán (tháng/quý/năm) và đóng kỳ
+
+**Chức năng**:
+- Xem danh sách kỳ kế toán
+- Tạo kỳ mới (tự động hoặc thủ công)
+- Đóng kỳ: Tính toán và khóa dữ liệu
+- Mở lại kỳ (chỉ ADMIN)
+- Xem chi tiết kỳ: Total revenue, expenses, profit, transaction count
+
+**Lifecycle**: OPEN → CLOSED (→ OPEN nếu ADMIN reopen)
+
+**Endpoint**: `GET/POST /api/accounting/periods`
+
+### 4. Quản lý thuế (Tax Management)
+**Mục đích**: Tạo và quản lý báo cáo thuế (VAT, Thuế TNDN)
+
+**Chức năng**:
+- Xem danh sách báo cáo thuế
+- Tạo báo cáo thuế mới (VAT 10%, Corporate Tax 20%)
+- Tính toán tự động dựa trên financial transactions
+- Submit báo cáo (DRAFT → SUBMITTED)
+- Đánh dấu đã nộp tiền (SUBMITTED → PAID)
+- Xem tax summary: Total payable, paid, upcoming deadlines
+
+**Tax Types**:
+- VAT: 10% trên doanh thu
+- Corporate Tax: 20% trên lợi nhuận (revenue - expenses)
+
+**Endpoint**: `GET/POST /api/accounting/tax/reports`
+
+### 5. Báo cáo nâng cao (Advanced Reports)
+**Mục đích**: Phân tích tài chính chuyên sâu với các báo cáo chi tiết
+
+**Các loại báo cáo**:
+- **Profit & Loss Report**: Báo cáo lãi lỗ với gross/net profit margins
+- **Cash Flow Report**: Báo cáo dòng tiền theo operating/investing/financing activities
+- **Expense Analysis**: Phân tích chi phí theo category với percentages
+
+**Thông tin chi tiết**:
+- Sales revenue, other revenue
+- Shipping costs, payment fees, other expenses
+- Gross profit, gross profit margin
+- VAT amount (10%)
+- Net profit, net profit margin
+- Operating cash in/out
+- Expense breakdown by category
+
+**Endpoint**: `POST /api/accounting/reports/{type}`
+
+### 6. Đối soát vận chuyển (Shipping Reconciliation)
+**Mục đích**: Đối soát phí vận chuyển trong hệ thống với phí thực tế từ GHN
+
+**Chức năng**:
+- Chọn date range để đối soát
+- Tự động query orders có GHN shipping
+- Fetch actual fees từ GHN API
+- So sánh và phát hiện discrepancies
+- Tạo adjustment transactions cho mismatches
+- Xem reconciliation history
+
+**Statuses**:
+- MATCHED: Phí khớp
+- MISMATCHED: Phí không khớp (cần điều chỉnh)
+- GHN_ORDER_NOT_FOUND: Không tìm thấy trên GHN
+- MISSING_GHN_CODE: Order không có GHN code
+
+**Endpoint**: `POST /api/accounting/shipping/reconciliation`
+
+### 7. Công nợ NCC (Supplier Payables)
+**Mục đích**: Quản lý công nợ với nhà cung cấp
+
+**Chức năng**:
+- Xem danh sách công nợ (tất cả hoặc theo supplier)
+- Tự động tạo payable khi import hàng với supplier
+- Ghi nhận thanh toán cho NCC
+- Xem payment history
+- Aging analysis (days overdue)
+- Filter theo status: UNPAID, PARTIAL, PAID, OVERDUE
+
+**Thông tin hiển thị**:
+- Supplier name, tax code
+- Total amount, paid amount, remaining amount
+- Invoice date, due date, days overdue
+- Payment term days
+- Status
+
+**Endpoint**: `GET/POST /api/accounting/payables`
+
+## 0. Tổng Quan - Dashboard
+
+### 0.1. Sơ Đồ Tuần Tự - Hiển Thị Dashboard Kế Toán
+
+```mermaid
+sequenceDiagram
+    actor User as Accountant/Admin
+    participant UI as Frontend
+    participant DashCtrl as DashboardController
+    participant DashSvc as DashboardService
+    participant TxnRepo as FinancialTransactionRepository
+    participant OrderRepo as OrderRepository
+    participant PayableRepo as SupplierPayableRepository
+    participant DB as Database
+    
+    Note over User,DB: Hiển thị tổng quan tình hình tài chính
+    
+    User->>UI: Truy cập trang Kế toán / Tổng quan
+    UI->>DashCtrl: GET /api/dashboard/stats
+    activate DashCtrl
+    
+    DashCtrl->>DashSvc: getDashboardStats()
+    activate DashSvc
+    
+    Note over DashSvc,DB: Lấy dữ liệu tháng hiện tại
+    
+    DashSvc->>DashSvc: Calculate current month range<br/>startDate = first day of month<br/>endDate = today
+    
+    Note over DashSvc,DB: Tính doanh thu tháng hiện tại
+    
+    DashSvc->>TxnRepo: sumAmountByTypeAndDateRange<br/>REVENUE startDate endDate
+    TxnRepo->>DB: SELECT SUM(amount)<br/>FROM financial_transactions<br/>WHERE type = 'REVENUE'<br/>AND transaction_date BETWEEN ? AND ?
+    DB-->>TxnRepo: currentMonthRevenue
+    TxnRepo-->>DashSvc: currentMonthRevenue
+    
+    Note over DashSvc,DB: Tính chi phí tháng hiện tại
+    
+    DashSvc->>TxnRepo: sumAmountByTypeAndDateRange<br/>EXPENSE startDate endDate
+    TxnRepo->>DB: SELECT SUM(amount)<br/>FROM financial_transactions<br/>WHERE type = 'EXPENSE'<br/>AND transaction_date BETWEEN ? AND ?
+    DB-->>TxnRepo: currentMonthExpenses
+    TxnRepo-->>DashSvc: currentMonthExpenses
+    
+    DashSvc->>DashSvc: currentMonthProfit = revenue - expenses
+    
+    Note over DashSvc,DB: Lấy dữ liệu tháng trước để so sánh
+    
+    DashSvc->>DashSvc: Calculate last month range
+    
+    DashSvc->>TxnRepo: sumAmountByTypeAndDateRange<br/>REVENUE lastMonthStart lastMonthEnd
+    TxnRepo->>DB: SELECT SUM(amount) WHERE type = 'REVENUE'
+    DB-->>TxnRepo: lastMonthRevenue
+    TxnRepo-->>DashSvc: lastMonthRevenue
+    
+    DashSvc->>DashSvc: Calculate percentage changes:<br/>revenueChange = ((current - last) / last) * 100<br/>expenseChange = ((current - last) / last) * 100<br/>profitChange = ((current - last) / last) * 100
+    
+    Note over DashSvc,DB: Lấy top orders
+    
+    DashSvc->>OrderRepo: findTop5ByOrderByTotalDesc()
+    OrderRepo->>DB: SELECT * FROM orders<br/>ORDER BY total DESC<br/>LIMIT 5
+    DB-->>OrderRepo: Top 5 orders
+    OrderRepo-->>DashSvc: topOrders
+    
+    Note over DashSvc,DB: Lấy công nợ quá hạn
+    
+    DashSvc->>PayableRepo: findOverduePayables()
+    PayableRepo->>DB: SELECT * FROM supplier_payables<br/>WHERE status != 'PAID'<br/>AND due_date < CURRENT_DATE
+    DB-->>PayableRepo: Overdue payables
+    PayableRepo-->>DashSvc: overduePayables
+    
+    Note over DashSvc,DB: Lấy dữ liệu biểu đồ (7 ngày gần nhất)
+    
+    DashSvc->>TxnRepo: findByTransactionDateBetween<br/>last7DaysStart today
+    TxnRepo->>DB: SELECT * FROM financial_transactions<br/>WHERE transaction_date BETWEEN ? AND ?
+    DB-->>TxnRepo: Recent transactions
+    TxnRepo-->>DashSvc: transactions
+    
+    DashSvc->>DashSvc: Group by date and type:<br/>- Daily revenue<br/>- Daily expenses<br/>- Daily profit
+    
+    DashSvc->>DashSvc: Group expenses by category:<br/>- SHIPPING: amount<br/>- PAYMENT_FEE: amount<br/>- OTHER: amount
+    
+    DashSvc->>DashSvc: Build DashboardStatsDTO:<br/>- currentMonthRevenue<br/>- currentMonthExpenses<br/>- currentMonthProfit<br/>- revenueChange %<br/>- expenseChange %<br/>- profitChange %<br/>- topOrders<br/>- overduePayablesCount<br/>- revenueChartData<br/>- expenseChartData<br/>- expenseByCategoryData
+    
+    DashSvc-->>DashCtrl: DashboardStatsDTO
+    deactivate DashSvc
+    
+    DashCtrl-->>UI: 200 OK with stats
+    deactivate DashCtrl
+    
+    UI->>UI: Render dashboard:<br/>- Summary cards (revenue, expenses, profit)<br/>- Percentage changes with arrows<br/>- Revenue/Expense line chart<br/>- Expense pie chart by category<br/>- Top orders table<br/>- Overdue payables alert
+    
+    UI-->>User: Hiển thị dashboard
+    
+    Note over User,DB: Alerts và Notifications
+    
+    alt Có công nợ quá hạn
+        UI->>UI: Hiển thị alert đỏ:<br/>"Có X công nợ quá hạn cần xử lý"
+        UI->>UI: Link đến trang Công nợ NCC
+    end
+    
+    alt Có kỳ kế toán cần đóng
+        UI->>UI: Hiển thị alert vàng:<br/>"Kỳ kế toán tháng X cần đóng"
+        UI->>UI: Link đến trang Kỳ kế toán
+    end
+```
+
+### 0.2. Dashboard Response Structure
+
+```typescript
+interface DashboardStatsDTO {
+  // Current month summary
+  currentMonthRevenue: number;
+  currentMonthExpenses: number;
+  currentMonthProfit: number;
+  
+  // Percentage changes vs last month
+  revenueChange: number;  // e.g., +15.5 or -5.2
+  expenseChange: number;
+  profitChange: number;
+  
+  // Top orders
+  topOrders: Array<{
+    orderId: string;
+    orderCode: string;
+    customerName: string;
+    total: number;
+    status: string;
+    createdAt: string;
+  }>;
+  
+  // Alerts
+  overduePayablesCount: number;
+  openPeriodsCount: number;
+  
+  // Chart data (last 7 days)
+  revenueChartData: Array<{
+    date: string;
+    amount: number;
+  }>;
+  
+  expenseChartData: Array<{
+    date: string;
+    amount: number;
+  }>;
+  
+  // Expense breakdown
+  expenseByCategoryData: Array<{
+    category: string;
+    amount: number;
+    percentage: number;
+  }>;
+}
+```
+
+### 0.3. Dashboard Business Rules
+
+**Authorization**:
+- Chỉ ADMIN và ACCOUNTANT có quyền xem dashboard
+- `@PreAuthorize("hasRole('ADMIN') or @employeeSecurityService.hasPosition(authentication, 'ACCOUNTANT')")`
+
+**Data Calculation**:
+- Current month: Từ ngày 1 của tháng đến hôm nay
+- Last month: Toàn bộ tháng trước
+- Percentage change: `((current - last) / last) * 100`
+- Chart data: 7 ngày gần nhất
+
+**Alerts**:
+- Overdue payables: `due_date < CURRENT_DATE AND status != 'PAID'`
+- Open periods: `status = 'OPEN' AND end_date < CURRENT_DATE`
+
+**Performance**:
+- Cache dashboard data (5 minutes)
+- Use indexed queries (transaction_date, type, category)
+- Limit top orders to 5
+- Limit chart data to 7 days
 
 ## 1. Ghi Nhận Doanh Thu Tự Động (Automatic Revenue Recognition)
 
-### 1.1. Kịch Bản Chuẩn
+### 1.1. Sơ Đồ Tuần Tự - Xem Danh Sách Giao Dịch Tài Chính
+
+```mermaid
+sequenceDiagram
+    actor User as Accountant/Admin
+    participant UI as Frontend
+    participant TxnCtrl as FinancialTransactionController
+    participant TxnSvc as FinancialTransactionService
+    participant TxnRepo as FinancialTransactionRepository
+    participant DB as Database
+    
+    Note over User,DB: Xem và Filter Danh Sách Giao Dịch Tài Chính
+    
+    User->>UI: Truy cập trang Giao dịch tài chính
+    
+    UI->>TxnCtrl: GET /api/accounting/transactions<br/>?page=0&size=20
+    activate TxnCtrl
+    
+    TxnCtrl->>TxnSvc: getAllTransactions(pageable)
+    activate TxnSvc
+    
+    TxnSvc->>TxnRepo: findAll(pageable)
+    TxnRepo->>DB: SELECT * FROM financial_transactions<br/>ORDER BY transaction_date DESC<br/>LIMIT 20 OFFSET 0
+    DB-->>TxnRepo: Transactions page
+    TxnRepo-->>TxnSvc: Page<FinancialTransaction>
+    
+    TxnSvc->>TxnSvc: Convert to DTO:<br/>- Format amounts<br/>- Format dates<br/>- Add order info if exists
+    
+    TxnSvc-->>TxnCtrl: Page<TransactionResponse>
+    deactivate TxnSvc
+    
+    TxnCtrl-->>UI: 200 OK with paginated data
+    deactivate TxnCtrl
+    
+    UI->>UI: Render table:<br/>- Transaction date<br/>- Type (REVENUE/EXPENSE)<br/>- Category<br/>- Amount<br/>- Description<br/>- Order ID<br/>- Created by
+    
+    UI-->>User: Hiển thị danh sách giao dịch
+    
+    Note over User,DB: Filter by Type
+    
+    User->>UI: Chọn filter Type = REVENUE
+    
+    UI->>TxnCtrl: GET /api/accounting/transactions<br/>?type=REVENUE&page=0&size=20
+    activate TxnCtrl
+    
+    TxnCtrl->>TxnSvc: getTransactionsByType(REVENUE, pageable)
+    activate TxnSvc
+    
+    TxnSvc->>TxnRepo: findByType(REVENUE, pageable)
+    TxnRepo->>DB: SELECT * FROM financial_transactions<br/>WHERE type = 'REVENUE'<br/>ORDER BY transaction_date DESC
+    DB-->>TxnRepo: Filtered transactions
+    TxnRepo-->>TxnSvc: Page<FinancialTransaction>
+    
+    TxnSvc-->>TxnCtrl: Page<TransactionResponse>
+    deactivate TxnSvc
+    
+    TxnCtrl-->>UI: 200 OK
+    deactivate TxnCtrl
+    
+    UI-->>User: Hiển thị chỉ giao dịch REVENUE
+    
+    Note over User,DB: Filter by Category
+    
+    User->>UI: Chọn filter Category = SHIPPING
+    
+    UI->>TxnCtrl: GET /api/accounting/transactions<br/>?category=SHIPPING&page=0&size=20
+    activate TxnCtrl
+    
+    TxnCtrl->>TxnSvc: getTransactionsByCategory(SHIPPING, pageable)
+    activate TxnSvc
+    
+    TxnSvc->>TxnRepo: findByCategory(SHIPPING, pageable)
+    TxnRepo->>DB: SELECT * FROM financial_transactions<br/>WHERE category = 'SHIPPING'<br/>ORDER BY transaction_date DESC
+    DB-->>TxnRepo: Filtered transactions
+    TxnRepo-->>TxnSvc: Page<FinancialTransaction>
+    
+    TxnSvc-->>TxnCtrl: Page<TransactionResponse>
+    deactivate TxnSvc
+    
+    TxnCtrl-->>UI: 200 OK
+    deactivate TxnCtrl
+    
+    UI-->>User: Hiển thị chỉ chi phí vận chuyển
+    
+    Note over User,DB: Filter by Date Range
+    
+    User->>UI: Chọn date range:<br/>Start: 2024-01-01<br/>End: 2024-01-31
+    
+    UI->>TxnCtrl: GET /api/accounting/transactions<br/>?startDate=2024-01-01<br/>&endDate=2024-01-31<br/>&page=0&size=20
+    activate TxnCtrl
+    
+    TxnCtrl->>TxnSvc: getTransactionsByDateRange(startDate, endDate, pageable)
+    activate TxnSvc
+    
+    TxnSvc->>TxnRepo: findByTransactionDateBetween(startDate, endDate, pageable)
+    TxnRepo->>DB: SELECT * FROM financial_transactions<br/>WHERE transaction_date BETWEEN ? AND ?<br/>ORDER BY transaction_date DESC
+    DB-->>TxnRepo: Filtered transactions
+    TxnRepo-->>TxnSvc: Page<FinancialTransaction>
+    
+    TxnSvc-->>TxnCtrl: Page<TransactionResponse>
+    deactivate TxnSvc
+    
+    TxnCtrl-->>UI: 200 OK
+    deactivate TxnCtrl
+    
+    UI-->>User: Hiển thị giao dịch trong tháng 1/2024
+    
+    Note over User,DB: Search by Order ID
+    
+    User->>UI: Nhập Order ID: "ORD-123"
+    
+    UI->>TxnCtrl: GET /api/accounting/transactions<br/>?orderId=ORD-123
+    activate TxnCtrl
+    
+    TxnCtrl->>TxnSvc: getTransactionsByOrderId("ORD-123")
+    activate TxnSvc
+    
+    TxnSvc->>TxnRepo: findByOrderId("ORD-123")
+    TxnRepo->>DB: SELECT * FROM financial_transactions<br/>WHERE order_id = 'ORD-123'<br/>ORDER BY transaction_date DESC
+    DB-->>TxnRepo: Transactions for order
+    TxnRepo-->>TxnSvc: List<FinancialTransaction>
+    
+    TxnSvc-->>TxnCtrl: List<TransactionResponse>
+    deactivate TxnSvc
+    
+    TxnCtrl-->>UI: 200 OK
+    deactivate TxnCtrl
+    
+    UI-->>User: Hiển thị tất cả giao dịch của đơn hàng
+    
+    Note over User,DB: Combined Filters
+    
+    User->>UI: Filter:<br/>Type = EXPENSE<br/>Category = SHIPPING<br/>Date: 2024-01-01 to 2024-01-31
+    
+    UI->>TxnCtrl: GET /api/accounting/transactions<br/>?type=EXPENSE<br/>&category=SHIPPING<br/>&startDate=2024-01-01<br/>&endDate=2024-01-31<br/>&page=0&size=20
+    activate TxnCtrl
+    
+    TxnCtrl->>TxnSvc: getTransactionsWithFilters(filters, pageable)
+    activate TxnSvc
+    
+    TxnSvc->>TxnRepo: findByTypeAndCategoryAndDateRange(...)
+    TxnRepo->>DB: SELECT * FROM financial_transactions<br/>WHERE type = 'EXPENSE'<br/>AND category = 'SHIPPING'<br/>AND transaction_date BETWEEN ? AND ?<br/>ORDER BY transaction_date DESC
+    DB-->>TxnRepo: Filtered transactions
+    TxnRepo-->>TxnSvc: Page<FinancialTransaction>
+    
+    TxnSvc->>TxnSvc: Calculate summary:<br/>- Total amount<br/>- Transaction count<br/>- Average amount
+    
+    TxnSvc-->>TxnCtrl: Page<TransactionResponse> + Summary
+    deactivate TxnSvc
+    
+    TxnCtrl-->>UI: 200 OK with data and summary
+    deactivate TxnCtrl
+    
+    UI->>UI: Render:<br/>- Filtered table<br/>- Summary cards (total, count, avg)<br/>- Pagination controls<br/>- Active filters display
+    
+    UI-->>User: Hiển thị chi phí vận chuyển tháng 1/2024
+    
+    Note over User,DB: View Transaction Details
+    
+    User->>UI: Click vào một transaction
+    
+    UI->>TxnCtrl: GET /api/accounting/transactions/{id}
+    activate TxnCtrl
+    
+    TxnCtrl->>TxnSvc: getTransactionById(id)
+    activate TxnSvc
+    
+    TxnSvc->>TxnRepo: findById(id)
+    TxnRepo->>DB: SELECT * FROM financial_transactions<br/>WHERE id = ?
+    DB-->>TxnRepo: Transaction details
+    TxnRepo-->>TxnSvc: FinancialTransaction
+    
+    alt Transaction has order_id
+        TxnSvc->>DB: SELECT * FROM orders WHERE id = ?
+        DB-->>TxnSvc: Order details
+    end
+    
+    TxnSvc->>TxnSvc: Build detailed response:<br/>- Transaction info<br/>- Order info (if exists)<br/>- Created by info<br/>- Audit trail
+    
+    TxnSvc-->>TxnCtrl: TransactionDetailResponse
+    deactivate TxnSvc
+    
+    TxnCtrl-->>UI: 200 OK
+    deactivate TxnCtrl
+    
+    UI->>UI: Show modal/detail view:<br/>- All transaction fields<br/>- Related order info<br/>- Audit information<br/>- Actions (edit/delete if allowed)
+    
+    UI-->>User: Hiển thị chi tiết giao dịch
+```
+
+### 1.1.1. Filter Options
+
+**Type Filter**:
+- ALL (default)
+- REVENUE
+- EXPENSE
+
+**Category Filter**:
+- ALL (default)
+- SALES
+- SHIPPING
+- PAYMENT_FEE
+- TAX
+- REFUND
+- OTHER_EXPENSE
+
+**Date Range Filter**:
+- Today
+- This Week
+- This Month
+- Last Month
+- Custom Range (start date + end date)
+
+**Order ID Search**:
+- Exact match search
+- Returns all transactions related to that order
+
+**Combined Filters**:
+- All filters can be combined
+- Applied with AND logic
+- Results are paginated
+
+### 1.1.2. Response Structure
+
+```typescript
+interface TransactionResponse {
+  id: number;
+  type: 'REVENUE' | 'EXPENSE';
+  category: string;
+  amount: number;
+  description: string;
+  transactionDate: string;
+  orderId?: string;
+  orderCode?: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+interface TransactionListResponse {
+  content: TransactionResponse[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+  summary?: {
+    totalAmount: number;
+    transactionCount: number;
+    averageAmount: number;
+  };
+}
+```
+
+### 1.1.3. Business Rules
+
+**Authorization**:
+- Chỉ ADMIN và ACCOUNTANT có quyền xem transactions
+- `@PreAuthorize("hasRole('ADMIN') or @employeeSecurityService.hasPosition(authentication, 'ACCOUNTANT')")`
+
+**Pagination**:
+- Default page size: 20
+- Max page size: 100
+- Sort by transaction_date DESC (mới nhất trước)
+
+**Filters**:
+- Filters are optional
+- Multiple filters combine with AND
+- Date range: startDate <= transaction_date <= endDate
+- Order ID: exact match
+
+**Performance**:
+- Index on: transaction_date, type, category, order_id
+- Use pagination to limit results
+- Cache filter options (types, categories)
+
+## 1.2. Kịch Bản Chuẩn - Ghi Nhận Doanh Thu Tự Động
 
 **Mô tả**: Hệ thống tự động ghi nhận doanh thu khi đơn hàng được thanh toán online
 
@@ -48,7 +724,7 @@ Hệ thống kế toán được thiết kế theo mô hình event-driven, tự 
 - Đơn COD cần xử lý thủ công
 
 
-### 1.2. Sơ Đồ Tuần Tự - Ghi Nhận Doanh Thu Khi Đơn Hàng DELIVERED hoặc COMPLETED
+### 1.3. Sơ Đồ Tuần Tự - Ghi Nhận Doanh Thu Khi Đơn Hàng DELIVERED hoặc COMPLETED
 
 ```mermaid
 sequenceDiagram
@@ -91,7 +767,7 @@ sequenceDiagram
 - Accountant cần tạo bút toán thủ công cho đơn hàng COD/delivered
 
 
-### 1.3. Sơ Đồ Tuần Tự - Ghi Nhận Doanh Thu Khi Thanh Toán Online
+### 1.4. Sơ Đồ Tuần Tự - Ghi Nhận Doanh Thu Khi Thanh Toán Online
 
 ```mermaid
 sequenceDiagram
@@ -189,7 +865,7 @@ sequenceDiagram
 ```
 
 
-### 1.4. Sơ Đồ Tuần Tự - Xử Lý Hoàn Tiền (Refund)
+### 1.5. Sơ Đồ Tuần Tự - Xử Lý Hoàn Tiền (Refund)
 
 ```mermaid
 sequenceDiagram
@@ -2368,155 +3044,319 @@ Luồng kế toán này validates các requirements sau:
 
 ## 11. Tổng Kết
 
-### 11.1. Các Điểm Chính
+### 11.1. Bảng Tổng Hợp Sequence Diagrams
 
-1. **Event-Driven Architecture**:
-   - Decoupling giữa business logic và accounting logic
-   - Asynchronous processing không block business flow
-   - **Lưu ý**: Chỉ PaymentService publish event, WebhookService không publish
+| # | Chức Năng | Sequence Diagram | Section | Trạng Thái |
+|---|-----------|------------------|---------|------------|
+| **0** | **Tổng quan (Dashboard)** | | | ✅ |
+| | | Hiển Thị Dashboard Kế Toán | 0.1 | ✅ |
+| **1** | **Giao dịch tài chính** | | | ✅ |
+| | | Xem Danh Sách Giao Dịch (List/Filter/Search) | 1.1 | ✅ |
+| | | Ghi Nhận Doanh Thu (GHN Delivered) | 1.3 | ✅ |
+| | | Ghi Nhận Doanh Thu (Online Payment) | 1.4 | ✅ |
+| | | Xử Lý Hoàn Tiền (Refund) | 1.5 | ✅ |
+| | | Tạo Bút Toán Thủ Công | 5.1 | ✅ |
+| **2** | **Công nợ NCC (Supplier Payables)** | | | ✅ |
+| | | Tạo Công Nợ NCC Khi Nhập Hàng | 2.2 | ✅ |
+| | | Thanh Toán Công Nợ NCC | 2.3 | ✅ |
+| **3** | **Kỳ kế toán (Accounting Periods)** | | | ✅ |
+| | | Đóng Kỳ Kế Toán | 6.1 | ✅ |
+| | | Mở Lại Kỳ Kế Toán | 6.2 | ✅ |
+| **4** | **Quản lý thuế (Tax Management)** | | | ✅ |
+| | | Tạo Báo Cáo Thuế (VAT, Corporate Tax) | 8.1 | ✅ |
+| **5** | **Báo cáo nâng cao (Advanced Reports)** | | | ✅ |
+| | | Tạo Báo Cáo Lãi Lỗ Chi Tiết (P&L) | 7A.2 | ✅ |
+| | | Tạo Báo Cáo Dòng Tiền (Cash Flow) | 7A.3 | ✅ |
+| | | Phân Tích Chi Phí (Expense Analysis) | 7A.4 | ✅ |
+| **6** | **Đối soát vận chuyển (Shipping Reconciliation)** | | | ✅ |
+| | | Đối Soát GHN | 10.1 | ✅ |
+| **7** | **Công nợ NCC** | | | ✅ |
+| | | (Đã có ở mục 2) | 2.2, 2.3 | ✅ |
 
-2. **Automatic Revenue Recognition**:
-   - ✅ Tự động ghi nhận khi payment COMPLETED (online payment)
-   - ✅ Tự động tạo payment fee (2%)
-   - ❌ **KHÔNG** tự động ghi nhận cho đơn COD/delivered (WebhookService không publish event)
-   - ❌ **KHÔNG** tự động tạo shipping expense
+**Tổng cộng: 15 Sequence Diagrams cho 7 chức năng chính** ✅
 
-3. **Manual Transaction Creation**:
-   - ✅ Accountant có thể tạo bút toán thủ công
-   - ✅ Validation và duplicate check
-   - ✅ Audit trail (created_by)
-   - Use cases: COD orders, shipping expenses, adjustments
+### 11.2. Tóm Tắt 7 Chức Năng Kế Toán
 
-4. **Accounting Period Management**:
-   - ✅ Tạo và quản lý kỳ kế toán
-   - ✅ Đóng kỳ để khóa dữ liệu và tính toán
-   - ✅ Chỉ ADMIN có thể mở lại kỳ
-   - ✅ Audit trail (closed_by, closed_at)
+#### 1. Tổng quan (Dashboard) ✅
+**Mục đích**: Hiển thị tổng quan tình hình tài chính
 
-5. **Financial Statements**:
-   - ✅ Báo cáo tổng hợp (revenue, expenses, profit)
-   - ✅ Báo cáo chi tiết theo category
-   - ✅ Multiple time periods (daily, monthly, quarterly, yearly)
-   - ✅ Real-time data từ financial_transactions
-   - ✅ Dashboard tổng quan
+**Đã implement**:
+- ✓ Current month revenue, expenses, profit
+- ✓ Percentage changes vs last month
+- ✓ Revenue/Expense charts (7 days)
+- ✓ Expense breakdown by category
+- ✓ Top 5 orders
+- ✓ Overdue payables alert
+- ✓ Open periods alert
 
-6. **Advanced Reports**:
-   - ✅ Profit & Loss Report với gross/net profit margins
-   - ✅ Cash Flow Report theo operating/investing/financing activities
-   - ✅ Expense Analysis với breakdown by category và percentages
-   - ✅ VAT calculation tự động (10% revenue)
-   - ✅ Real-time analysis
+**Sequence Diagrams**: 1 diagram (0.1)
 
-7. **Tax Reports**:
-   - ✅ Tạo báo cáo thuế (VAT, Corporate Tax)
-   - ✅ Lifecycle: DRAFT → SUBMITTED → PAID
-   - ✅ Automatic calculation dựa trên transactions
-   - ✅ Tax summary dashboard
+**Endpoint**: `GET /api/dashboard/stats`
 
-7. **Payment Reconciliation**:
-   - ✅ Đối soát SePay payments với orders
-   - ✅ Detect matched, mismatched, unmatched
-   - ✅ Calculate discrepancies
-   - ✅ Summary và detailed reports
+#### 2. Giao dịch tài chính (Financial Transactions) ✅
+**Mục đích**: Quản lý các bút toán thu chi
 
-8. **Shipping Reconciliation**:
-   - ✅ Đối soát GHN shipping fees
-   - ✅ Compare system fees vs actual GHN fees
-   - ✅ Create adjustment transactions
-   - ✅ Track discrepancies
+**Đã implement**:
+- ✓ **List transactions với filter** (type, category, date range, order ID)
+- ✓ **Search by order ID**
+- ✓ **Pagination** (20 items per page)
+- ✓ **View transaction details**
+- ✓ Create manual transaction (COD, adjustments, other expenses)
+- ✓ Automatic transaction creation (online payment → revenue + payment fee)
+- ✓ Idempotent operations (check duplicate)
+- ✓ Audit trail (created_by, transaction_date)
 
-9. **Supplier Payable Management**:
-   - ✅ Tự động tạo công nợ khi import hàng
-   - ✅ Tracking payment history
-   - ✅ Aging analysis cho overdue payables
-   - ❌ Chưa có pessimistic locking cho concurrent payments
+**Chưa implement**:
+- ⚠️ Excel export
+- ⚠️ Automatic shipping expense (WebhookService không publish event)
+- ⚠️ Automatic revenue for COD orders (WebhookService không publish event)
 
-10. **Error Handling**:
-    - ✅ Idempotent operations
-    - ❌ Chưa có retry mechanism
-    - ❌ Chưa có alert system
-    - ✅ Audit trail (created_by, transaction_date)
+**Sequence Diagrams**: 5 diagrams (1.1, 1.3, 1.4, 1.5, 5.1)
 
-### 11.2. Validates Requirements
+**Endpoint**: `GET/POST /api/accounting/transactions`
 
-Luồng kế toán này validates các requirements sau:
+#### 3. Kỳ kế toán (Accounting Periods) ✅
+**Mục đích**: Quản lý và đóng kỳ kế toán
 
-**Đã Implement**:
-- ✓ Automatic revenue recognition when order CONFIRMED and PAID (online payment only)
-- ✓ Automatic payment fee calculation for online payments (2%)
-- ✓ Manual transaction creation by accountant
+**Đã implement**:
+- ✓ List accounting periods
+- ✓ Create new period (manual or auto-scheduled)
+- ✓ Close period: Calculate totals and lock data
+- ✓ Reopen period (ADMIN only)
+- ✓ View period details (revenue, expenses, profit, transaction count)
+- ✓ Lifecycle: OPEN → CLOSED (→ OPEN if ADMIN reopens)
+
+**Sequence Diagrams**: 2 diagrams (6.1, 6.2)
+
+**Endpoint**: `GET/POST /api/accounting/periods`
+
+#### 4. Quản lý thuế (Tax Management) ✅
+**Mục đích**: Tạo và quản lý báo cáo thuế
+
+**Đã implement**:
+- ✓ List tax reports
+- ✓ Create tax report (VAT 10%, Corporate Tax 20%)
+- ✓ Automatic calculation from financial transactions
+- ✓ Submit report (DRAFT → SUBMITTED)
+- ✓ Mark as paid (SUBMITTED → PAID)
+- ✓ Tax summary dashboard
+
+**Tax Types**:
+- VAT: 10% on revenue
+- Corporate Tax: 20% on profit (revenue - expenses)
+
+**Sequence Diagrams**: 1 diagram (8.1)
+
+**Endpoint**: `GET/POST /api/accounting/tax/reports`
+
+#### 5. Báo cáo nâng cao (Advanced Reports) ✅
+**Mục đích**: Phân tích tài chính chuyên sâu
+
+**Đã implement**:
+- ✓ Profit & Loss Report (gross/net profit, margins)
+- ✓ Cash Flow Report (operating/investing/financing activities)
+- ✓ Expense Analysis (breakdown by category with percentages)
+- ✓ Real-time calculation from financial_transactions
+- ✓ Flexible date range selection
+
+**Chưa implement**:
+- ⚠️ Excel export
+- ⚠️ Comparison with previous periods
+- ⚠️ Trend analysis charts
+
+**Sequence Diagrams**: 3 diagrams (7A.2, 7A.3, 7A.4)
+
+**Endpoint**: `POST /api/accounting/reports/{type}`
+
+#### 6. Đối soát vận chuyển (Shipping Reconciliation) ✅
+**Mục đích**: Đối soát phí vận chuyển với GHN
+
+**Đã implement**:
+- ✓ Select date range for reconciliation
+- ✓ Query orders with GHN shipping
+- ✓ Fetch actual fees from GHN API
+- ✓ Compare and detect discrepancies
+- ✓ Create adjustment transactions
+- ✓ Reconciliation history
+
+**Statuses**:
+- MATCHED: Fees match
+- MISMATCHED: Fees don't match (need adjustment)
+- GHN_ORDER_NOT_FOUND: Not found on GHN
+- MISSING_GHN_CODE: Order missing GHN code
+
+**Chưa implement**:
+- ⚠️ Scheduled auto-reconciliation
+- ⚠️ Alert for large discrepancies
+- ⚠️ Bulk adjustment creation
+
+**Sequence Diagrams**: 1 diagram (10.1)
+
+**Endpoint**: `POST /api/accounting/shipping/reconciliation`
+
+#### 7. Công nợ NCC (Supplier Payables) ✅
+**Mục đích**: Quản lý công nợ nhà cung cấp
+
+**Đã implement**:
+- ✓ List payables (all or by supplier)
+- ✓ Automatic payable creation when import with supplier
+- ✓ Record payment to supplier
+- ✓ View payment history
+- ✓ Aging analysis (days overdue)
+- ✓ Filter by status (UNPAID, PARTIAL, PAID, OVERDUE)
+- ✓ Payment validation (amount <= remaining)
+
+**Chưa implement**:
+- ⚠️ Pessimistic locking for concurrent payments
+- ⚠️ Payment approval workflow
+- ⚠️ Supplier statement report
+- ⚠️ Excel export
+
+**Sequence Diagrams**: 2 diagrams (2.2, 2.3)
+
+**Endpoint**: `GET/POST /api/accounting/payables`
+
+### 11.2. Kiến Trúc Event-Driven
+
+**Event Publishers**:
+- PaymentService: Publish OrderStatusChangedEvent khi payment completed
+- OrderService: Publish OrderStatusChangedEvent khi order status changes
+
+**Event Listeners**:
+- OrderEventListener: Listen và tạo financial transactions tự động
+
+**Lưu ý quan trọng**:
+- ✅ PaymentService publish event → Tự động tạo revenue + payment fee
+- ❌ WebhookService KHÔNG publish event → Đơn COD/delivered cần tạo thủ công
+
+### 11.3. Validates Requirements
+
+**Đã Implement Đầy Đủ**:
+- ✓ Dashboard với tổng quan tài chính
+- ✓ Financial transactions management (list, create, view)
 - ✓ Accounting period management (create, close, reopen)
-- ✓ Financial statement generation (multiple types)
-- ✓ Tax report creation and management
-- ✓ Payment reconciliation with SePay
-- ✓ Shipping reconciliation with GHN
-- ✓ Automatic supplier payable creation when import with supplier
-- ✓ Supplier payment reduces payable balance
-- ✓ Accounting failures don't block business transactions (separate transactions)
-- ✓ Display total outstanding balance per supplier
-- ✓ Payment validation: reject payment exceeding payable balance
-- ✓ Aging analysis calculation (days overdue)
-- ✓ Idempotent transaction creation (check exists before insert)
+- ✓ Tax report creation and management (VAT, Corporate Tax)
+- ✓ Advanced reports (P&L, Cash Flow, Expense Analysis)
+- ✓ Shipping reconciliation với GHN
+- ✓ Supplier payable management
+- ✓ Automatic revenue recognition (online payment only)
+- ✓ Automatic payment fee calculation (2%)
+- ✓ Manual transaction creation
+- ✓ Idempotent operations
+- ✓ Audit trail (created_by, timestamps)
+- ✓ Authorization (ADMIN, ACCOUNTANT only)
 
 **Chưa Implement / Cần Cải Tiến**:
-- ⚠️ **Automatic shipping expense when order DELIVERED** (WebhookService không publish event)
+- ⚠️ **Automatic shipping expense** (WebhookService không publish event)
 - ⚠️ **Automatic revenue for COD orders** (WebhookService không publish event)
-- ⚠️ Automatic refund transaction when order cancelled (chưa có)
-- ⚠️ Accounting event log table (chưa có)
-- ⚠️ Retry mechanism for failed events (chưa có)
-- ⚠️ Pessimistic locking for concurrent payments (chưa có)
-- ⚠️ Order amount validation vs order items (chưa có)
-- ⚠️ Alert system for accountant (chưa có)
-- ⚠️ Excel export for reports (chưa có)
+- ⚠️ Excel export cho tất cả reports
+- ⚠️ Pessimistic locking cho concurrent payments
+- ⚠️ Scheduled auto-reconciliation
+- ⚠️ Alert system cho discrepancies
+- ⚠️ Approval workflow cho large adjustments
+- ⚠️ Retry mechanism cho failed events
+- ⚠️ Accounting event log table
 
-**Vấn Đề Quan Trọng Cần Sửa**:
-1. **WebhookService không publish OrderStatusChangedEvent** → Đơn COD/delivered không tạo accounting entries tự động
-2. Cần thêm `eventPublisher.publishEvent()` vào WebhookService.handleGHNWebhook()
-3. Hoặc accountant phải tạo bút toán thủ công cho tất cả đơn COD
+**Vấn Đề Quan Trọng Nhất**:
+1. **WebhookService không publish OrderStatusChangedEvent**
+   - Đơn COD/delivered không tạo accounting entries tự động
+   - Cần thêm `eventPublisher.publishEvent()` vào `WebhookService.handleGHNWebhook()`
+   - Hoặc accountant phải tạo bút toán thủ công cho tất cả đơn COD
 
-### 11.3. Lợi Ích Của Thiết Kế
+### 11.4. Lợi Ích Của Thiết Kế
 
-1. **Tự động hóa**: Giảm công việc thủ công cho accountant
-   - Tự động tạo revenue transaction khi order confirmed + paid
-   - Tự động tạo supplier payable khi import hàng
-   - Tự động tính toán tax reports
+1. **Tổng quan trực quan**: Dashboard cung cấp cái nhìn tổng quan nhanh chóng
+2. **Tự động hóa**: Giảm công việc thủ công cho accountant (online payments)
+3. **Linh hoạt**: Hỗ trợ cả tự động và thủ công (COD, adjustments)
+4. **Chính xác**: Validation và idempotent operations giảm lỗi
+5. **Real-time**: Dữ liệu kế toán luôn cập nhật
+6. **Auditable**: Mọi transaction đều có audit trail
+7. **Decoupled**: Business logic tách biệt với accounting logic
+8. **Comprehensive**: 7 chức năng đầy đủ cho quản lý kế toán
+9. **Reconciliation**: Đối soát tự động với GHN để phát hiện discrepancies
+10. **Tax Management**: Tính toán và quản lý thuế tự động
 
-2. **Linh hoạt**: Hỗ trợ cả tự động và thủ công
-   - Automatic transactions cho online payments
-   - Manual transactions cho COD, adjustments
-   - Flexible reporting với multiple time periods
+### 11.5. Luồng Dữ Liệu Chính
 
-3. **Chính xác**: Giảm lỗi nhập liệu
-   - Dữ liệu lấy trực tiếp từ order/purchase order
-   - Validation payment amount
-   - Idempotent operations
-   - Reconciliation để detect discrepancies
+```
+1. Order Payment (Online) → PaymentService → OrderStatusChangedEvent 
+   → OrderEventListener → Financial Transactions (Revenue + Payment Fee)
 
-4. **Real-time**: Dữ liệu kế toán luôn cập nhật
-   - Event-driven architecture
-   - Transactions được tạo ngay khi có sự kiện
-   - Real-time reports
+2. Order Delivered (COD) → WebhookService → Update Order Status
+   → ❌ NO EVENT → ⚠️ Manual Transaction Required
 
-5. **Auditable**: Mọi transaction đều có audit trail
-   - created_by field
-   - transaction_date
-   - description field
-   - Period close tracking
+3. Import Products → InventoryService → Create Purchase Order
+   → SupplierPayableService → Supplier Payable Created
 
-6. **Decoupled**: Business logic tách biệt với accounting logic
-   - Event-driven architecture
-   - Accounting failures không ảnh hưởng business flow
-   - Easy to extend
+4. Payment to Supplier → SupplierPayableService → Update Payable
+   → Supplier Payment Record Created
 
-7. **Resilient**: Error handling tốt
-   - Try-catch trong event listeners
-   - Idempotent operations
-   - Logging đầy đủ
+5. View Dashboard → DashboardService → Query Financial Transactions
+   → Calculate Stats → Display Overview
 
-8. **Comprehensive Reporting**: Đầy đủ các loại báo cáo
-   - Financial statements (revenue, expenses, profit, cash flow)
-   - Tax reports (VAT, Corporate Tax)
-   - Reconciliation reports (payment, shipping)
+6. Generate Report → AdvancedReportService → Query Financial Transactions
+   → Calculate Metrics → Return Report Data
+
+7. Reconcile Shipping → ShippingReconciliationService → Query Orders + GHN API
+   → Compare Fees → Create Adjustments if Needed
+
+8. Close Period → AccountingPeriodService → Calculate Period Totals
+   → Lock Period → Update Status to CLOSED
+```
+
+### 11.6. Điểm Cần Cải Tiến Ưu Tiên
+
+**Ưu tiên cao**:
+1. ✅ **Fix WebhookService**: Thêm event publishing cho COD orders
+2. ✅ **Automatic shipping expense**: Tạo tự động khi delivered
+3. ✅ **Pessimistic locking**: Thêm cho concurrent supplier payments
+
+**Ưu tiên trung bình**:
+4. Excel export cho tất cả reports
+5. Scheduled auto-reconciliation (daily/weekly)
+6. Alert system cho discrepancies và overdue payables
+7. Approval workflow cho large adjustments
+
+**Ưu tiên thấp**:
+8. Accounting event log table
+9. Retry mechanism cho failed events
+10. Advanced analytics và trend charts
+11. Data archiving cho old transactions
+
+**Kết luận**: Hệ thống kế toán đã implement đầy đủ 7 chức năng chính theo menu structure, với **15 sequence diagrams chi tiết** bao gồm:
+- **Dashboard**: 1 diagram - Tổng quan tài chính
+- **Giao dịch tài chính**: 5 diagrams - List/Filter, Revenue recognition, Refund, Manual creation
+- **Công nợ NCC**: 2 diagrams - Create payable, Payment
+- **Kỳ kế toán**: 2 diagrams - Close period, Reopen period
+- **Quản lý thuế**: 1 diagram - Create tax report
+- **Báo cáo nâng cao**: 3 diagrams - P&L, Cash Flow, Expense Analysis
+- **Đối soát vận chuyển**: 1 diagram - GHN reconciliation
+
+Kiến trúc event-driven tốt với điểm cần cải tiến quan trọng nhất là fix WebhookService để tự động hóa hoàn toàn cho đơn COD.
+
+---
+
+## 📋 Checklist Hoàn Thành
+
+### ✅ Đã Có Đầy Đủ:
+- [x] Sơ đồ tổng quan kiến trúc module kế toán
+- [x] Mô tả chi tiết 7 chức năng chính
+- [x] 15 sequence diagrams cho tất cả use cases quan trọng
+- [x] Business rules và validation cho mỗi chức năng
+- [x] Response structures và data models
+- [x] Authorization requirements
+- [x] Error handling scenarios
+- [x] Event-driven architecture documentation
+- [x] Tổng kết và đánh giá đầy đủ
+
+### 📊 Thống Kê:
+- **Tổng số chức năng**: 7
+- **Tổng số sequence diagrams**: 15
+- **Tổng số sections**: 11
+- **Tổng số dòng**: ~2,700+
+- **Độ chi tiết**: Rất cao (mỗi diagram có business rules, validation, response structure)
+
+Tài liệu này sẵn sàng cho báo cáo đồ án! 🎉
    - Supplier payable reports
    - Dashboard tổng quan
 

@@ -202,17 +202,13 @@ public class SupplierPayableServiceImpl implements SupplierPayableService {
             String transactionCode = "TXN-PAY-" + System.currentTimeMillis();
             FinancialTransaction transaction = FinancialTransaction.builder()
                     .transactionCode(transactionCode)
-                    .transactionType(TransactionType.EXPENSE) // Thanh toán NCC là chi phí
+                    .type(TransactionType.EXPENSE) // Thanh toán NCC là chi phí
                     .category(TransactionCategory.SUPPLIER_PAYMENT)
-                    .amount(request.getAmount())
+                    .amount(request.getAmount().doubleValue())
                     .transactionDate(request.getPaymentDate().atStartOfDay())
-                    .paymentMethod(request.getPaymentMethod())
-                    .referenceNumber(request.getReferenceNumber())
                     .description("Thanh toán công nợ " + payable.getPayableCode() + 
                                " cho NCC " + payable.getSupplier().getName())
-                    .notes(request.getNote())
-                    .relatedEntityType("SUPPLIER_PAYMENT")
-                    .relatedEntityId(payment.getId())
+                    .supplierId(payable.getSupplier().getId())
                     .createdBy(SecurityUtils.getCurrentUserEmail())
                     .build();
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { FiTrendingUp, FiTrendingDown, FiDollarSign, FiFileText, FiAlertCircle, FiCalendar } from 'react-icons/fi'
 import toast from 'react-hot-toast'
+import { PermissionButton } from '@/components/PermissionGuard'
 
 export default function AccountingPage() {
   const router = useRouter()
@@ -14,30 +15,8 @@ export default function AccountingPage() {
   const [currentPeriod, setCurrentPeriod] = useState<any>(null)
 
   useEffect(() => {
-    const authStorage = localStorage.getItem('auth-storage')
-    if (!authStorage) {
-      router.push('/login')
-      return
-    }
-
-    const authData = JSON.parse(authStorage)
-    const userData = authData.state?.user
-    
-    if (!userData) {
-      router.push('/login')
-      return
-    }
-
-    const isAdmin = userData.role === 'ADMIN'
-    const isAccountant = userData.position === 'ACCOUNTANT'
-    
-    if (!isAdmin && !isAccountant) {
-      router.push('/')
-      return
-    }
-
     loadDashboardData()
-  }, [router])
+  }, [])
 
   const loadDashboardData = async () => {
     try {
@@ -301,41 +280,46 @@ export default function AccountingPage() {
         <div className="mt-8 bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Truy cập nhanh</h3>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <button
+            <PermissionButton
+              requiredPosition="ACCOUNTANT"
               onClick={() => router.push('/employee/accounting/transactions')}
               className="p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-center"
             >
               <FiFileText className="mx-auto mb-2 text-blue-600" size={24} />
               <p className="text-sm font-medium text-gray-900">Giao dịch</p>
-            </button>
-            <button
+            </PermissionButton>
+            <PermissionButton
+              requiredPosition="ACCOUNTANT"
               onClick={() => router.push('/employee/accounting/periods')}
               className="p-4 border border-gray-200 rounded-lg hover:border-green-500 hover:bg-green-50 transition-colors text-center"
             >
               <FiCalendar className="mx-auto mb-2 text-green-600" size={24} />
               <p className="text-sm font-medium text-gray-900">Kỳ kế toán</p>
-            </button>
-            <button
+            </PermissionButton>
+            <PermissionButton
+              requiredPosition="ACCOUNTANT"
               onClick={() => router.push('/employee/accounting/tax')}
               className="p-4 border border-gray-200 rounded-lg hover:border-orange-500 hover:bg-orange-50 transition-colors text-center"
             >
               <FiDollarSign className="mx-auto mb-2 text-orange-600" size={24} />
               <p className="text-sm font-medium text-gray-900">Thuế</p>
-            </button>
-            <button
+            </PermissionButton>
+            <PermissionButton
+              requiredPosition="ACCOUNTANT"
               onClick={() => router.push('/employee/accounting/payables')}
               className="p-4 border border-gray-200 rounded-lg hover:border-red-500 hover:bg-red-50 transition-colors text-center"
             >
               <FiAlertCircle className="mx-auto mb-2 text-red-600" size={24} />
               <p className="text-sm font-medium text-gray-900">Công nợ NCC</p>
-            </button>
-            <button
+            </PermissionButton>
+            <PermissionButton
+              requiredPosition="ACCOUNTANT"
               onClick={() => router.push('/employee/accounting/advanced-reports')}
               className="p-4 border border-gray-200 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-colors text-center"
             >
               <FiTrendingUp className="mx-auto mb-2 text-purple-600" size={24} />
               <p className="text-sm font-medium text-gray-900">Báo cáo</p>
-            </button>
+            </PermissionButton>
           </div>
         </div>
       </div>

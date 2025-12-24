@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { FiPlus, FiEdit, FiTrash2, FiSearch } from 'react-icons/fi'
+import { PermissionButton } from '@/components/PermissionGuard'
 
 export default function TransactionsPage() {
   const router = useRouter()
@@ -208,13 +209,14 @@ export default function TransactionsPage() {
               </button>
             </div>
             <div className="flex items-end">
-              <button
+              <PermissionButton
+                requiredPosition="ACCOUNTANT"
                 onClick={() => setShowCreateModal(true)}
                 className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center justify-center"
               >
                 <FiPlus className="mr-2" />
                 Thêm giao dịch
-              </button>
+              </PermissionButton>
             </div>
           </div>
         </div>
@@ -273,19 +275,21 @@ export default function TransactionsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="flex justify-center space-x-2">
-                        <button
+                        <PermissionButton
+                          requiredPosition="ACCOUNTANT"
                           onClick={() => setEditingTransaction(transaction)}
                           className="text-blue-600 hover:text-blue-800"
                         >
                           <FiEdit size={16} />
-                        </button>
-                        <button
+                        </PermissionButton>
+                        <PermissionButton
+                          requiredPosition="ACCOUNTANT"
                           onClick={() => deleteTransaction(transaction.id)}
                           disabled={loading}
                           className="text-red-600 hover:text-red-800 disabled:opacity-50"
                         >
                           <FiTrash2 size={16} />
-                        </button>
+                        </PermissionButton>
                       </div>
                     </td>
                   </tr>
