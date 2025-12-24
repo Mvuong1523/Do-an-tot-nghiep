@@ -28,12 +28,18 @@ export default function EmployeeWarehouseExportPage() {
   const canEdit = hasPermission(employee?.position as Position, 'warehouse.export.edit')
 
   useEffect(() => {
-    fetchExportOrders()
-  }, [filter])
+    if (employee) {
+      fetchExportOrders()
+    }
+    
+    return () => {
+      setOrders([])
+    }
+  }, [filter, employee])
 
   const fetchExportOrders = async () => {
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('auth_token') || localStorage.getItem('token')
       const url = filter === 'ALL' 
         ? '/api/inventory/export-orders'
         : `/api/inventory/export-orders?status=${filter}`

@@ -19,8 +19,14 @@ export default function EmployeeExportDetailPage() {
   const canEdit = hasPermission(employee?.position as Position, 'warehouse.export.approve')
 
   useEffect(() => {
-    loadOrderDetail()
-  }, [params.id])
+    if (employee && params.id) {
+      loadOrderDetail()
+    }
+    
+    return () => {
+      setOrder(null)
+    }
+  }, [params.id, employee])
 
   const loadOrderDetail = async () => {
     try {

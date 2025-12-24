@@ -13,7 +13,7 @@ interface POItem {
   quantity: number
   unitCost: number
   warrantyMonths: number
-  techSpecsJson: string
+  techSpecs: Array<{ key: string; value: string }>
   note: string
 }
 
@@ -34,7 +34,7 @@ export default function CreatePurchaseOrderPage() {
     quantity: 1,
     unitCost: 0,
     warrantyMonths: 0,
-    techSpecsJson: '',
+    techSpecs: [{ key: '', value: '' }],
     note: ''
   }])
 
@@ -129,8 +129,17 @@ PROD-002,Sản phẩm mẫu 2,20,200000,24,Ghi chú mẫu`
           
           for (let j = 0; j < line.length; j++) {
             const char = line[j]
+            const nextChar = line[j + 1]
+            
             if (char === '"') {
-              inQuotes = !inQuotes
+              if (inQuotes && nextChar === '"') {
+                // Double quote inside quoted field - keep one quote
+                current += '"'
+                j++ // Skip next quote
+              } else {
+                // Toggle quote state but don't add the quote to output
+                inQuotes = !inQuotes
+              }
             } else if (char === ',' && !inQuotes) {
               parts.push(current)
               current = ''
@@ -140,17 +149,10 @@ PROD-002,Sản phẩm mẫu 2,20,200000,24,Ghi chú mẫu`
           }
           parts.push(current)
           
-          // Clean up parts - remove quotes and trim
-          const cleanParts = parts.map(p => {
-            let cleaned = p.trim()
-            // Remove surrounding quotes if present
-            if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
-              cleaned = cleaned.slice(1, -1)
-            }
-            return cleaned
-          })
+          // Trim parts
+          const cleanParts = parts.map(p => p.trim())
           
-          console.log(`Row ${i}: Found ${cleanParts.length} columns`, cleanParts)
+          console.log(`Row ${i}: Found ${cleanParts.length} columns`)
           
           if (cleanParts.length >= 5) {
             // Column mapping for sample-import-products.csv:
@@ -162,10 +164,25 @@ PROD-002,Sản phẩm mẫu 2,20,200000,24,Ghi chú mẫu`
             // 5: Mô tả
             // 6: Thông số kỹ thuật (JSON)
             
-            let techSpecs = ''
+            let techSpecs: Array<{ key: string; value: string }> = [{ key: '', value: '' }]
             if (cleanParts.length >= 7 && cleanParts[6]) {
-              techSpecs = cleanParts[6]
-              console.log(`Tech specs for ${cleanParts[0]}:`, techSpecs)
+              console.log('Tech specs string:', cleanParts[6])
+              try {
+                const parsed = JSON.parse(cleanParts[6])
+                console.log('Parsed tech specs:', parsed)
+                techSpecs = Object.entries(parsed).map(([key, value]) => ({
+                  key,
+                  value: String(value)
+                }))
+                if (techSpecs.length === 0) {
+                  techSpecs = [{ key: '', value: '' }]
+                }
+                console.log('Final tech specs array:', techSpecs)
+              } catch (e) {
+                console.error('Error parsing tech specs:', e)
+                console.error('Raw string:', cleanParts[6])
+                techSpecs = [{ key: '', value: '' }]
+              }
             }
             
             parsedItems.push({
@@ -174,7 +191,7 @@ PROD-002,Sản phẩm mẫu 2,20,200000,24,Ghi chú mẫu`
               quantity: parseInt(cleanParts[4]) || 0,
               unitCost: parseFloat(cleanParts[3]) || 0,
               warrantyMonths: 12, // Default warranty
-              techSpecsJson: techSpecs,
+              techSpecs: techSpecs,
               note: cleanParts[5] || ''
             })
           }
@@ -229,7 +246,7 @@ PROD-002,Sản phẩm mẫu 2,20,200000,24,Ghi chú mẫu`
               quantity: parseInt(parts[2]) || 0,
               unitCost: parseFloat(parts[3]) || 0,
               warrantyMonths: parseInt(parts[4]) || 0,
-              techSpecsJson: '',
+              techSpecs: [{ key: '', value: '' }],
               note: parts[5] || ''
             })
           }
@@ -266,7 +283,7 @@ PROD-002,Sản phẩm mẫu 2,20,200000,24,Ghi chú mẫu`
       quantity: 1,
       unitCost: 0,
       warrantyMonths: 0,
-      techSpecsJson: '',
+      techSpecs: [{ key: '', value: '' }],
       note: ''
     }])
   }
@@ -280,6 +297,26 @@ PROD-002,Sản phẩm mẫu 2,20,200000,24,Ghi chú mẫu`
   const updateItem = (index: number, field: keyof POItem, value: any) => {
     const newItems = [...items]
     newItems[index] = { ...newItems[index], [field]: value }
+    setItems(newItems)
+  }
+
+  const addTechSpec = (itemIndex: number) => {
+    const newItems = [...items]
+    newItems[itemIndex].techSpecs.push({ key: '', value: '' })
+    setItems(newItems)
+  }
+
+  const removeTechSpec = (itemIndex: number, specIndex: number) => {
+    const newItems = [...items]
+    if (newItems[itemIndex].techSpecs.length > 1) {
+      newItems[itemIndex].techSpecs = newItems[itemIndex].techSpecs.filter((_, i) => i !== specIndex)
+      setItems(newItems)
+    }
+  }
+
+  const updateTechSpec = (itemIndex: number, specIndex: number, field: 'key' | 'value', value: string) => {
+    const newItems = [...items]
+    newItems[itemIndex].techSpecs[specIndex][field] = value
     setItems(newItems)
   }
 
@@ -313,15 +350,6 @@ PROD-002,Sản phẩm mẫu 2,20,200000,24,Ghi chú mẫu`
         toast.error(`Sản phẩm ${i + 1}: Vui lòng nhập đầy đủ thông tin`)
         return
       }
-      // Validate JSON format for techSpecsJson
-      if (item.techSpecsJson && item.techSpecsJson.trim()) {
-        try {
-          JSON.parse(item.techSpecsJson)
-        } catch (error) {
-          toast.error(`Sản phẩm ${i + 1}: Thông số kỹ thuật không đúng định dạng JSON`)
-          return
-        }
-      }
     }
 
     setLoading(true)
@@ -330,15 +358,25 @@ PROD-002,Sản phẩm mẫu 2,20,200000,24,Ghi chú mẫu`
         createdBy: user?.fullName || user?.email || 'Admin',
         poCode,
         supplier: showNewSupplierForm ? newSupplier : { taxCode: selectedSupplier.taxCode },
-        items: items.map(item => ({
-          sku: item.sku,
-          internalName: item.internalName,
-          quantity: item.quantity,
-          unitCost: item.unitCost,
-          warrantyMonths: item.warrantyMonths || 0,
-          techSpecsJson: item.techSpecsJson || '',
-          note: item.note || ''
-        })),
+        items: items.map(item => {
+          // Convert tech specs array to JSON
+          const techSpecsJson: Record<string, string> = {}
+          item.techSpecs.forEach(spec => {
+            if (spec.key && spec.value) {
+              techSpecsJson[spec.key] = spec.value
+            }
+          })
+          
+          return {
+            sku: item.sku,
+            internalName: item.internalName,
+            quantity: item.quantity,
+            unitCost: item.unitCost,
+            warrantyMonths: item.warrantyMonths || 0,
+            techSpecsJson: JSON.stringify(techSpecsJson),
+            note: item.note || ''
+          }
+        }),
         note
       }
 
@@ -465,26 +503,87 @@ PROD-002,Sản phẩm mẫu 2,20,200000,24,Ghi chú mẫu`
           </div>
 
           {!showNewSupplierForm ? (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Chọn nhà cung cấp <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={selectedSupplier?.id || ''}
-                onChange={(e) => {
-                  const supplier = suppliers.find(s => s.id === parseInt(e.target.value))
-                  setSelectedSupplier(supplier)
-                }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required={!showNewSupplierForm}
-              >
-                <option value="">-- Chọn nhà cung cấp --</option>
-                {suppliers.map(supplier => (
-                  <option key={supplier.id} value={supplier.id}>
-                    {supplier.name} - {supplier.taxCode}
-                  </option>
-                ))}
-              </select>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Chọn nhà cung cấp <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={selectedSupplier?.id || ''}
+                  onChange={(e) => {
+                    const supplier = suppliers.find(s => s.id === parseInt(e.target.value))
+                    setSelectedSupplier(supplier)
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required={!showNewSupplierForm}
+                >
+                  <option value="">-- Chọn nhà cung cấp --</option>
+                  {suppliers.map(supplier => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.name} - {supplier.taxCode}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Display selected supplier info */}
+              {selectedSupplier && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-gray-900 mb-3">Thông tin nhà cung cấp</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <span className="text-gray-600">Tên:</span>
+                      <span className="ml-2 font-medium text-gray-900">{selectedSupplier.name}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Mã số thuế:</span>
+                      <span className="ml-2 font-medium text-gray-900">{selectedSupplier.taxCode}</span>
+                    </div>
+                    {selectedSupplier.contactName && (
+                      <div>
+                        <span className="text-gray-600">Người liên hệ:</span>
+                        <span className="ml-2 font-medium text-gray-900">{selectedSupplier.contactName}</span>
+                      </div>
+                    )}
+                    {selectedSupplier.phone && (
+                      <div>
+                        <span className="text-gray-600">Số điện thoại:</span>
+                        <span className="ml-2 font-medium text-gray-900">{selectedSupplier.phone}</span>
+                      </div>
+                    )}
+                    {selectedSupplier.email && (
+                      <div>
+                        <span className="text-gray-600">Email:</span>
+                        <span className="ml-2 font-medium text-gray-900">{selectedSupplier.email}</span>
+                      </div>
+                    )}
+                    {selectedSupplier.address && (
+                      <div className="md:col-span-2">
+                        <span className="text-gray-600">Địa chỉ:</span>
+                        <span className="ml-2 font-medium text-gray-900">{selectedSupplier.address}</span>
+                      </div>
+                    )}
+                    {selectedSupplier.bankAccount && (
+                      <div className="md:col-span-2">
+                        <span className="text-gray-600">Tài khoản ngân hàng:</span>
+                        <span className="ml-2 font-medium text-gray-900">{selectedSupplier.bankAccount}</span>
+                      </div>
+                    )}
+                    {selectedSupplier.paymentTerm && (
+                      <div>
+                        <span className="text-gray-600">Điều khoản thanh toán:</span>
+                        <span className="ml-2 font-medium text-gray-900">{selectedSupplier.paymentTerm}</span>
+                      </div>
+                    )}
+                    {selectedSupplier.paymentTermDays && (
+                      <div>
+                        <span className="text-gray-600">Số ngày nợ:</span>
+                        <span className="ml-2 font-medium text-gray-900">{selectedSupplier.paymentTermDays} ngày</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -704,30 +803,69 @@ PROD-002,Sản phẩm mẫu 2,20,200000,24,Ghi chú mẫu`
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
                     />
                   </div>
-                  <div className="md:col-span-2 lg:col-span-3">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Thông số kỹ thuật (JSON)
+                </div>
+
+                {/* Tech Specs Section */}
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Thông số kỹ thuật
                     </label>
-                    <textarea
-                      value={item.techSpecsJson}
-                      onChange={(e) => updateItem(index, 'techSpecsJson', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      rows={2}
-                      placeholder='{"color": "red", "size": "XL"}'
-                    />
+                    <button
+                      type="button"
+                      onClick={() => addTechSpec(index)}
+                      className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
+                    >
+                      <FiPlus /> Thêm thông số
+                    </button>
                   </div>
-                  <div className="md:col-span-2 lg:col-span-3">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Ghi chú
-                    </label>
-                    <input
-                      type="text"
-                      value={item.note}
-                      onChange={(e) => updateItem(index, 'note', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Ghi chú về sản phẩm"
-                    />
+                  
+                  <div className="space-y-2">
+                    {item.techSpecs.map((spec, specIndex) => (
+                      <div key={specIndex} className="flex gap-2">
+                        <input
+                          type="text"
+                          value={spec.key}
+                          onChange={(e) => updateTechSpec(index, specIndex, 'key', e.target.value)}
+                          placeholder="Tên thông số (VD: CPU, RAM)"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        />
+                        <input
+                          type="text"
+                          value={spec.value}
+                          onChange={(e) => updateTechSpec(index, specIndex, 'value', e.target.value)}
+                          placeholder="Giá trị (VD: Intel i7, 16GB)"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        />
+                        {item.techSpecs.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeTechSpec(index, specIndex)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                          >
+                            <FiTrash2 size={16} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
                   </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Nhập các thông số kỹ thuật của sản phẩm. VD: CPU - Intel i7, RAM - 16GB
+                  </p>
+                </div>
+
+                {/* Note Section */}
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Ghi chú
+                  </label>
+                  <input
+                    type="text"
+                    value={item.note}
+                    onChange={(e) => updateItem(index, 'note', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Ghi chú về sản phẩm"
+                  />
                 </div>
               </div>
             ))}

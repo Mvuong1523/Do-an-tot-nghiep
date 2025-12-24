@@ -33,7 +33,7 @@ export default function EmployeeWarehouseReportsPage() {
   const fetchReportStats = async () => {
     try {
       setLoading(true)
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('auth_token') || localStorage.getItem('token')
       
       const response = await fetch(
         `http://localhost:8080/api/inventory/reports/summary?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`,
@@ -75,7 +75,7 @@ export default function EmployeeWarehouseReportsPage() {
     }
 
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('auth_token') || localStorage.getItem('token')
       const response = await fetch(
         `http://localhost:8080/api/inventory/reports/export/${reportType}?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`,
         {

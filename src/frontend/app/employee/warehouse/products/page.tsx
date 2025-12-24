@@ -28,12 +28,18 @@ export default function EmployeeWarehouseProductsPage() {
   const canEdit = hasPermission(employee?.position as Position, 'products.edit')
 
   useEffect(() => {
-    fetchProducts()
-  }, [])
+    if (employee) {
+      fetchProducts()
+    }
+    
+    return () => {
+      setProducts([])
+    }
+  }, [employee])
 
   const fetchProducts = async () => {
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('auth_token') || localStorage.getItem('token')
       const res = await fetch('http://localhost:8080/api/inventory/warehouse-products', {
         headers: { 'Authorization': `Bearer ${token}` }
       })

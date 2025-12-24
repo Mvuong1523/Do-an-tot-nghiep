@@ -23,12 +23,18 @@ export default function EmployeeWarehouseInventoryPage() {
   const [filter, setFilter] = useState<string>('ALL')
 
   useEffect(() => {
-    fetchInventory()
-  }, [])
+    if (employee) {
+      fetchInventory()
+    }
+    
+    return () => {
+      setStocks([])
+    }
+  }, [employee])
 
   const fetchInventory = async () => {
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('auth_token') || localStorage.getItem('token')
       const res = await fetch('http://localhost:8080/api/inventory/stocks', {
         headers: { 'Authorization': `Bearer ${token}` }
       })

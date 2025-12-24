@@ -37,11 +37,14 @@ export default function CreateExportOrderPage() {
   const loadProducts = async () => {
     try {
       const response = await inventoryApi.getStocks()
+      console.log('Stocks response:', response)
       if (response.success) {
         setProducts(response.data || [])
+        console.log('Products loaded:', response.data?.length || 0)
       }
     } catch (error) {
       console.error('Error loading products:', error)
+      toast.error('Không thể tải danh sách sản phẩm')
     }
   }
 
@@ -234,13 +237,22 @@ export default function CreateExportOrderPage() {
                       required
                     >
                       <option value="">-- Chọn sản phẩm --</option>
-                      {products.map((product) => (
-                        <option key={product.id} value={product.warehouseProduct?.sku}>
-                          {product.warehouseProduct?.sku} - {product.warehouseProduct?.internalName} 
-                          (Tồn: {product.sellable || 0})
-                        </option>
-                      ))}
+                      {products.length === 0 ? (
+                        <option value="" disabled>Không có sản phẩm trong kho</option>
+                      ) : (
+                        products.map((product) => (
+                          <option key={product.id} value={product.warehouseProduct?.sku}>
+                            {product.warehouseProduct?.sku} - {product.warehouseProduct?.internalName} 
+                            (Tồn: {product.sellable || 0})
+                          </option>
+                        ))
+                      )}
                     </select>
+                    {products.length === 0 && (
+                      <p className="text-sm text-amber-600 mt-2">
+                        ⚠️ Chưa có sản phẩm nào trong kho. Vui lòng nhập kho trước.
+                      </p>
+                    )}
                   </div>
 
                   <div>

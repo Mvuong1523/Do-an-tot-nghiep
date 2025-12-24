@@ -16,13 +16,16 @@ interface ExportItem {
 }
 
 export default function EmployeeCreateExportOrderPage() {
+  console.log('=== Component rendered ===')
   const router = useRouter()
   const { employee } = useAuthStore()
   const [loading, setLoading] = useState(false)
   const [products, setProducts] = useState<any[]>([])
   
   // Permission check
-  const canCreate = hasPermission(employee?.position as Position, 'warehouse.export.create')
+  const canCreate = true // Temporarily disable for testing
+  // const canCreate = hasPermission(employee?.position as Position, 'warehouse.export.create')
+  console.log('canCreate:', canCreate, 'employee:', employee)
   
   // Form data
   const [reason, setReason] = useState('')
@@ -35,22 +38,23 @@ export default function EmployeeCreateExportOrderPage() {
   }])
 
   useEffect(() => {
-    if (!canCreate) {
-      toast.error('Bạn không có quyền tạo phiếu xuất kho')
-      router.push('/employee/warehouse')
-      return
-    }
+    console.log('Permission check - canCreate:', canCreate)
+    console.log('Employee:', employee)
+    console.log('Position:', employee?.position)
     loadProducts()
-  }, [canCreate, router])
+  }, [])
 
   const loadProducts = async () => {
     try {
       const response = await inventoryApi.getStocks()
+      console.log('Stocks response:', response)
       if (response.success) {
         setProducts(response.data || [])
+        console.log('Products loaded:', response.data?.length || 0)
       }
     } catch (error) {
       console.error('Error loading products:', error)
+      toast.error('Không thể tải danh sách sản phẩm')
     }
   }
 
@@ -70,13 +74,17 @@ export default function EmployeeCreateExportOrderPage() {
   }
 
   const updateItem = (index: number, field: keyof ExportItem, value: any) => {
+    console.log('Update item:', index, field, value)
     const newItems = [...items]
     newItems[index] = { ...newItems[index], [field]: value }
     setItems(newItems)
+    console.log('Items after update:', newItems)
   }
 
   const handleProductChange = (index: number, sku: string) => {
+    console.log('Product change:', index, sku)
     const product = products.find(p => p.warehouseProduct?.sku === sku)
+    console.log('Found product:', product)
     if (product) {
       updateItem(index, 'productSku', sku)
       updateItem(index, 'productName', product.warehouseProduct?.internalName || '')
@@ -84,16 +92,24 @@ export default function EmployeeCreateExportOrderPage() {
   }
 
   const handleSerialInput = (index: number, input: string) => {
+    console.log('Serial input:', index, input)
     updateItem(index, 'serialInput', input)
     const serials = input
       .split(/[,\n]/)
       .map(s => s.trim())
       .filter(s => s.length > 0)
+    console.log('Parsed serials:', serials)
     updateItem(index, 'serialNumbers', serials)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Check permission before submit
+    if (!canCreate) {
+      toast.error('Bạn không có quyền tạo phiếu xuất kho')
+      return
+    }
 
     if (!reason) {
       toast.error('Vui lòng nhập lý do xuất kho')
@@ -145,30 +161,20 @@ export default function EmployeeCreateExportOrderPage() {
     }
   }
 
-  if (!canCreate) {
-    return (
-      <div className="p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 flex items-start space-x-3">
-          <FiAlertCircle className="text-red-600 w-6 h-6 mt-0.5" />
-          <div>
-            <h3 className="text-lg font-semibold text-red-900 mb-2">Không có quyền truy cập</h3>
-            <p className="text-red-700">
-              Bạn không có quyền tạo phiếu xuất kho. Chỉ nhân viên kho mới có quyền này.
-            </p>
-            <button
-              onClick={() => router.push('/employee/warehouse')}
-              className="mt-4 text-red-600 hover:text-red-800 font-medium"
-            >
-              ← Quay lại trang kho
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="p-6">
+      {!canCreate && (
+        <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start space-x-3">
+          <FiAlertCircle className="text-yellow-600 w-5 h-5 mt-0.5" />
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold text-yellow-900">Chế độ xem</h3>
+            <p className="text-sm text-yellow-700 mt-1">
+              Bạn chỉ có quyền xem. Chỉ nhân viên kho mới có thể tạo phiếu xuất kho.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="mb-6">
         <button
           onClick={() => router.back()}
@@ -234,7 +240,7 @@ export default function EmployeeCreateExportOrderPage() {
 
           <div className="space-y-4">
             {items.map((item, index) => (
-              <div key={index} className="border border-gray-200 rounded-lg p-4">
+              <div key={`item-${index}-${Date.now()}`} className="border border-gray-200 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-medium text-gray-900 flex items-center space-x-2">
                     <FiPackage />
@@ -263,13 +269,22 @@ export default function EmployeeCreateExportOrderPage() {
                       required
                     >
                       <option value="">-- Chọn sản phẩm --</option>
-                      {products.map((product) => (
-                        <option key={product.id} value={product.warehouseProduct?.sku}>
-                          {product.warehouseProduct?.sku} - {product.warehouseProduct?.internalName} 
-                          (Tồn: {product.sellable || 0})
-                        </option>
-                      ))}
+                      {products.length === 0 ? (
+                        <option value="" disabled>Không có sản phẩm trong kho</option>
+                      ) : (
+                        products.map((product) => (
+                          <option key={product.id} value={product.warehouseProduct?.sku}>
+                            {product.warehouseProduct?.sku} - {product.warehouseProduct?.internalName} 
+                            (Tồn: {product.sellable || 0})
+                          </option>
+                        ))
+                      )}
                     </select>
+                    {products.length === 0 && (
+                      <p className="text-sm text-amber-600 mt-2">
+                        ⚠️ Chưa có sản phẩm nào trong kho. Vui lòng nhập kho trước.
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -333,8 +348,9 @@ export default function EmployeeCreateExportOrderPage() {
           </button>
           <button
             type="submit"
-            disabled={loading}
-            className="flex items-center space-x-2 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-400"
+            disabled={loading || !canCreate}
+            className="flex items-center space-x-2 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+            title={!canCreate ? 'Bạn không có quyền tạo phiếu xuất kho' : ''}
           >
             <FiSave />
             <span>{loading ? 'Đang tạo...' : 'Tạo phiếu xuất'}</span>

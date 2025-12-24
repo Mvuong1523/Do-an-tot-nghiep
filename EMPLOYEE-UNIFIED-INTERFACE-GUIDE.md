@@ -1,295 +1,336 @@
-# Hướng dẫn Giao diện Nhân viên Thống nhất
+# ✅ Hướng dẫn Giao diện Nhân viên Thống nhất
 
-## Tổng quan
+## 📋 Tổng quan
 
-Hệ thống đã được cập nhật để gộp tất cả nhân viên về **1 giao diện chung** tại `/employee`, thay vì mỗi vị trí có giao diện riêng.
+Hệ thống đã được chuyển đổi sang **giao diện nhân viên thống nhất** - tất cả nhân viên (bao gồm PRODUCT_MANAGER, WAREHOUSE, ACCOUNTANT, SALE, CSKH, SHIPPER) đều sử dụng chung một giao diện tại `/employee`.
 
-### Nguyên tắc phân quyền:
+## 🎯 Thay đổi chính
 
-1. **Tất cả nhân viên có thể XEM tất cả các trang**
-2. **Các nút chức năng (thêm, sửa, xóa) được ẩn/hiện dựa trên Position**
-3. **Admin vẫn có quyền cao nhất** - xem và làm tất cả
+### 1. Xóa route riêng `/product-manager`
+- ❌ **Trước đây**: PRODUCT_MANAGER có route riêng `/product-manager`
+- ✅ **Bây giờ**: Tất cả nhân viên dùng chung `/employee`
 
-## Cấu trúc Position (Vị trí)
+### 2. Unified Employee Interface
+- Tất cả nhân viên đăng nhập → redirect về `/employee`
+- Sidebar menu hiển thị tất cả chức năng
+- Permission check để ẩn/hiện nút action
 
-Các vị trí nhân viên vẫn giữ nguyên:
+### 3. Xóa code legacy
+- Đã xóa thư mục `src/frontend/app/product-manager/`
+- Đã xóa case `PRODUCT_MANAGER` trong navigation components
+- Đã xóa tất cả reference đến `/product-manager`
 
+## 📂 Files đã sửa
+
+### 1. Navigation Components
+
+#### `src/frontend/components/layout/HorizontalNav.tsx`
+**Thay đổi:**
+- ❌ Xóa case `PRODUCT_MANAGER` trong `getMenuItems()`
+- ❌ Xóa case `PRODUCT_MANAGER` trong `getRoleName()`
+- ✅ Cập nhật interface: `role: 'WAREHOUSE' | 'ADMIN' | 'ACCOUNTANT' | 'SALES'`
+
+**Trước:**
 ```typescript
-enum Position {
-  SALE              // Nhân viên bán hàng
-  CSKH              // Chăm sóc khách hàng
-  PRODUCT_MANAGER   // Quản lý sản phẩm
-  WAREHOUSE         // Nhân viên kho
-  ACCOUNTANT        // Kế toán
-  SHIPPER           // Tài xế giao hàng
-}
+case 'PRODUCT_MANAGER':
+  return [
+    { name: 'Dashboard', icon: FiHome, path: '/product-manager' },
+    {
+      name: 'Sản phẩm',
+      icon: FiPackage,
+      children: [
+        { name: 'Đăng bán', path: '/product-manager/products/publish' },
+        { name: 'Danh sách', path: '/product-manager/products' },
+      ]
+    },
+    { name: 'Danh mục', icon: FiTag, path: '/product-manager/categories' },
+  ]
 ```
 
-## Hệ thống Permission
+**Sau:**
+```typescript
+// Case PRODUCT_MANAGER đã bị xóa hoàn toàn
+```
 
-### File: `src/frontend/lib/permissions.ts`
+#### `src/frontend/components/layout/EmployeeHeader.tsx`
+**Thay đổi:**
+- ❌ Xóa case `PRODUCT_MANAGER` trong `getNavigationLinks()`
+- ❌ Xóa case `PRODUCT_MANAGER` trong `getRoleName()`
+- ✅ Cập nhật interface: `role: 'WAREHOUSE' | 'ADMIN'`
 
-Permission được chia thành 2 loại:
-- **VIEW**: Tất cả nhân viên đều có (không cần khai báo)
-- **ACTION**: Chỉ một số position mới có (cần khai báo)
+**Trước:**
+```typescript
+case 'PRODUCT_MANAGER':
+  return [
+    { name: 'Dashboard', href: '/product-manager', icon: FiHome },
+    { name: 'Đăng bán', href: '/product-manager/products/publish', icon: FiPackage },
+    { name: 'Sản phẩm', href: '/product-manager/products', icon: FiPackage },
+    { name: 'Danh mục', href: '/product-manager/categories', icon: FiTag },
+  ]
+```
 
-### Ví dụ Permission theo Position:
+**Sau:**
+```typescript
+// Case PRODUCT_MANAGER đã bị xóa hoàn toàn
+```
 
-#### 1. PRODUCT_MANAGER (Quản lý sản phẩm)
+### 2. Redirect Components (Đã sửa trước đó)
+
+#### `src/frontend/components/RootLayoutClient.tsx`
+- ✅ Đã xóa check `/product-manager`
+
+#### `src/frontend/components/EmployeeBreadcrumb.tsx`
+- ✅ Tất cả position redirect về `/employee`
+
+#### `src/frontend/components/RoleBasedRedirect.tsx`
+- ✅ Tất cả EMPLOYEE redirect về `/employee`
+
+### 3. Employee Layout
+
+#### `src/frontend/app/employee/layout.tsx`
+- ✅ Sidebar menu hiển thị tất cả chức năng
+- ✅ Không có permission check cho menu (tất cả nhân viên đều thấy)
+- ✅ Permission check chỉ ở nút action trong từng trang
+
+## 🔐 Phân quyền
+
+### Position Types
+```typescript
+type Position = 
+  | 'SALE'           // Nhân viên bán hàng
+  | 'CSKH'           // Chăm sóc khách hàng
+  | 'PRODUCT_MANAGER' // Quản lý sản phẩm
+  | 'WAREHOUSE'      // Nhân viên kho
+  | 'ACCOUNTANT'     // Kế toán
+  | 'SHIPPER'        // Tài xế giao hàng
+```
+
+### Permissions của PRODUCT_MANAGER
 ```typescript
 PRODUCT_MANAGER: [
   'products.create',
   'products.edit',
   'products.delete',
+  'products.publish',
   'categories.create',
   'categories.edit',
   'categories.delete',
-  // KHÔNG có warehouse.import/export
+  'warehouse.reports.view', // CHỈ XEM báo cáo kho
 ]
 ```
 
-**Nghĩa là:**
-- ✅ Xem được trang Nhập kho, Xuất kho
-- ❌ KHÔNG thấy nút "Tạo phiếu nhập", "Tạo phiếu xuất"
-- ✅ Có nút "Thêm sản phẩm", "Sửa sản phẩm"
-
-#### 2. WAREHOUSE (Nhân viên kho)
-```typescript
-WAREHOUSE: [
-  'warehouse.import.create',
-  'warehouse.import.approve',
-  'warehouse.export.create',
-  'warehouse.export.approve',
-  'suppliers.create',
-  'suppliers.edit',
-]
-```
-
-**Nghĩa là:**
-- ✅ Xem được trang Nhập kho, Xuất kho
-- ✅ CÓ nút "Tạo phiếu nhập", "Tạo phiếu xuất"
-- ✅ Có thể duyệt phiếu nhập/xuất
-- ❌ KHÔNG có nút "Thêm sản phẩm", "Sửa sản phẩm"
-
-#### 3. SALE (Nhân viên bán hàng)
-```typescript
-SALE: [
-  'orders.create',
-  'orders.edit',
-  'orders.confirm',
-  'orders.cancel',
-  'customers.edit',
-]
-```
-
-#### 4. ACCOUNTANT (Kế toán)
-```typescript
-ACCOUNTANT: [
-  'accounting.reconciliation.edit',
-  'accounting.payables.create',
-  'accounting.payables.edit',
-  'accounting.payables.delete',
-  'bank_accounts.create',
-  'bank_accounts.edit',
-  'bank_accounts.delete',
-]
-```
-
-## Cách sử dụng trong Component
-
-### 1. Import permission helper
+### Cách check permission
 ```typescript
 import { hasPermission, type Position } from '@/lib/permissions'
-import { useAuthStore } from '@/store/authStore'
-```
 
-### 2. Check permission
-```typescript
+// Trong component
 const { employee } = useAuthStore()
-const canCreate = hasPermission(employee?.position as Position, 'warehouse.import.create')
-```
+const canCreate = hasPermission(employee?.position as Position, 'products.create')
 
-### 3. Hiển thị có điều kiện
-```typescript
+// Conditional rendering
 {canCreate && (
-  <button>Tạo phiếu nhập</button>
-)}
-
-{!canCreate && (
-  <div className="text-gray-500">Bạn chỉ có quyền xem</div>
+  <button>Tạo sản phẩm</button>
 )}
 ```
 
-## Ví dụ thực tế: Trang Nhập kho
+## 🚀 Luồng hoạt động
 
-### File: `src/frontend/app/employee/warehouse/import/page.tsx`
+### 1. Đăng nhập
+```
+User login → Check role
+├─ ADMIN → /admin
+├─ EMPLOYEE → /employee (tất cả positions)
+└─ CUSTOMER → /
+```
 
+### 2. Navigation
+```
+/employee
+├─ Dashboard (tất cả nhân viên)
+├─ Sản phẩm
+│  ├─ Danh sách (tất cả xem được)
+│  ├─ Đăng bán (chỉ PRODUCT_MANAGER có nút)
+│  └─ Danh mục (tất cả xem được)
+├─ Kho hàng
+│  ├─ Tổng quan (tất cả xem được)
+│  ├─ Nhập kho (chỉ WAREHOUSE có nút tạo)
+│  ├─ Xuất kho (chỉ WAREHOUSE có nút tạo)
+│  └─ Tồn kho (tất cả xem được)
+├─ Đơn hàng (tất cả xem được)
+├─ Khách hàng (tất cả xem được)
+├─ Nhà cung cấp (tất cả xem được)
+├─ Kế toán (chỉ ACCOUNTANT có nút action)
+└─ Giao hàng (chỉ SHIPPER có nút action)
+```
+
+### 3. Permission Check trong trang
 ```typescript
-export default function WarehouseImportPage() {
-  const { employee } = useAuthStore()
-  
-  // Check permissions
-  const canCreate = hasPermission(employee?.position as Position, 'warehouse.import.create')
-  const canApprove = hasPermission(employee?.position as Position, 'warehouse.import.approve')
+// Ví dụ: Trang Đăng bán sản phẩm
+// /employee/products/publish/page.tsx
 
-  return (
-    <div>
-      {/* Header với nút có điều kiện */}
-      <div className="flex justify-between">
-        <h1>Phiếu nhập kho</h1>
-        
-        {/* Chỉ hiện nút nếu có quyền */}
-        {canCreate && (
-          <Link href="/employee/warehouse/import/create">
-            Tạo phiếu nhập
-          </Link>
-        )}
-        
-        {/* Hiện thông báo nếu không có quyền */}
-        {!canCreate && (
-          <div>Bạn chỉ có quyền xem</div>
-        )}
-      </div>
+const { employee } = useAuthStore()
+const canPublish = hasPermission(employee?.position as Position, 'products.publish')
 
-      {/* Thông báo quyền hạn */}
-      {!canCreate && (
-        <div className="alert">
-          Bạn có thể xem danh sách và chi tiết phiếu nhập kho, 
-          nhưng không thể tạo hoặc chỉnh sửa.
-        </div>
-      )}
+// Hiển thị thông báo nếu không có quyền
+{!canPublish && (
+  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+    <p className="text-yellow-800">
+      Bạn chỉ có quyền xem danh sách sản phẩm kho, không thể đăng bán.
+    </p>
+  </div>
+)}
 
-      {/* Danh sách - tất cả đều xem được */}
-      <table>
-        {/* ... */}
-      </table>
-    </div>
-  )
+// Ẩn form nếu không có quyền
+{canPublish && (
+  <form onSubmit={handlePublish}>
+    {/* Form fields */}
+  </form>
+)}
+```
+
+## 📊 Ví dụ cụ thể
+
+### Nhân viên PRODUCT_MANAGER
+**Có thể làm:**
+- ✅ Xem tất cả trang
+- ✅ Tạo/sửa/xóa sản phẩm
+- ✅ Đăng bán sản phẩm từ kho
+- ✅ Tạo/sửa/xóa danh mục
+- ✅ Xem báo cáo kho
+
+**Không thể làm:**
+- ❌ Tạo phiếu nhập/xuất kho
+- ❌ Duyệt phiếu kho
+- ❌ Thao tác kế toán
+- ❌ Giao hàng
+
+### Nhân viên WAREHOUSE
+**Có thể làm:**
+- ✅ Xem tất cả trang
+- ✅ Tạo/duyệt phiếu nhập kho
+- ✅ Tạo/duyệt phiếu xuất kho
+- ✅ Quản lý tồn kho
+- ✅ Xem báo cáo kho
+
+**Không thể làm:**
+- ❌ Tạo/sửa sản phẩm
+- ❌ Đăng bán sản phẩm
+- ❌ Thao tác kế toán
+- ❌ Giao hàng
+
+### Nhân viên SALE
+**Có thể làm:**
+- ✅ Xem tất cả trang
+- ✅ Tạo/sửa đơn hàng
+- ✅ Quản lý khách hàng
+
+**Không thể làm:**
+- ❌ Tạo/sửa sản phẩm
+- ❌ Thao tác kho
+- ❌ Thao tác kế toán
+- ❌ Giao hàng
+
+## 🧪 Cách test
+
+### 1. Test redirect
+```bash
+# Đăng nhập với tài khoản PRODUCT_MANAGER
+# Kiểm tra URL sau khi login
+# Expected: /employee (không phải /product-manager)
+```
+
+### 2. Test menu
+```bash
+# Vào /employee
+# Kiểm tra sidebar menu
+# Expected: Hiển thị tất cả menu (Sản phẩm, Kho hàng, Đơn hàng, etc.)
+```
+
+### 3. Test permission
+```bash
+# Đăng nhập với PRODUCT_MANAGER
+# Vào /employee/products/publish
+# Expected: Thấy form đăng bán
+
+# Đăng nhập với WAREHOUSE
+# Vào /employee/products/publish
+# Expected: Thấy thông báo "không có quyền", form bị ẩn
+```
+
+### 4. Test không còn route cũ
+```bash
+# Thử truy cập /product-manager
+# Expected: 404 Not Found
+```
+
+## 🔍 Kiểm tra code
+
+### Tìm reference còn sót
+```bash
+# Tìm trong code TypeScript/JavaScript
+grep -r "product-manager" src/frontend/
+grep -r "/product-manager" src/frontend/
+
+# Expected: Không có kết quả (hoặc chỉ trong comments/docs)
+```
+
+### Kiểm tra interface props
+```typescript
+// HorizontalNav.tsx
+interface HorizontalNavProps {
+  role: 'WAREHOUSE' | 'ADMIN' | 'ACCOUNTANT' | 'SALES'
+  // ✅ Không còn 'PRODUCT_MANAGER'
+}
+
+// EmployeeHeader.tsx
+interface EmployeeHeaderProps {
+  role: 'WAREHOUSE' | 'ADMIN'
+  // ✅ Không còn 'PRODUCT_MANAGER'
 }
 ```
 
-## Cấu trúc Folder mới
+## 📝 Lưu ý quan trọng
 
-```
-src/frontend/app/
-├── admin/                    # Admin (quyền cao nhất)
-│   ├── page.tsx
-│   └── ...
-├── employee/                 # Giao diện chung cho tất cả nhân viên
-│   ├── layout.tsx           # Sidebar menu chung
-│   ├── page.tsx             # Dashboard chung
-│   ├── products/            # Tất cả xem được
-│   ├── categories/          # Tất cả xem được
-│   ├── warehouse/           # Tất cả xem được
-│   │   ├── import/          # Nhưng chỉ WAREHOUSE có nút thêm
-│   │   ├── export/          # Nhưng chỉ WAREHOUSE có nút thêm
-│   │   └── inventory/
-│   ├── orders/              # Tất cả xem được
-│   ├── customers/           # Tất cả xem được
-│   ├── suppliers/           # Tất cả xem được
-│   ├── accounting/          # Tất cả xem được
-│   │   ├── reconciliation/  # Nhưng chỉ ACCOUNTANT có nút sửa
-│   │   ├── payables/        # Nhưng chỉ ACCOUNTANT có nút thêm/sửa
-│   │   └── bank-accounts/   # Nhưng chỉ ACCOUNTANT có nút thêm/sửa
-│   └── shipping/            # Tất cả xem được
-└── ...
-```
+### 1. Position type vẫn tồn tại
+- `PRODUCT_MANAGER` vẫn là một position hợp lệ
+- Chỉ xóa route `/product-manager`, không xóa position type
+- Permission mapping vẫn giữ nguyên
 
-## Migration từ giao diện cũ
+### 2. Admin categories page
+- File `src/frontend/app/admin/categories/page.tsx` vẫn check `PRODUCT_MANAGER`
+- Đây là trang admin riêng, không phải employee interface
+- Để nguyên logic này
 
-### Trước đây:
-- `/product-manager` - Riêng cho Product Manager
-- `/warehouse` - Riêng cho Warehouse
-- `/sales` - Riêng cho Sales
-- `/shipper` - Riêng cho Shipper
+### 3. Employee register
+- Form đăng ký nhân viên vẫn có option `PRODUCT_MANAGER`
+- Đây là đúng vì position vẫn tồn tại
 
-### Bây giờ:
-- `/employee` - Chung cho TẤT CẢ nhân viên
-- Phân quyền bằng cách ẩn/hiện nút chức năng
+### 4. Permission system
+- File `src/frontend/lib/permissions.ts` vẫn có `PRODUCT_MANAGER`
+- Đây là đúng vì cần định nghĩa permissions
 
-## Lợi ích
+## 🎉 Kết quả
 
-1. **Dễ quản lý**: Chỉ 1 layout, 1 sidebar, 1 routing
-2. **Linh hoạt**: Nhân viên có thể xem công việc của nhau
-3. **Minh bạch**: Mọi người thấy được quy trình làm việc
-4. **Dễ mở rộng**: Thêm permission mới không cần tạo route mới
+### Đã hoàn thành
+- ✅ Xóa thư mục `/product-manager`
+- ✅ Xóa case `PRODUCT_MANAGER` trong navigation components
+- ✅ Cập nhật interface props
+- ✅ Tất cả nhân viên redirect về `/employee`
+- ✅ Không còn reference nào đến route `/product-manager`
 
-## Checklist Implementation
+### Giữ nguyên
+- ✅ Position type `PRODUCT_MANAGER` trong `permissions.ts`
+- ✅ Permission mapping cho `PRODUCT_MANAGER`
+- ✅ Employee register form có option `PRODUCT_MANAGER`
+- ✅ Admin pages có check `PRODUCT_MANAGER` role
 
-### Backend (Không cần thay đổi)
-- ✅ Position enum vẫn giữ nguyên
-- ✅ Employee entity vẫn giữ nguyên
-- ✅ API vẫn hoạt động bình thường
+## 📚 Tài liệu liên quan
 
-### Frontend
-- ✅ Tạo `src/frontend/lib/permissions.ts`
-- ✅ Tạo `src/frontend/app/employee/layout.tsx`
-- ✅ Tạo `src/frontend/app/employee/page.tsx`
-- ✅ Cập nhật `src/frontend/store/authStore.ts` (thêm employee field)
-- ⏳ Di chuyển các trang từ `/product-manager`, `/warehouse`, `/sales` sang `/employee`
-- ⏳ Thêm permission check vào từng trang
-- ⏳ Cập nhật routing và redirect
+- `EMPLOYEE-SYSTEM-COMPLETE.md` - Hệ thống nhân viên thống nhất
+- `PERMISSION-SYSTEM-SUMMARY.md` - Tổng quan hệ thống phân quyền
+- `PERMISSION-IMPLEMENTATION-GUIDE.md` - Hướng dẫn implement permission
+- `PRODUCT-PUBLISH-COMPLETE.md` - Tính năng đăng bán sản phẩm
 
-## Các trang cần implement
-
-### 1. Products
-- [ ] `/employee/products` - Danh sách sản phẩm
-- [ ] `/employee/products/create` - Thêm sản phẩm (chỉ PRODUCT_MANAGER)
-- [ ] `/employee/products/[id]` - Chi tiết sản phẩm
-- [ ] `/employee/products/[id]/edit` - Sửa sản phẩm (chỉ PRODUCT_MANAGER)
-
-### 2. Categories
-- [ ] `/employee/categories` - Danh sách danh mục
-- [ ] Nút thêm/sửa/xóa (chỉ PRODUCT_MANAGER)
-
-### 3. Warehouse
-- [x] `/employee/warehouse/import` - Phiếu nhập kho (ví dụ đã tạo)
-- [ ] `/employee/warehouse/import/create` - Tạo phiếu nhập (chỉ WAREHOUSE)
-- [ ] `/employee/warehouse/export` - Phiếu xuất kho
-- [ ] `/employee/warehouse/export/create` - Tạo phiếu xuất (chỉ WAREHOUSE)
-- [ ] `/employee/warehouse/inventory` - Tồn kho
-- [ ] `/employee/warehouse/reports` - Báo cáo
-
-### 4. Orders
-- [ ] `/employee/orders` - Danh sách đơn hàng
-- [ ] `/employee/orders/[id]` - Chi tiết đơn hàng
-- [ ] Nút xác nhận/hủy (SALE, CSKH)
-
-### 5. Accounting
-- [ ] `/employee/accounting/reconciliation` - Đối soát
-- [ ] `/employee/accounting/payables` - Công nợ NCC
-- [ ] `/employee/accounting/statements` - Báo cáo tài chính
-- [ ] `/employee/accounting/bank-accounts` - Tài khoản ngân hàng
-
-### 6. Shipping
-- [ ] `/employee/shipping` - Danh sách đơn giao hàng
-- [ ] Nút cập nhật trạng thái (chỉ SHIPPER)
-
-## Testing
-
-### Test case 1: Product Manager
-1. Login với account PRODUCT_MANAGER
-2. Vào `/employee/warehouse/import`
-3. ✅ Xem được danh sách phiếu nhập
-4. ❌ KHÔNG thấy nút "Tạo phiếu nhập"
-5. ✅ Thấy thông báo "Bạn chỉ có quyền xem"
-
-### Test case 2: Warehouse Staff
-1. Login với account WAREHOUSE
-2. Vào `/employee/warehouse/import`
-3. ✅ Xem được danh sách phiếu nhập
-4. ✅ CÓ nút "Tạo phiếu nhập"
-5. ✅ Click được vào tạo phiếu mới
-
-### Test case 3: Admin
-1. Login với account ADMIN
-2. Vào `/admin` (vẫn giữ giao diện riêng)
-3. ✅ Có tất cả quyền
-4. ✅ Xem được tất cả
-
-## Notes
-
-- Admin vẫn giữ giao diện riêng tại `/admin`
-- Employee dùng giao diện chung tại `/employee`
-- Tất cả employee đều xem được tất cả trang
-- Chỉ các nút chức năng mới bị ẩn theo permission
+---
+**Ngày hoàn thành**: 24/12/2025  
+**Trạng thái**: ✅ Hoàn thành - Đã migrate sang unified employee interface

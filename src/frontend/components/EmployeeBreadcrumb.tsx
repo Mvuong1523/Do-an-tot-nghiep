@@ -18,9 +18,13 @@ export default function EmployeeBreadcrumb({ items }: EmployeeBreadcrumbProps) {
   const getHomePath = () => {
     switch (user?.role) {
       case 'WAREHOUSE':
-        return '/warehouse'
       case 'PRODUCT_MANAGER':
-        return '/product-manager'
+      case 'ACCOUNTANT':
+      case 'SALES':
+      case 'SALE':
+      case 'CSKH':
+      case 'SHIPPER':
+        return '/employee'
       case 'ADMIN':
         return '/admin'
       default:

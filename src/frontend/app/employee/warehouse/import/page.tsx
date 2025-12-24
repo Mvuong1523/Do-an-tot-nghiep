@@ -29,22 +29,35 @@ export default function EmployeeWarehouseImportPage() {
   const canApprove = hasPermission(employee?.position as Position, 'warehouse.import.approve')
 
   useEffect(() => {
-    fetchPurchaseOrders()
-  }, [filter])
+    if (employee) {
+      fetchPurchaseOrders()
+    }
+    
+    return () => {
+      setOrders([])
+    }
+  }, [filter, employee])
 
   const fetchPurchaseOrders = async () => {
     try {
-      const token = localStorage.getItem('token')
+      setLoading(true)
+      const token = localStorage.getItem('auth_token') || localStorage.getItem('token')
       const url = filter === 'ALL' 
         ? '/api/inventory/purchase-orders'
         : `/api/inventory/purchase-orders?status=${filter}`
       
+      console.log('Fetching purchase orders:', url)
       const res = await fetch(`http://localhost:8080${url}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       const data = await res.json()
+      console.log('Purchase orders response:', data)
+      
       if (data.success) {
-        setOrders(data.data)
+        console.log('Orders data:', data.data)
+        setOrders(data.data || [])
+      } else {
+        console.error('API returned error:', data.message)
       }
     } catch (error) {
       console.error('Error fetching purchase orders:', error)
@@ -133,7 +146,7 @@ export default function EmployeeWarehouseImportPage() {
                     {order.status}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">{order.totalAmount.toLocaleString('vi-VN')} đ</td>
+                <td className="px-6 py-4 whitespace-nowrap">{(order.totalAmount || 0).toLocaleString('vi-VN')} đ</td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <button
                     onClick={() => router.push(`/employee/warehouse/import/${order.id}`)}

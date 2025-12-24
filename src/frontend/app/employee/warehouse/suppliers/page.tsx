@@ -29,8 +29,14 @@ export default function EmployeeSuppliersPage() {
   const canEdit = hasPermission(employee?.position as Position, 'suppliers.edit')
 
   useEffect(() => {
-    loadSuppliers()
-  }, [])
+    if (employee) {
+      loadSuppliers()
+    }
+    
+    return () => {
+      setSuppliers([])
+    }
+  }, [employee])
 
   const loadSuppliers = async () => {
     try {

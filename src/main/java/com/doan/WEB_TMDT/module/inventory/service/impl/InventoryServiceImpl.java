@@ -88,6 +88,74 @@ public class InventoryServiceImpl implements InventoryService {
 
     }
 
+    @Override
+    public ApiResponse createWarehouseProduct(CreateWarehouseProductRequest req) {
+        // Check if SKU already exists
+        Optional<WarehouseProduct> existing = warehouseProductRepository.findBySku(req.getSku());
+        if (existing.isPresent()) {
+            return ApiResponse.error("SKU đã tồn tại: " + req.getSku());
+        }
+        
+        // Get supplier if provided
+        Supplier supplier = null;
+        if (req.getSupplierId() != null) {
+            supplier = supplierRepository.findById(req.getSupplierId())
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy nhà cung cấp #" + req.getSupplierId()));
+        }
+        
+        // Create warehouse product
+        WarehouseProduct wp = WarehouseProduct.builder()
+                .sku(req.getSku())
+                .internalName(req.getInternalName())
+                .supplier(supplier)
+                .description(req.getDescription())
+                .techSpecsJson(req.getTechSpecsJson() != null ? req.getTechSpecsJson() : "{}")
+                .lastImportDate(LocalDateTime.now())
+                .build();
+        
+        WarehouseProduct saved = warehouseProductRepository.save(wp);
+        
+        // Parse and save specifications
+        productSpecificationService.parseAndSaveSpecs(saved);
+        
+        return ApiResponse.success("Tạo sản phẩm kho thành công", saved);
+    }
+
+    @Override
+    public ApiResponse updateWarehouseProduct(Long id, CreateWarehouseProductRequest req) {
+        // Find existing product
+        WarehouseProduct wp = warehouseProductRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm #" + id));
+        
+        // Check if SKU is being changed and already exists
+        if (!wp.getSku().equals(req.getSku())) {
+            Optional<WarehouseProduct> existing = warehouseProductRepository.findBySku(req.getSku());
+            if (existing.isPresent()) {
+                return ApiResponse.error("SKU đã tồn tại: " + req.getSku());
+            }
+            wp.setSku(req.getSku());
+        }
+        
+        // Get supplier if provided
+        if (req.getSupplierId() != null) {
+            Supplier supplier = supplierRepository.findById(req.getSupplierId())
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy nhà cung cấp #" + req.getSupplierId()));
+            wp.setSupplier(supplier);
+        }
+        
+        // Update fields
+        wp.setInternalName(req.getInternalName());
+        wp.setDescription(req.getDescription());
+        wp.setTechSpecsJson(req.getTechSpecsJson() != null ? req.getTechSpecsJson() : "{}");
+        
+        WarehouseProduct updated = warehouseProductRepository.save(wp);
+        
+        // Re-parse and save specifications
+        productSpecificationService.parseAndSaveSpecs(updated);
+        
+        return ApiResponse.success("Cập nhật sản phẩm kho thành công", updated);
+    }
+
 
     @Override
     public ApiResponse createPurchaseOrder(CreatePORequest req) {

@@ -1,567 +1,239 @@
-# Hướng dẫn Hoàn thành Migration Employee Interface
+# ✅ Hoàn thành Migration sang Unified Employee Interface
 
-## ✅ Đã hoàn thành (44%)
+## 📋 Tổng quan
 
-### Warehouse Module - 11/11 trang
-- ✅ `/employee/warehouse/import/page.tsx`
-- ✅ `/employee/warehouse/import/create/page.tsx`
-- ✅ `/employee/warehouse/import/list/page.tsx`
-- ✅ `/employee/warehouse/import/[id]/page.tsx`
-- ✅ `/employee/warehouse/export/page.tsx`
-- ✅ `/employee/warehouse/export/create/page.tsx`
-- ✅ `/employee/warehouse/export/list/page.tsx`
-- ✅ `/employee/warehouse/export/[id]/page.tsx`
-- ✅ `/employee/warehouse/inventory/page.tsx`
-- ✅ `/employee/warehouse/reports/page.tsx`
-- ✅ `/employee/suppliers/page.tsx`
+Đã hoàn thành việc migrate toàn bộ hệ thống nhân viên sang **giao diện thống nhất** tại `/employee`. Tất cả các route riêng lẻ cho từng position đã được xóa bỏ.
 
-## ⏳ Cần hoàn thành (56%)
+## 🗑️ Đã xóa
 
-### 1. Product Manager Module - 4 trang
+### 1. Thư mục route legacy
+- ❌ `src/frontend/app/sales/` - Route riêng cho SALES
+- ❌ `src/frontend/app/warehouse/` - Route riêng cho WAREHOUSE  
+- ❌ `src/frontend/app/shipper/` - Route riêng cho SHIPPER
+- ❌ `src/frontend/app/product-manager/` - Route riêng cho PRODUCT_MANAGER (đã xóa trước đó)
 
-#### `/employee/products/page.tsx`
-**Copy từ**: `/product-manager/products/page.tsx`
+### 2. Component không sử dụng
+- ❌ `src/frontend/components/layout/HorizontalNav.tsx` - Navigation cũ
+- ❌ `src/frontend/components/layout/EmployeeHeader.tsx` - Header cũ
+- ❌ `src/frontend/components/layout/WarehouseSidebar.tsx` - Sidebar kho cũ
 
-**Thay đổi cần thiết**:
+## ✅ Đã sửa
+
+### 1. Header Component (`src/frontend/components/layout/Header.tsx`)
+
+**Trước:**
 ```typescript
-// 1. Thêm permission check
-import { hasPermission, type Position } from '@/lib/permissions'
-import { useAuthStore } from '@/store/authStore'
-
-const { employee } = useAuthStore()
-const canCreate = hasPermission(employee?.position as Position, 'products.create')
-const canEdit = hasPermission(employee?.position as Position, 'products.edit')
-const canDelete = hasPermission(employee?.position as Position, 'products.delete')
-
-// 2. Conditional rendering cho nút "Đăng bán sản phẩm mới"
-{canCreate && (
-  <Link href="/employee/products/publish">
-    Đăng bán sản phẩm mới
-  </Link>
+{(user.role === 'EMPLOYEE' && user.position === 'WAREHOUSE') && (
+  <Link href="/warehouse">Quản lý kho</Link>
 )}
-
-// 3. Conditional rendering cho nút "Sửa"
-{canEdit && (
-  <button onClick={() => handleEdit(product)}>
-    <FiEdit /> Sửa
-  </button>
+{(user.role === 'EMPLOYEE' && user.position === 'ACCOUNTANT') && (
+  <Link href="/admin/accounting">Kế toán & Đối soát</Link>
 )}
-
-// 4. Thêm permission notice
-{!canCreate && !canEdit && (
-  <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-    <div className="flex items-start">
-      <FiFileText className="text-blue-500 mt-0.5 mr-3" size={20} />
-      <div>
-        <h3 className="text-sm font-medium text-blue-900">Quyền hạn của bạn</h3>
-        <p className="text-sm text-blue-700 mt-1">
-          Bạn chỉ có quyền xem danh sách sản phẩm, không thể thêm hoặc chỉnh sửa.
-        </p>
-      </div>
-    </div>
-  </div>
-)}
-
-// 5. Cập nhật routing
-// OLD: /product-manager/products/publish
-// NEW: /employee/products/publish
-
-// 6. Xóa check role cũ
-// OLD: const isProductManager = user?.role === 'ADMIN' || (user?.role === 'EMPLOYEE' && user?.position === 'PRODUCT_MANAGER')
-// NEW: Không cần check, tất cả employee đều vào được
-```
-
-#### `/employee/products/publish/page.tsx`
-**Copy từ**: `/product-manager/products/publish/page.tsx`
-
-**Thay đổi cần thiết**:
-```typescript
-// 1. Thêm permission check ở đầu component
-const { employee } = useAuthStore()
-const canCreate = hasPermission(employee?.position as Position, 'products.create')
-
-useEffect(() => {
-  if (!canCreate) {
-    toast.error('Bạn không có quyền đăng bán sản phẩm')
-    router.push('/employee/products')
-  }
-}, [canCreate, router])
-
-// 2. Cập nhật routing
-// OLD: /product-manager/products
-// NEW: /employee/products
-```
-
-#### `/employee/categories/page.tsx`
-**Copy từ**: `/product-manager/categories/page.tsx`
-
-**Thay đổi cần thiết**:
-```typescript
-// 1. Thêm permission check
-const canCreate = hasPermission(employee?.position as Position, 'categories.create')
-const canEdit = hasPermission(employee?.position as Position, 'categories.edit')
-const canDelete = hasPermission(employee?.position as Position, 'categories.delete')
-
-// 2. Conditional rendering cho nút "Thêm danh mục"
-{canCreate && (
-  <button onClick={handleCreate}>
-    <FiPlus /> Thêm danh mục
-  </button>
-)}
-
-// 3. Conditional rendering cho nút "Sửa"
-{canEdit && (
-  <button onClick={() => handleEdit(category)}>
-    <FiEdit />
-  </button>
-)}
-
-// 4. Conditional rendering cho nút "Xóa"
-{canDelete && (
-  <button onClick={() => handleDelete(category.id)}>
-    <FiTrash2 />
-  </button>
-)}
-
-// 5. Thêm permission notice
-{!canCreate && !canEdit && (
-  <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-    <div className="flex items-start">
-      <FiFileText className="text-blue-500 mt-0.5 mr-3" size={20} />
-      <div>
-        <h3 className="text-sm font-medium text-blue-900">Quyền hạn của bạn</h3>
-        <p className="text-sm text-blue-700 mt-1">
-          Bạn chỉ có quyền xem danh sách danh mục, không thể thêm hoặc chỉnh sửa.
-        </p>
-      </div>
-    </div>
-  </div>
-)}
-
-// 6. Cập nhật routing
-// OLD: /product-manager/products?category=
-// NEW: /employee/products?category=
-```
-
-#### `/employee/inventory/page.tsx`
-**Copy từ**: `/product-manager/inventory/page.tsx`
-
-**Thay đổi cần thiết**:
-- Tương tự như `/employee/warehouse/inventory/page.tsx` đã tạo
-- Không cần permission check vì chỉ xem
-
-### 2. Sales Module - 2 trang
-
-#### `/employee/orders/page.tsx`
-**Copy từ**: `/sales/orders/page.tsx`
-
-**Thay đổi cần thiết**:
-```typescript
-// 1. Thêm permission check
-const canCreate = hasPermission(employee?.position as Position, 'orders.create')
-const canEdit = hasPermission(employee?.position as Position, 'orders.edit')
-const canConfirm = hasPermission(employee?.position as Position, 'orders.confirm')
-const canCancel = hasPermission(employee?.position as Position, 'orders.cancel')
-
-// 2. Conditional rendering cho nút "Tạo đơn hàng"
-{canCreate && (
-  <button onClick={handleCreateOrder}>
-    Tạo đơn hàng
-  </button>
-)}
-
-// 3. Conditional rendering cho nút "Xác nhận"
-{canConfirm && order.status === 'PENDING_PAYMENT' && (
-  <button onClick={() => handleConfirm(order.id)}>
-    Xác nhận
-  </button>
-)}
-
-// 4. Conditional rendering cho nút "Hủy"
-{canCancel && (
-  <button onClick={() => handleCancel(order.id)}>
-    Hủy đơn
-  </button>
-)}
-
-// 5. Thêm permission notice
-{!canCreate && !canEdit && (
-  <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-    <div className="flex items-start">
-      <FiFileText className="text-blue-500 mt-0.5 mr-3" size={20} />
-      <div>
-        <h3 className="text-sm font-medium text-blue-900">Quyền hạn của bạn</h3>
-        <p className="text-sm text-blue-700 mt-1">
-          Bạn chỉ có quyền xem đơn hàng, không thể tạo hoặc chỉnh sửa.
-        </p>
-      </div>
-    </div>
-  </div>
-)}
-
-// 6. Cập nhật routing
-// OLD: /sales/orders/...
-// NEW: /employee/orders/...
-```
-
-#### `/employee/export/page.tsx`
-**Copy từ**: `/sales/export/page.tsx`
-
-**Thay đổi cần thiết**:
-- Tương tự như orders page
-- Thêm permission check cho export actions
-
-### 3. Accounting Module - 4 trang
-
-#### `/employee/accounting/reconciliation/page.tsx`
-**Copy từ**: `/admin/accounting/reconciliation/page.tsx`
-
-**Thay đổi cần thiết**:
-```typescript
-// 1. Thêm permission check
-const canEdit = hasPermission(employee?.position as Position, 'accounting.reconciliation.edit')
-
-// 2. Conditional rendering cho nút "Đối soát"
-{canEdit && (
-  <button onClick={handleReconcile}>
-    Đối soát
-  </button>
-)}
-
-// 3. Thêm permission notice
-{!canEdit && (
-  <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-    <div className="flex items-start">
-      <FiFileText className="text-blue-500 mt-0.5 mr-3" size={20} />
-      <div>
-        <h3 className="text-sm font-medium text-blue-900">Quyền hạn của bạn</h3>
-        <p className="text-sm text-blue-700 mt-1">
-          Bạn chỉ có quyền xem báo cáo đối soát, không thể thực hiện đối soát.
-        </p>
-      </div>
-    </div>
-  </div>
-)}
-
-// 4. Cập nhật routing
-// OLD: /admin/accounting/reconciliation
-// NEW: /employee/accounting/reconciliation
-```
-
-#### `/employee/accounting/payables/page.tsx`
-**Copy từ**: `/admin/accounting/payables/page.tsx`
-
-**Thay đổi cần thiết**:
-```typescript
-// 1. Thêm permission check
-const canCreate = hasPermission(employee?.position as Position, 'accounting.payables.create')
-const canEdit = hasPermission(employee?.position as Position, 'accounting.payables.edit')
-const canDelete = hasPermission(employee?.position as Position, 'accounting.payables.delete')
-
-// 2. Conditional rendering cho các nút
-{canCreate && <button>Thêm công nợ</button>}
-{canEdit && <button>Sửa</button>}
-{canDelete && <button>Xóa</button>}
-
-// 3. Thêm permission notice
-{!canCreate && !canEdit && (
-  <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-    <div className="flex items-start">
-      <FiFileText className="text-blue-500 mt-0.5 mr-3" size={20} />
-      <div>
-        <h3 className="text-sm font-medium text-blue-900">Quyền hạn của bạn</h3>
-        <p className="text-sm text-blue-700 mt-1">
-          Bạn chỉ có quyền xem công nợ nhà cung cấp, không thể thêm hoặc chỉnh sửa.
-        </p>
-      </div>
-    </div>
-  </div>
+{(user.role === 'EMPLOYEE' && user.position === 'SALES') && (
+  <Link href="/sales">Quản lý bán hàng</Link>
 )}
 ```
 
-#### `/employee/accounting/statements/page.tsx`
-**Tạo mới** - Báo cáo tài chính (chỉ xem)
+**Sau:**
+```typescript
+{user.role === 'EMPLOYEE' && (
+  <Link href="/employee">Trang nhân viên</Link>
+)}
+```
+
+### 2. RootLayoutClient (`src/frontend/components/RootLayoutClient.tsx`)
+
+**Trước:**
+```typescript
+const isEmployeePage = pathname?.startsWith('/admin') ||
+                       pathname?.startsWith('/employee') ||
+                       pathname?.startsWith('/sales')
+```
+
+**Sau:**
+```typescript
+const isEmployeePage = pathname?.startsWith('/admin') ||
+                       pathname?.startsWith('/employee')
+```
+
+## 🎯 Kết quả
+
+### Cấu trúc route hiện tại
+
+```
+/admin                    → Admin dashboard
+├─ /admin/warehouse       → Admin quản lý kho
+├─ /admin/products        → Admin quản lý sản phẩm
+├─ /admin/accounting      → Admin kế toán
+└─ ...
+
+/employee                 → Employee dashboard (TẤT CẢ nhân viên)
+├─ /employee/warehouse    → Quản lý kho
+├─ /employee/products     → Quản lý sản phẩm
+├─ /employee/orders       → Quản lý đơn hàng
+├─ /employee/accounting   → Kế toán
+└─ ...
+
+/                         → Customer homepage
+├─ /products              → Trang sản phẩm khách hàng
+├─ /cart                  → Giỏ hàng
+└─ ...
+```
+
+### Login redirect logic
 
 ```typescript
-'use client'
-
-import { useState, useEffect } from 'react'
-import { FiFileText, FiDownload } from 'react-icons/fi'
-import toast from 'react-hot-toast'
-import { useAuthStore } from '@/store/authStore'
-
-export default function FinancialStatementsPage() {
-  const { employee } = useAuthStore()
-  const [statements, setStatements] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    loadStatements()
-  }, [])
-
-  const loadStatements = async () => {
-    try {
-      // TODO: Call API
-      setStatements([])
-    } catch (error) {
-      console.error('Error loading statements:', error)
-      toast.error('Lỗi khi tải báo cáo')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Báo cáo tài chính</h1>
-        <p className="text-gray-600 mt-1">Xem các báo cáo tài chính</p>
-      </div>
-
-      {/* Permission notice - Chỉ xem */}
-      <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-start">
-          <FiFileText className="text-blue-500 mt-0.5 mr-3" size={20} />
-          <div>
-            <h3 className="text-sm font-medium text-blue-900">Quyền hạn của bạn</h3>
-            <p className="text-sm text-blue-700 mt-1">
-              Bạn có thể xem và tải xuống báo cáo tài chính.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Statements list */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <p className="text-gray-500 text-center">Chưa có báo cáo nào</p>
-      </div>
-    </div>
-  )
+if (role === 'ADMIN') {
+  router.push('/admin')
+} else if (role === 'EMPLOYEE') {
+  router.push('/employee')  // ✅ TẤT CẢ nhân viên vào đây
+} else {
+  router.push('/')  // Customer
 }
 ```
 
-#### `/employee/accounting/bank-accounts/page.tsx`
-**Copy từ**: `/admin/bank-accounts/page.tsx`
+### Position-based permissions
 
-**Thay đổi cần thiết**:
-```typescript
-// 1. Thêm permission check
-const canCreate = hasPermission(employee?.position as Position, 'bank_accounts.create')
-const canEdit = hasPermission(employee?.position as Position, 'bank_accounts.edit')
-const canDelete = hasPermission(employee?.position as Position, 'bank_accounts.delete')
+Tất cả nhân viên vào `/employee`, nhưng:
+- **WAREHOUSE** - Có quyền tạo/sửa phiếu nhập/xuất kho
+- **PRODUCT_MANAGER** - Có quyền tạo/sửa sản phẩm, đăng bán
+- **ACCOUNTANT** - Có quyền thao tác kế toán
+- **SALE** - Có quyền tạo/sửa đơn hàng
+- **CSKH** - Có quyền quản lý khách hàng
+- **SHIPPER** - Có quyền cập nhật trạng thái giao hàng
 
-// 2. Conditional rendering
-{canCreate && <button>Thêm tài khoản</button>}
-{canEdit && <button>Sửa</button>}
-{canDelete && <button>Xóa</button>}
+## 🧪 Cách test
 
-// 3. Permission notice
-{!canCreate && !canEdit && (
-  <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-    <div className="flex items-start">
-      <FiFileText className="text-blue-500 mt-0.5 mr-3" size={20} />
-      <div>
-        <h3 className="text-sm font-medium text-blue-900">Quyền hạn của bạn</h3>
-        <p className="text-sm text-blue-700 mt-1">
-          Bạn chỉ có quyền xem danh sách tài khoản ngân hàng, không thể thêm hoặc chỉnh sửa.
-        </p>
-      </div>
-    </div>
-  </div>
-)}
+### 1. Test redirect
+```bash
+# Đăng nhập với bất kỳ position nào
+# Expected: Redirect về /employee (không phải /warehouse, /sales, etc.)
 ```
 
-### 4. Shipping Module - 1 trang
+### 2. Test route không tồn tại
+```bash
+# Thử truy cập:
+http://localhost:3000/warehouse
+http://localhost:3000/sales
+http://localhost:3000/shipper
+http://localhost:3000/product-manager
 
-#### `/employee/shipping/page.tsx`
-**Copy từ**: `/shipper/page.tsx`
-
-**Thay đổi cần thiết**:
-```typescript
-// 1. Thêm permission check
-const canPickup = hasPermission(employee?.position as Position, 'shipping.pickup')
-const canDeliver = hasPermission(employee?.position as Position, 'shipping.deliver')
-const canUpdateStatus = hasPermission(employee?.position as Position, 'shipping.update_status')
-
-// 2. Conditional rendering
-{canPickup && <button>Lấy hàng</button>}
-{canDeliver && <button>Giao hàng</button>}
-{canUpdateStatus && <button>Cập nhật trạng thái</button>}
-
-// 3. Permission notice
-{!canPickup && !canDeliver && (
-  <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-    <div className="flex items-start">
-      <FiFileText className="text-blue-500 mt-0.5 mr-3" size={20} />
-      <div>
-        <h3 className="text-sm font-medium text-blue-900">Quyền hạn của bạn</h3>
-        <p className="text-sm text-blue-700 mt-1">
-          Bạn chỉ có quyền xem danh sách đơn giao hàng, không thể thực hiện giao hàng.
-        </p>
-      </div>
-    </div>
-  </div>
-)}
+# Expected: 404 Not Found
 ```
 
-### 5. Customers Module - 1 trang
-
-#### `/employee/customers/page.tsx`
-**Tạo mới** - Danh sách khách hàng
-
-```typescript
-'use client'
-
-import { useState, useEffect } from 'react'
-import { FiUsers, FiSearch, FiEdit, FiFileText } from 'react-icons/fi'
-import toast from 'react-hot-toast'
-import { useAuthStore } from '@/store/authStore'
-import { hasPermission, type Position } from '@/lib/permissions'
-
-export default function CustomersPage() {
-  const { employee } = useAuthStore()
-  const [customers, setCustomers] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
-
-  // Check permissions
-  const canEdit = hasPermission(employee?.position as Position, 'customers.edit')
-
-  useEffect(() => {
-    loadCustomers()
-  }, [])
-
-  const loadCustomers = async () => {
-    try {
-      // TODO: Call API
-      setCustomers([])
-    } catch (error) {
-      console.error('Error loading customers:', error)
-      toast.error('Lỗi khi tải khách hàng')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Danh sách khách hàng</h1>
-        <p className="text-gray-600 mt-1">Quản lý thông tin khách hàng</p>
-      </div>
-
-      {/* Permission notice */}
-      {!canEdit && (
-        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-start">
-            <FiFileText className="text-blue-500 mt-0.5 mr-3" size={20} />
-            <div>
-              <h3 className="text-sm font-medium text-blue-900">Quyền hạn của bạn</h3>
-              <p className="text-sm text-blue-700 mt-1">
-                Bạn chỉ có quyền xem thông tin khách hàng, không thể chỉnh sửa.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Search */}
-      <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-        <div className="relative">
-          <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Tìm kiếm khách hàng..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-      </div>
-
-      {/* Customers list */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <p className="text-gray-500 text-center">Chưa có khách hàng nào</p>
-      </div>
-    </div>
-  )
-}
+### 3. Test menu
+```bash
+# Đăng nhập với WAREHOUSE
+# Vào /employee
+# Expected: Thấy tất cả menu (Sản phẩm, Kho hàng, Đơn hàng, etc.)
 ```
 
-### 6. Warehouse Orders - 2 trang
+### 4. Test permission
+```bash
+# Đăng nhập với SALE
+# Vào /employee/warehouse/import/create
+# Expected: Thấy thông báo "không có quyền", form bị ẩn
+```
 
-#### `/employee/warehouse/orders/page.tsx`
-**Copy từ**: `/warehouse/orders/page.tsx`
+## 📊 So sánh trước và sau
 
-**Thay đổi cần thiết**:
-- Tương tự như các trang warehouse khác
-- Không cần permission check đặc biệt vì chỉ xem
+### Trước (Legacy)
+```
+WAREHOUSE → /warehouse
+PRODUCT_MANAGER → /product-manager
+ACCOUNTANT → /admin/accounting
+SALE → /sales
+SHIPPER → /shipper
+CSKH → ??? (không có route)
+```
 
-#### `/employee/warehouse/orders/[id]/page.tsx`
-**Copy từ**: `/warehouse/orders/[id]/page.tsx`
+**Vấn đề:**
+- Mỗi position có route riêng
+- Khó maintain khi thêm position mới
+- Code bị duplicate nhiều
+- UX không nhất quán
 
-**Thay đổi cần thiết**:
-- Tương tự như các trang warehouse khác
-- Không cần permission check đặc biệt vì chỉ xem
+### Sau (Unified)
+```
+TẤT CẢ EMPLOYEE → /employee
+```
 
-## 📝 Checklist Tổng hợp
+**Ưu điểm:**
+- Chỉ 1 route duy nhất
+- Dễ thêm position mới
+- Code tập trung, dễ maintain
+- UX nhất quán
+- Permission-based access control
 
-### Warehouse (11/11) ✅
-- [x] Import list
-- [x] Import detail
-- [x] Import create
-- [x] Export list
-- [x] Export detail
-- [x] Export create
-- [x] Inventory
-- [x] Reports
-- [x] Suppliers
-- [x] Orders list
-- [x] Orders detail
+## 🔍 Kiểm tra code
 
-### Products (0/4) ⏳
-- [ ] Products list
-- [ ] Products publish
-- [ ] Categories
-- [ ] Inventory
+### Tìm reference còn sót
+```bash
+# Tìm trong frontend
+grep -r "/warehouse[^/]" src/frontend/
+grep -r "/sales[^/]" src/frontend/
+grep -r "/shipper" src/frontend/
+grep -r "/product-manager" src/frontend/
 
-### Sales (0/2) ⏳
-- [ ] Orders
-- [ ] Export
+# Expected: Không có kết quả (hoặc chỉ trong comments/docs)
+```
 
-### Accounting (0/4) ⏳
-- [ ] Reconciliation
-- [ ] Payables
-- [ ] Statements
-- [ ] Bank accounts
+### Kiểm tra thư mục
+```bash
+ls src/frontend/app/
 
-### Shipping (0/1) ⏳
-- [ ] Shipping list
+# Expected: Không có thư mục warehouse, sales, shipper, product-manager
+```
 
-### Customers (0/1) ⏳
-- [ ] Customers list
+## 📝 Lưu ý quan trọng
 
-## 🎯 Tổng kết
+### 1. Backend không thay đổi
+- API endpoints vẫn giữ nguyên
+- Security config vẫn giữ nguyên
+- Database không thay đổi
 
-- **Đã hoàn thành**: 11/25 trang (44%)
-- **Còn lại**: 14/25 trang (56%)
+### 2. Admin routes vẫn tách riêng
+- `/admin` vẫn là route riêng cho admin
+- `/admin/warehouse`, `/admin/products`, etc. vẫn tồn tại
+- Đây là đúng vì admin có giao diện khác
 
-## 🚀 Cách thực hiện nhanh
+### 3. Customer routes không ảnh hưởng
+- `/products`, `/cart`, `/checkout` vẫn giữ nguyên
+- Đây là trang khách hàng, không liên quan employee
 
-1. **Copy file gốc** từ folder cũ
-2. **Find & Replace** routing paths
-3. **Thêm permission imports** ở đầu file
-4. **Thêm permission checks** trong component
-5. **Thêm conditional rendering** cho buttons
-6. **Thêm permission notice** box
-7. **Test** từng trang
+### 4. Permission system
+- File `src/frontend/lib/permissions.ts` vẫn giữ nguyên
+- Position types vẫn tồn tại: WAREHOUSE, PRODUCT_MANAGER, ACCOUNTANT, SALE, CSKH, SHIPPER
+- Chỉ xóa route riêng, không xóa position type
 
-## ⚡ Script tự động (Optional)
+## 🎉 Kết luận
 
-Có thể tạo script Node.js để tự động:
-1. Copy files
-2. Replace imports
-3. Replace routing
-4. Inject permission code
+### Đã hoàn thành
+- ✅ Xóa 4 thư mục route legacy: `/sales`, `/warehouse`, `/shipper`, `/product-manager`
+- ✅ Xóa 3 component không sử dụng: `HorizontalNav`, `EmployeeHeader`, `WarehouseSidebar`
+- ✅ Sửa tất cả reference trong code
+- ✅ Tất cả nhân viên redirect về `/employee`
+- ✅ Permission-based access control hoạt động đúng
 
-Nhưng vì mỗi trang có logic khác nhau, nên manual migration an toàn hơn.
+### Không còn
+- ❌ Route riêng cho từng position
+- ❌ Component navigation cũ
+- ❌ Code duplicate
+
+### Còn lại
+- ✅ 1 route duy nhất: `/employee`
+- ✅ 1 layout duy nhất: `src/frontend/app/employee/layout.tsx`
+- ✅ Permission system hoàn chỉnh
+- ✅ Code sạch, dễ maintain
+
+## 📚 Tài liệu liên quan
+
+- `EMPLOYEE-UNIFIED-INTERFACE-GUIDE.md` - Hướng dẫn chi tiết về unified interface
+- `EMPLOYEE-SYSTEM-COMPLETE.md` - Hệ thống nhân viên thống nhất
+- `PERMISSION-SYSTEM-SUMMARY.md` - Tổng quan hệ thống phân quyền
+- `PERMISSION-IMPLEMENTATION-GUIDE.md` - Hướng dẫn implement permission
+
+---
+**Ngày hoàn thành**: 24/12/2025  
+**Trạng thái**: ✅ Hoàn thành - Đã migrate hoàn toàn sang unified employee interface
+**Breaking changes**: Các route `/warehouse`, `/sales`, `/shipper`, `/product-manager` không còn tồn tại

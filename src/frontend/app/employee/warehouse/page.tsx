@@ -11,6 +11,7 @@ import {
   FiBox,
   FiDollarSign
 } from 'react-icons/fi'
+import { useAuthStore } from '@/store/authStore'
 
 interface DashboardStats {
   totalProducts: number
@@ -24,18 +25,26 @@ interface DashboardStats {
   lowStockProducts: any[]
 }
 
-export default function AdminWarehouseDashboard() {
+export default function EmployeeWarehouseDashboard() {
   const router = useRouter()
+  const { employee } = useAuthStore()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchDashboardStats()
-  }, [])
+    if (employee) {
+      fetchDashboardStats()
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      setStats(null)
+    }
+  }, [employee])
 
   const fetchDashboardStats = async () => {
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('auth_token') || localStorage.getItem('token')
       const res = await fetch('http://localhost:8080/api/inventory/dashboard', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -119,7 +128,7 @@ export default function AdminWarehouseDashboard() {
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <button
-          onClick={() => router.push('/admin/warehouse/import')}
+          onClick={() => router.push('/employee/warehouse/import')}
           className="bg-blue-600 text-white p-4 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
         >
           <FiTrendingUp className="w-5 h-5" />
@@ -127,7 +136,7 @@ export default function AdminWarehouseDashboard() {
         </button>
 
         <button
-          onClick={() => router.push('/admin/warehouse/export')}
+          onClick={() => router.push('/employee/warehouse/export')}
           className="bg-green-600 text-white p-4 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
         >
           <FiTrendingDown className="w-5 h-5" />
@@ -135,7 +144,7 @@ export default function AdminWarehouseDashboard() {
         </button>
 
         <button
-          onClick={() => router.push('/admin/warehouse/inventory')}
+          onClick={() => router.push('/employee/warehouse/inventory')}
           className="bg-purple-600 text-white p-4 rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
         >
           <FiBox className="w-5 h-5" />
@@ -143,7 +152,7 @@ export default function AdminWarehouseDashboard() {
         </button>
 
         <button
-          onClick={() => router.push('/admin/warehouse/products')}
+          onClick={() => router.push('/employee/warehouse/products')}
           className="bg-orange-600 text-white p-4 rounded-lg hover:bg-orange-700 transition-colors flex items-center justify-center gap-2"
         >
           <FiPackage className="w-5 h-5" />
@@ -161,7 +170,7 @@ export default function AdminWarehouseDashboard() {
             </span>
           </div>
           <button
-            onClick={() => router.push('/admin/warehouse/import?status=CREATED')}
+            onClick={() => router.push('/employee/warehouse/import?status=CREATED')}
             className="w-full text-blue-600 hover:text-blue-800 text-sm font-medium"
           >
             Xem tất cả →
@@ -176,7 +185,7 @@ export default function AdminWarehouseDashboard() {
             </span>
           </div>
           <button
-            onClick={() => router.push('/admin/warehouse/export?status=PENDING')}
+            onClick={() => router.push('/employee/warehouse/export?status=PENDING')}
             className="w-full text-blue-600 hover:text-blue-800 text-sm font-medium"
           >
             Xem tất cả →
@@ -195,7 +204,7 @@ export default function AdminWarehouseDashboard() {
                 Có {stats.lowStockCount} sản phẩm sắp hết hàng. Vui lòng nhập thêm để tránh thiếu hàng.
               </p>
               <button
-                onClick={() => router.push('/admin/warehouse/inventory?filter=LOW')}
+                onClick={() => router.push('/employee/warehouse/inventory?filter=LOW')}
                 className="mt-3 text-red-600 hover:text-red-800 font-medium text-sm"
               >
                 Xem chi tiết →

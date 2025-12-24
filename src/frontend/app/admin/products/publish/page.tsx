@@ -3,27 +3,29 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { FiPackage, FiEye, FiEdit, FiTrash2, FiPlus, FiCheck, FiX } from 'react-icons/fi'
+import { FiPackage, FiSearch, FiPlus, FiX, FiCheck, FiAlertCircle } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/store/authStore'
 import { productApi, categoryApi } from '@/lib/api'
+import MultiImageUpload from '@/components/MultiImageUpload'
 
-export default function PublishProductsPage() {
+export default function AdminPublishProductPage() {
   const router = useRouter()
   const { user, isAuthenticated } = useAuthStore()
-  
   const [warehouseProducts, setWarehouseProducts] = useState<any[]>([])
   const [categories, setCategories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
   const [showPublishModal, setShowPublishModal] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<any>(null)
-  const [formData, setFormData] = useState({
+  const [publishForm, setPublishForm] = useState({
     name: '',
-    categoryId: '',
-    price: '',
     description: '',
-    imageUrl: ''
+    price: 0,
+    categoryId: null as number | null
   })
+  const [productImages, setProductImages] = useState<any[]>([])
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -32,8 +34,8 @@ export default function PublishProductsPage() {
       return
     }
 
-    if (user?.role !== 'ADMIN' && user?.role !== 'PRODUCT_MANAGER') {
-      toast.error('Chỉ quản lý và nhân viên mới có quyền truy cập')
+    if (user?.role !== 'ADMIN') {
+      toast.error('Chỉ quản trị viên mới có quyền truy cập')
       router.push('/')
       return
     }
@@ -48,92 +50,103 @@ export default function PublishProductsPage() {
         productApi.getWarehouseProductsForPublish(),
         categoryApi.getAll()
       ])
-      
-      console.log('Products Response:', productsRes)
-      console.log('Categories Response:', categoriesRes)
-      
-      if (productsRes.success && Array.isArray(productsRes.data)) {
-        setWarehouseProducts(productsRes.data)
-      } else {
-        setWarehouseProducts([])
+
+      if (productsRes.success) {
+        setWarehouseProducts(productsRes.data || [])
       }
-      
-      if (categoriesRes.success && Array.isArray(categoriesRes.data)) {
-        setCategories(categoriesRes.data)
-      } else if (categoriesRes.data && Array.isArray(categoriesRes.data)) {
-        // Trường hợp API trả về data trực tiếp
-        setCategories(categoriesRes.data)
-      } else {
-        console.error('Categories data is not an array:', categoriesRes)
-        setCategories([])
+
+      if (categoriesRes.success) {
+        setCategories(categoriesRes.data || [])
       }
     } catch (error) {
       console.error('Error loading data:', error)
       toast.error('Lỗi khi tải dữ liệu')
-      setWarehouseProducts([])
-      setCategories([])
     } finally {
       setLoading(false)
     }
   }
 
-  const handlePublish = (product: any) => {
+  const handleSelectProduct = (product: any) => {
     setSelectedProduct(product)
-    setFormData({
+    setPublishForm({
       name: product.internalName || '',
-      categoryId: '',
-      price: '',
       description: product.description || '',
-      imageUrl: ''
+      price: 0,
+      categoryId: null
     })
+    setProductImages([])
     setShowPublishModal(true)
   }
 
   const handleSubmitPublish = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (!selectedProduct) return
-    
+
+    if (!publishForm.name || !publishForm.price || !publishForm.categoryId) {
+      toast.error('Vui lòng điền đầy đủ thông tin')
+      return
+    }
+
+    if (publishForm.price <= 0) {
+      toast.error('Giá bán phải lớn hơn 0')
+      return
+    }
+
     try {
-      const data = {
+      setSubmitting(true)
+
+      // 1. Đăng bán sản phẩm
+      const publishData = {
         warehouseProductId: selectedProduct.id,
-        name: formData.name,
-        categoryId: parseInt(formData.categoryId),
-        price: parseFloat(formData.price),
-        description: formData.description,
-        imageUrl: formData.imageUrl
+        name: publishForm.name,
+        description: publishForm.description,
+        price: publishForm.price,
+        categoryId: publishForm.categoryId
       }
-      
-      const response = await productApi.createProductFromWarehouse(data)
-      
-      if (response.success) {
-        toast.success('Đăng bán sản phẩm thành công!')
-        setShowPublishModal(false)
-        loadData()
-      } else {
+
+      const response = await productApi.createProductFromWarehouse(publishData)
+
+      if (!response.success) {
         toast.error(response.message || 'Có lỗi xảy ra')
+        return
       }
+
+      const newProductId = response.data?.id
+
+      // 2. Upload ảnh nếu có
+      if (newProductId && productImages.length > 0) {
+        for (let i = 0; i < productImages.length; i++) {
+          const img = productImages[i]
+          const isPrimary = i === 0 // Ảnh đầu tiên là primary
+          await productApi.addProductImage(newProductId, img.imageUrl, isPrimary)
+        }
+      }
+
+      toast.success('Đăng bán sản phẩm thành công!')
+      setShowPublishModal(false)
+      setProductImages([])
+      loadData()
     } catch (error: any) {
+      console.error('Error publishing product:', error)
       toast.error(error.message || 'Lỗi khi đăng bán sản phẩm')
+    } finally {
+      setSubmitting(false)
     }
   }
 
-  const handleUnpublish = async (productId: number) => {
-    if (!confirm('Bạn có chắc muốn gỡ sản phẩm này khỏi trang bán?')) return
-    
-    try {
-      const response = await productApi.unpublishProduct(productId)
-      
-      if (response.success) {
-        toast.success('Gỡ sản phẩm thành công!')
-        loadData()
-      } else {
-        toast.error(response.message || 'Có lỗi xảy ra')
-      }
-    } catch (error: any) {
-      toast.error(error.message || 'Lỗi khi gỡ sản phẩm')
-    }
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(price)
   }
+
+  const filteredProducts = warehouseProducts.filter(product =>
+    product.internalName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    product.sku?.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const unpublishedProducts = filteredProducts.filter(p => !p.isPublished)
+  const publishedProducts = filteredProducts.filter(p => p.isPublished)
 
   if (loading) {
     return (
@@ -155,11 +168,76 @@ export default function PublishProductsPage() {
           <span>/</span>
           <Link href="/admin" className="hover:text-red-500">Quản trị</Link>
           <span>/</span>
+          <Link href="/admin/products" className="hover:text-red-500">Sản phẩm</Link>
+          <span>/</span>
           <span className="text-gray-900">Đăng bán sản phẩm</span>
         </nav>
 
+        {/* Header */}
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Đăng bán sản phẩm từ kho</h1>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Đăng bán sản phẩm từ kho</h1>
+            <p className="text-gray-600 mt-1">Chọn sản phẩm từ kho để đăng bán trên website</p>
+          </div>
+          <Link
+            href="/admin/products"
+            className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors"
+          >
+            Quay lại
+          </Link>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Tổng sản phẩm kho</p>
+                <p className="text-2xl font-bold text-gray-900">{warehouseProducts.length}</p>
+              </div>
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <FiPackage className="text-blue-600" size={24} />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Chưa đăng bán</p>
+                <p className="text-2xl font-bold text-yellow-600">{unpublishedProducts.length}</p>
+              </div>
+              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                <FiAlertCircle className="text-yellow-600" size={24} />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Đã đăng bán</p>
+                <p className="text-2xl font-bold text-green-600">{publishedProducts.length}</p>
+              </div>
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <FiCheck className="text-green-600" size={24} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Search */}
+        <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+          <div className="relative">
+            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Tìm kiếm theo tên, SKU..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+            />
+          </div>
         </div>
 
         {/* Products Table */}
@@ -172,69 +250,58 @@ export default function PublishProductsPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tên sản phẩm</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nhà cung cấp</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tồn kho</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Có thể bán</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {warehouseProducts.map((product) => (
+                {filteredProducts.map((product) => (
                   <tr key={product.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
                       {product.sku}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      <div className="font-medium">{product.internalName}</div>
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-medium text-gray-900">{product.internalName}</div>
                       {product.description && (
                         <div className="text-xs text-gray-500 truncate max-w-xs">{product.description}</div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 text-sm text-gray-500">
                       {product.supplierName || 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {product.stockQuantity || 0}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {product.sellableQuantity || 0}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`text-sm font-medium ${
+                        product.sellableQuantity > 0 ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {product.sellableQuantity || 0}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {product.isPublished ? (
-                        <span className="px-2 py-1 text-xs font-semibold rounded bg-green-100 text-green-800 flex items-center space-x-1 w-fit">
-                          <FiCheck />
-                          <span>Đã đăng bán</span>
+                        <span className="px-2 py-1 text-xs font-semibold rounded bg-green-100 text-green-800">
+                          Đã đăng bán
                         </span>
                       ) : (
-                        <span className="px-2 py-1 text-xs font-semibold rounded bg-gray-100 text-gray-800 flex items-center space-x-1 w-fit">
-                          <FiX />
-                          <span>Chưa đăng bán</span>
+                        <span className="px-2 py-1 text-xs font-semibold rounded bg-yellow-100 text-yellow-800">
+                          Chưa đăng bán
                         </span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       {product.isPublished ? (
-                        <div className="flex items-center justify-end space-x-2">
-                          <Link
-                            href={`/admin/products/edit/${product.publishedProductId}`}
-                            className="text-blue-500 hover:text-blue-600"
-                          >
-                            <FiEdit />
-                          </Link>
-                          <button
-                            onClick={() => handleUnpublish(product.publishedProductId)}
-                            className="text-red-500 hover:text-red-600"
-                          >
-                            <FiTrash2 />
-                          </button>
-                        </div>
+                        <Link
+                          href={`/admin/products`}
+                          className="text-blue-500 hover:text-blue-600"
+                        >
+                          Xem sản phẩm
+                        </Link>
                       ) : (
                         <button
-                          onClick={() => handlePublish(product)}
-                          className="text-green-500 hover:text-green-600 flex items-center space-x-1 ml-auto"
-                          disabled={(product.sellableQuantity || 0) === 0}
+                          onClick={() => handleSelectProduct(product)}
+                          className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
                         >
-                          <FiPlus />
-                          <span>Đăng bán</span>
+                          <FiPlus className="inline mr-1" />
+                          Đăng bán
                         </button>
                       )}
                     </td>
@@ -243,114 +310,145 @@ export default function PublishProductsPage() {
               </tbody>
             </table>
           </div>
+
+          {filteredProducts.length === 0 && (
+            <div className="text-center py-12">
+              <FiPackage size={64} className="mx-auto text-gray-400 mb-4" />
+              <p className="text-gray-500">Không tìm thấy sản phẩm nào</p>
+            </div>
+          )}
         </div>
 
         {/* Publish Modal */}
-        {showPublishModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-              <h2 className="text-2xl font-bold mb-4">Đăng bán sản phẩm</h2>
-              
-              <form onSubmit={handleSubmitPublish}>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      SKU
-                    </label>
-                    <input
-                      type="text"
-                      value={selectedProduct?.sku || ''}
-                      disabled
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100"
-                    />
+        {showPublishModal && selectedProduct && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">Đăng bán sản phẩm</h2>
+                  <button
+                    onClick={() => {
+                      setShowPublishModal(false)
+                      setProductImages([])
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <FiX size={24} />
+                  </button>
+                </div>
+
+                {/* Product Info */}
+                <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                  <p className="text-sm text-gray-600">Sản phẩm từ kho</p>
+                  <p className="font-semibold text-gray-900">{selectedProduct.internalName}</p>
+                  <p className="text-sm text-gray-500">SKU: {selectedProduct.sku}</p>
+                  <p className="text-sm text-gray-500">Tồn kho: {selectedProduct.sellableQuantity || 0}</p>
+                </div>
+
+                <form onSubmit={handleSubmitPublish}>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Tên hiển thị <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={publishForm.name}
+                        onChange={(e) => setPublishForm({...publishForm, name: e.target.value})}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                        required
+                        placeholder="Tên sản phẩm hiển thị cho khách hàng"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Mô tả
+                      </label>
+                      <textarea
+                        value={publishForm.description}
+                        onChange={(e) => setPublishForm({...publishForm, description: e.target.value})}
+                        rows={4}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                        placeholder="Mô tả chi tiết sản phẩm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Giá bán <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        value={publishForm.price}
+                        onChange={(e) => setPublishForm({...publishForm, price: Number(e.target.value)})}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                        required
+                        min="0"
+                        step="1000"
+                        placeholder="Nhập giá bán"
+                      />
+                      {publishForm.price > 0 && (
+                        <p className="text-sm text-gray-500 mt-1">
+                          {formatPrice(publishForm.price)}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Danh mục <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={publishForm.categoryId || ''}
+                        onChange={(e) => setPublishForm({...publishForm, categoryId: e.target.value ? Number(e.target.value) : null})}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                        required
+                      >
+                        <option value="">Chọn danh mục</option>
+                        {categories.map((cat) => (
+                          <option key={cat.id} value={cat.id}>{cat.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Hình ảnh sản phẩm
+                      </label>
+                      <MultiImageUpload
+                        images={productImages}
+                        onChange={setProductImages}
+                        maxImages={9}
+                      />
+                      <p className="text-xs text-gray-500 mt-2">
+                        Ảnh đầu tiên sẽ là ảnh chính. Tối đa 9 ảnh.
+                      </p>
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Tên sản phẩm <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Danh mục <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={formData.categoryId}
-                      onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                  <div className="flex space-x-4 mt-6">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowPublishModal(false)
+                        setProductImages([])
+                      }}
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                      disabled={submitting}
                     >
-                      <option value="">Chọn danh mục</option>
-                      {Array.isArray(categories) && categories.map((cat) => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                      ))}
-                    </select>
+                      Hủy
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors disabled:bg-gray-400"
+                      disabled={submitting}
+                    >
+                      {submitting ? 'Đang xử lý...' : 'Đăng bán'}
+                    </button>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Giá bán <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.price}
-                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                      required
-                      min="0"
-                      step="1000"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Mô tả
-                    </label>
-                    <textarea
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      rows={4}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      URL hình ảnh
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.imageUrl}
-                      onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end space-x-3 mt-6">
-                  <button
-                    type="button"
-                    onClick={() => setShowPublishModal(false)}
-                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                  >
-                    Hủy
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
-                  >
-                    Đăng bán
-                  </button>
-                </div>
-              </form>
+                </form>
+              </div>
             </div>
           </div>
         )}

@@ -8,6 +8,8 @@ import com.doan.WEB_TMDT.module.inventory.entity.ExportStatus;
 public interface InventoryService {
     ApiResponse getAllSuppliers();
     ApiResponse getOrCreateSupplier(CreateSupplierRequest req);
+    ApiResponse createWarehouseProduct(CreateWarehouseProductRequest req);
+    ApiResponse updateWarehouseProduct(Long id, CreateWarehouseProductRequest req);
     ApiResponse createPurchaseOrder(CreatePORequest req);
     ApiResponse completePurchaseOrder(CompletePORequest req);
     ApiResponse createExportOrder(CreateExportOrderRequest req);

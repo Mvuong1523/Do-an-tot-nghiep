@@ -41,8 +41,14 @@ export default function WarehouseOrdersPage() {
   const canExport = hasPermission(employee?.position as Position, 'warehouse.export.create')
 
   useEffect(() => {
-    fetchPendingOrders()
-  }, [])
+    if (employee) {
+      fetchPendingOrders()
+    }
+    
+    return () => {
+      setOrders([])
+    }
+  }, [employee])
 
   const fetchPendingOrders = async () => {
     try {
