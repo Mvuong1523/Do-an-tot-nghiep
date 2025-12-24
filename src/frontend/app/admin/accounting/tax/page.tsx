@@ -454,11 +454,11 @@ function TaxReportModal({ report, onClose, onSuccess }: any) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          ...form,
+          taxType: form.taxType,
+          periodStart: form.periodStart,  // Send as date only (YYYY-MM-DD)
+          periodEnd: form.periodEnd,      // Send as date only (YYYY-MM-DD)
           taxableRevenue: parseFloat(form.taxableRevenue),
-          taxRate: parseFloat(form.taxRate),
-          periodStart: form.periodStart + 'T00:00:00',
-          periodEnd: form.periodEnd + 'T23:59:59'
+          taxRate: parseFloat(form.taxRate)
         })
       })
 
