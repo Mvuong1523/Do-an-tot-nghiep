@@ -48,7 +48,8 @@ export default function CreatePurchaseOrderPage() {
     address: '',
     bankAccount: '',
     paymentTerm: '',
-    paymentTermDays: 30
+    paymentTermDays: 30,
+    active: true
   })
 
   useEffect(() => {
@@ -229,6 +230,15 @@ PROD-002,Sản phẩm mẫu 2,20,200000,24,Ghi chú mẫu`
       if (!item.sku || !item.internalName || item.quantity <= 0 || item.unitCost <= 0) {
         toast.error(`Sản phẩm ${i + 1}: Vui lòng nhập đầy đủ thông tin`)
         return
+      }
+      // Validate JSON format for techSpecsJson
+      if (item.techSpecsJson && item.techSpecsJson.trim()) {
+        try {
+          JSON.parse(item.techSpecsJson)
+        } catch (error) {
+          toast.error(`Sản phẩm ${i + 1}: Thông số kỹ thuật không đúng định dạng JSON`)
+          return
+        }
       }
     }
 
@@ -462,6 +472,43 @@ PROD-002,Sản phẩm mẫu 2,20,200000,24,Ghi chú mẫu`
                   value={newSupplier.address}
                   onChange={(e) => setNewSupplier({ ...newSupplier, address: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tài khoản ngân hàng
+                </label>
+                <input
+                  type="text"
+                  value={newSupplier.bankAccount}
+                  onChange={(e) => setNewSupplier({ ...newSupplier, bankAccount: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Số TK - Tên ngân hàng"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Điều khoản thanh toán
+                </label>
+                <input
+                  type="text"
+                  value={newSupplier.paymentTerm}
+                  onChange={(e) => setNewSupplier({ ...newSupplier, paymentTerm: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="VD: Thanh toán trong 30 ngày"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Số ngày nợ
+                </label>
+                <input
+                  type="number"
+                  value={newSupplier.paymentTermDays}
+                  onChange={(e) => setNewSupplier({ ...newSupplier, paymentTermDays: parseInt(e.target.value) || 30 })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  min="0"
+                  placeholder="30"
                 />
               </div>
             </div>
