@@ -5,23 +5,18 @@ import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
 import { FiArrowLeft, FiPackage, FiCalendar, FiUser, FiFileText, FiCamera } from 'react-icons/fi'
 import toast from 'react-hot-toast'
-import { useAuthStore } from '@/store/authStore'
-import { hasPermission, type Position } from '@/lib/permissions'
 import { inventoryApi } from '@/lib/api'
 import QRScanner from '@/components/QRScanner'
 
-export default function EmployeeImportDetailPage() {
+export default function AdminImportDetailPage() {
   const router = useRouter()
   const params = useParams()
-  const { employee } = useAuthStore()
   const [order, setOrder] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [isCompleting, setIsCompleting] = useState(false)
   const [serialInputs, setSerialInputs] = useState<Record<number, string[]>>({})
   const [showQRScanner, setShowQRScanner] = useState(false)
   const [scanningFor, setScanningFor] = useState<{ itemId: number; index: number } | null>(null)
-
-  const canEdit = hasPermission(employee?.position as Position, 'warehouse.import.approve')
 
   useEffect(() => {
     loadOrderDetail()
@@ -33,6 +28,7 @@ export default function EmployeeImportDetailPage() {
       if (response.success) {
         setOrder(response.data)
         
+        // Initialize serial inputs for each item
         const initialSerials: Record<number, string[]> = {}
         response.data.items?.forEach((item: any) => {
           initialSerials[item.id] = Array(item.quantity).fill('')
@@ -40,12 +36,12 @@ export default function EmployeeImportDetailPage() {
         setSerialInputs(initialSerials)
       } else {
         toast.error('Không tìm thấy phiếu nhập')
-        router.push('/employee/warehouse/import')
+        router.push('/admin/warehouse/import')
       }
     } catch (error) {
       console.error('Error loading order detail:', error)
       toast.error('Lỗi khi tải chi tiết phiếu')
-      router.push('/employee/warehouse/import')
+      router.push('/admin/warehouse/import')
     } finally {
       setLoading(false)
     }
@@ -99,11 +95,6 @@ export default function EmployeeImportDetailPage() {
   }
 
   const handleCompleteImport = async () => {
-    if (!canEdit) {
-      toast.error('Bạn không có quyền hoàn thiện phiếu nhập')
-      return
-    }
-
     try {
       for (const item of order.items) {
         const serials = serialInputs[item.id] || []
@@ -197,22 +188,9 @@ export default function EmployeeImportDetailPage() {
 
   return (
     <div className="p-6">
-      {/* Permission Notice */}
-      {!canEdit && (
-        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3">
-          <FiFileText className="w-5 h-5 text-blue-600 mt-0.5" />
-          <div>
-            <p className="text-sm text-blue-800 font-medium">Quyền hạn của bạn</p>
-            <p className="text-sm text-blue-600 mt-1">
-              Bạn chỉ có thể xem chi tiết phiếu nhập kho. Chỉ nhân viên kho mới có quyền hoàn thiện phiếu nhập.
-            </p>
-          </div>
-        </div>
-      )}
-
       <div className="mb-6">
         <Link
-          href="/employee/warehouse/import"
+          href="/admin/warehouse/import"
           className="inline-flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4"
         >
           <FiArrowLeft />
@@ -295,6 +273,18 @@ export default function EmployeeImportDetailPage() {
                   <p className="font-medium text-gray-900">{order.supplier.phone}</p>
                 </div>
               )}
+              {order.supplier.email && (
+                <div>
+                  <p className="text-sm text-gray-600">Email</p>
+                  <p className="font-medium text-gray-900">{order.supplier.email}</p>
+                </div>
+              )}
+              {order.supplier.address && (
+                <div>
+                  <p className="text-sm text-gray-600">Địa chỉ</p>
+                  <p className="font-medium text-gray-900">{order.supplier.address}</p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -303,7 +293,7 @@ export default function EmployeeImportDetailPage() {
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">Danh sách sản phẩm</h2>
-            {order.status === 'CREATED' && canEdit && (
+            {order.status === 'CREATED' && (
               <p className="text-sm text-amber-600 mt-2">
                 ⚠️ Vui lòng nhập serial number cho từng sản phẩm
               </p>
@@ -317,6 +307,7 @@ export default function EmployeeImportDetailPage() {
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">SKU</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Tên sản phẩm</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Serial Numbers</th>
+                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase">Bảo hành</th>
                   <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase">Số lượng</th>
                   <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase">Đơn giá</th>
                   <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase">Thành tiền</th>
@@ -335,9 +326,12 @@ export default function EmployeeImportDetailPage() {
                       <div className="text-sm font-medium text-gray-900">
                         {item.warehouseProduct?.internalName || '-'}
                       </div>
+                      {item.warehouseProduct?.description && (
+                        <div className="text-xs text-gray-500 mt-1">{item.warehouseProduct.description}</div>
+                      )}
                     </td>
                     <td className="px-6 py-4">
-                      {order.status === 'CREATED' && canEdit ? (
+                      {order.status === 'CREATED' ? (
                         <div className="space-y-2 min-w-[250px]">
                           {Array.from({ length: item.quantity }).map((_, idx) => (
                             <div key={idx} className="flex items-center space-x-2">
@@ -373,6 +367,9 @@ export default function EmployeeImportDetailPage() {
                         )
                       )}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
+                      {item.warrantyMonths ? `${item.warrantyMonths} tháng` : '-'}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
                       {item.quantity || 0}
                     </td>
@@ -387,7 +384,7 @@ export default function EmployeeImportDetailPage() {
               </tbody>
               <tfoot className="bg-gray-50">
                 <tr>
-                  <td colSpan={6} className="px-6 py-4 text-right text-sm font-semibold text-gray-900">
+                  <td colSpan={7} className="px-6 py-4 text-right text-sm font-semibold text-gray-900">
                     Tổng cộng:
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-lg font-bold text-red-600">
@@ -402,7 +399,7 @@ export default function EmployeeImportDetailPage() {
         </div>
 
         {/* Thao tác */}
-        {order.status === 'CREATED' && canEdit && (
+        {order.status === 'CREATED' && (
           <div className="bg-white rounded-lg shadow-sm p-6">
             <button
               onClick={handleCompleteImport}

@@ -46,10 +46,13 @@ const menuItems: MenuItem[] = [
     icon: FiTruck, 
     label: 'Quản lý kho',
     children: [
-      { icon: FiTruck, label: 'Tổng quan kho', href: '/admin/inventory' },
-      { icon: FiTruck, label: 'Nhập kho', href: '/admin/inventory/import' },
-      { icon: FiTruck, label: 'Đơn hàng kho', href: '/admin/inventory/orders' },
-      { icon: FiTruck, label: 'Giao dịch kho', href: '/admin/inventory/transactions' },
+      { icon: FiTruck, label: 'Tổng quan kho', href: '/admin/warehouse' },
+      { icon: FiTruck, label: 'Phiếu nhập kho', href: '/admin/warehouse/import' },
+      { icon: FiTruck, label: 'Phiếu xuất kho', href: '/admin/warehouse/export' },
+      { icon: FiTruck, label: 'Tồn kho', href: '/admin/warehouse/inventory' },
+      { icon: FiTruck, label: 'Sản phẩm kho', href: '/admin/warehouse/products' },
+      { icon: FiTruck, label: 'Đơn hàng cần xuất', href: '/admin/warehouse/orders' },
+      { icon: FiTruck, label: 'Báo cáo kho', href: '/admin/warehouse/reports' },
       { icon: FiTruck, label: 'Nhà cung cấp', href: '/admin/suppliers' },
     ]
   },

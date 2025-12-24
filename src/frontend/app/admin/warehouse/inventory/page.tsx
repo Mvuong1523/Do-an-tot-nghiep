@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { FiPackage, FiAlertCircle, FiTrendingUp, FiFileText } from 'react-icons/fi'
-import { useAuthStore } from '@/store/authStore'
+import { FiPackage, FiAlertCircle, FiTrendingUp, FiTrendingDown } from 'react-icons/fi'
 
 interface InventoryStock {
   id: number
@@ -16,8 +15,7 @@ interface InventoryStock {
   lastUpdated: string
 }
 
-export default function EmployeeWarehouseInventoryPage() {
-  const { employee } = useAuthStore()
+export default function AdminWarehouseInventoryPage() {
   const [stocks, setStocks] = useState<InventoryStock[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('ALL')
@@ -63,7 +61,7 @@ export default function EmployeeWarehouseInventoryPage() {
     total: stocks.length,
     low: stocks.filter(s => s.available <= s.minStock).length,
     high: stocks.filter(s => s.available >= s.maxStock).length,
-    totalValue: stocks.reduce((sum, s) => sum + (s.onHand * 10000000), 0)
+    totalValue: stocks.reduce((sum, s) => sum + (s.onHand * 10000000), 0) // Giả định giá trị
   }
 
   return (
@@ -72,19 +70,6 @@ export default function EmployeeWarehouseInventoryPage() {
         <h1 className="text-2xl font-bold">Tồn Kho</h1>
         <p className="text-gray-600 mt-1">Theo dõi số lượng tồn kho và cảnh báo</p>
       </div>
-
-      {/* Permission Notice - View Only */}
-      {employee?.position !== 'WAREHOUSE' && (
-        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3">
-          <FiFileText className="w-5 h-5 text-blue-600 mt-0.5" />
-          <div>
-            <p className="text-sm text-blue-800 font-medium">Chế độ xem</p>
-            <p className="text-sm text-blue-600 mt-1">
-              Bạn đang xem thông tin tồn kho ở chế độ chỉ đọc. Chỉ nhân viên kho mới có thể điều chỉnh số lượng.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -124,7 +109,7 @@ export default function EmployeeWarehouseInventoryPage() {
               <p className="text-sm text-gray-600">Giá trị tồn</p>
               <p className="text-2xl font-bold mt-1">{(stats.totalValue / 1000000000).toFixed(1)}B</p>
             </div>
-            <FiPackage className="w-8 h-8 text-green-600" />
+            <FiTrendingDown className="w-8 h-8 text-green-600" />
           </div>
         </div>
       </div>

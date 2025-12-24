@@ -55,8 +55,16 @@ const LoginPage = () => {
             phone: response.data.phone,
             address: response.data.address,
             role: response.data.role, // Giữ nguyên role gốc
-            position: response.data.position, // Thêm position
+            position: response.data.position, // Thêm position ở level user
             status: response.data.status,
+            // Thêm employee object nếu là EMPLOYEE
+            employee: response.data.role === 'EMPLOYEE' ? {
+              fullName: response.data.fullName,
+              phone: response.data.phone,
+              address: response.data.address,
+              position: response.data.position,
+              firstLogin: false
+            } : undefined
           },
           response.data.token
         )

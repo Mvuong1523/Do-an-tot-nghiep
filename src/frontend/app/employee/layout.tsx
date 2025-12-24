@@ -90,12 +90,17 @@ export default function EmployeeLayout({
       path: '/employee/warehouse',
       children: [
         {
-          title: 'Nhập kho',
+          title: 'Tổng quan kho',
+          icon: <FiBox size={18} />,
+          path: '/employee/warehouse',
+        },
+        {
+          title: 'Phiếu nhập kho',
           icon: <FiArchive size={18} />,
           path: '/employee/warehouse/import',
         },
         {
-          title: 'Xuất kho',
+          title: 'Phiếu xuất kho',
           icon: <FiArchive size={18} />,
           path: '/employee/warehouse/export',
         },
@@ -105,7 +110,17 @@ export default function EmployeeLayout({
           path: '/employee/warehouse/inventory',
         },
         {
-          title: 'Báo cáo',
+          title: 'Sản phẩm kho',
+          icon: <FiPackage size={18} />,
+          path: '/employee/warehouse/products',
+        },
+        {
+          title: 'Đơn hàng cần xuất',
+          icon: <FiShoppingCart size={18} />,
+          path: '/employee/warehouse/orders',
+        },
+        {
+          title: 'Báo cáo kho',
           icon: <FiFileText size={18} />,
           path: '/employee/warehouse/reports',
         },

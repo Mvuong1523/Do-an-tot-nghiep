@@ -5,18 +5,13 @@ import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
 import { FiArrowLeft, FiCalendar, FiUser, FiFileText } from 'react-icons/fi'
 import toast from 'react-hot-toast'
-import { useAuthStore } from '@/store/authStore'
-import { hasPermission, type Position } from '@/lib/permissions'
 import { inventoryApi } from '@/lib/api'
 
-export default function EmployeeExportDetailPage() {
+export default function AdminExportDetailPage() {
   const router = useRouter()
   const params = useParams()
-  const { employee } = useAuthStore()
   const [order, setOrder] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-
-  const canEdit = hasPermission(employee?.position as Position, 'warehouse.export.approve')
 
   useEffect(() => {
     loadOrderDetail()
@@ -29,12 +24,12 @@ export default function EmployeeExportDetailPage() {
         setOrder(response.data)
       } else {
         toast.error('Không tìm thấy phiếu xuất')
-        router.push('/employee/warehouse/export')
+        router.push('/admin/warehouse/export')
       }
     } catch (error) {
       console.error('Error loading order detail:', error)
       toast.error('Lỗi khi tải chi tiết phiếu')
-      router.push('/employee/warehouse/export')
+      router.push('/admin/warehouse/export')
     } finally {
       setLoading(false)
     }
@@ -81,22 +76,9 @@ export default function EmployeeExportDetailPage() {
 
   return (
     <div className="p-6">
-      {/* Permission Notice */}
-      {!canEdit && (
-        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3">
-          <FiFileText className="w-5 h-5 text-blue-600 mt-0.5" />
-          <div>
-            <p className="text-sm text-blue-800 font-medium">Quyền hạn của bạn</p>
-            <p className="text-sm text-blue-600 mt-1">
-              Bạn chỉ có thể xem chi tiết phiếu xuất kho. Chỉ nhân viên kho mới có quyền chỉnh sửa.
-            </p>
-          </div>
-        </div>
-      )}
-
       <div className="mb-6">
         <Link
-          href="/employee/warehouse/export"
+          href="/admin/warehouse/export"
           className="inline-flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4"
         >
           <FiArrowLeft />

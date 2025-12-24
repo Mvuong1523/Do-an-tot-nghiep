@@ -1,10 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { FiDownload, FiUpload, FiPackage, FiTrendingUp, FiAlertCircle, FiCalendar, FiFileText } from 'react-icons/fi'
+import { FiDownload, FiUpload, FiPackage, FiTrendingUp, FiAlertCircle, FiCalendar } from 'react-icons/fi'
 import toast from 'react-hot-toast'
-import { useAuthStore } from '@/store/authStore'
-import { hasPermission, type Position } from '@/lib/permissions'
 
 interface ReportStats {
   totalImports: number
@@ -15,16 +13,13 @@ interface ReportStats {
   exportValue: number
 }
 
-export default function EmployeeWarehouseReportsPage() {
-  const { employee } = useAuthStore()
+export default function AdminWarehouseReportsPage() {
   const [stats, setStats] = useState<ReportStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [dateRange, setDateRange] = useState({
-    startDate: new Date(new Date().setDate(1)).toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0]
+    startDate: new Date(new Date().setDate(1)).toISOString().split('T')[0], // First day of month
+    endDate: new Date().toISOString().split('T')[0] // Today
   })
-
-  const canViewReports = hasPermission(employee?.position as Position, 'warehouse.import.approve')
 
   useEffect(() => {
     fetchReportStats()
@@ -48,6 +43,7 @@ export default function EmployeeWarehouseReportsPage() {
       }
     } catch (error) {
       console.error('Error fetching report stats:', error)
+      // Set default values if API fails
       setStats({
         totalImports: 0,
         totalExports: 0,
@@ -69,11 +65,6 @@ export default function EmployeeWarehouseReportsPage() {
   }
 
   const exportToExcel = async (reportType: string) => {
-    if (!canViewReports) {
-      toast.error('Bạn không có quyền xuất báo cáo')
-      return
-    }
-
     try {
       const token = localStorage.getItem('token')
       const response = await fetch(
@@ -105,19 +96,6 @@ export default function EmployeeWarehouseReportsPage() {
 
   return (
     <div className="p-6">
-      {/* Permission Notice */}
-      {!canViewReports && (
-        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3">
-          <FiFileText className="w-5 h-5 text-blue-600 mt-0.5" />
-          <div>
-            <p className="text-sm text-blue-800 font-medium">Quyền hạn của bạn</p>
-            <p className="text-sm text-blue-600 mt-1">
-              Bạn có thể xem các báo cáo kho hàng cơ bản. Chỉ nhân viên kho mới có quyền xuất báo cáo và truy cập đầy đủ.
-            </p>
-          </div>
-        </div>
-      )}
-
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Báo cáo kho hàng</h1>
         <p className="text-gray-600">Thống kê và phân tích hoạt động kho</p>
@@ -217,19 +195,17 @@ export default function EmployeeWarehouseReportsPage() {
               </p>
               <div className="space-y-2">
                 <button
-                  onClick={() => window.open(`/employee/warehouse/import/list`, '_blank')}
+                  onClick={() => window.open(`/admin/warehouse/import/list`, '_blank')}
                   className="w-full bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
                 >
                   Xem chi tiết
                 </button>
-                {canViewReports && (
-                  <button
-                    onClick={() => exportToExcel('import')}
-                    className="w-full border border-green-500 text-green-600 px-4 py-2 rounded-lg hover:bg-green-50 transition-colors"
-                  >
-                    Xuất Excel
-                  </button>
-                )}
+                <button
+                  onClick={() => exportToExcel('import')}
+                  className="w-full border border-green-500 text-green-600 px-4 py-2 rounded-lg hover:bg-green-50 transition-colors"
+                >
+                  Xuất Excel
+                </button>
               </div>
             </div>
 
@@ -243,19 +219,17 @@ export default function EmployeeWarehouseReportsPage() {
               </p>
               <div className="space-y-2">
                 <button
-                  onClick={() => window.open(`/employee/warehouse/export/list`, '_blank')}
+                  onClick={() => window.open(`/admin/warehouse/export/list`, '_blank')}
                   className="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
                 >
                   Xem chi tiết
                 </button>
-                {canViewReports && (
-                  <button
-                    onClick={() => exportToExcel('export')}
-                    className="w-full border border-blue-500 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors"
-                  >
-                    Xuất Excel
-                  </button>
-                )}
+                <button
+                  onClick={() => exportToExcel('export')}
+                  className="w-full border border-blue-500 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors"
+                >
+                  Xuất Excel
+                </button>
               </div>
             </div>
 
@@ -269,19 +243,41 @@ export default function EmployeeWarehouseReportsPage() {
               </p>
               <div className="space-y-2">
                 <button
-                  onClick={() => window.open(`/employee/warehouse/inventory`, '_blank')}
+                  onClick={() => window.open(`/admin/warehouse/inventory`, '_blank')}
                   className="w-full bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors"
                 >
                   Xem chi tiết
                 </button>
-                {canViewReports && (
-                  <button
-                    onClick={() => exportToExcel('inventory')}
-                    className="w-full border border-purple-500 text-purple-600 px-4 py-2 rounded-lg hover:bg-purple-50 transition-colors"
-                  >
-                    Xuất Excel
-                  </button>
-                )}
+                <button
+                  onClick={() => exportToExcel('inventory')}
+                  className="w-full border border-purple-500 text-purple-600 px-4 py-2 rounded-lg hover:bg-purple-50 transition-colors"
+                >
+                  Xuất Excel
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Báo cáo giá trị kho</h3>
+                <FiTrendingUp className="text-indigo-500" size={24} />
+              </div>
+              <p className="text-gray-600 text-sm mb-4">
+                Phân tích giá trị hàng tồn kho theo thời gian
+              </p>
+              <div className="space-y-2">
+                <button
+                  onClick={() => toast.info('Chức năng đang phát triển')}
+                  className="w-full bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600 transition-colors"
+                >
+                  Xem chi tiết
+                </button>
+                <button
+                  onClick={() => exportToExcel('value')}
+                  className="w-full border border-indigo-500 text-indigo-600 px-4 py-2 rounded-lg hover:bg-indigo-50 transition-colors"
+                >
+                  Xuất Excel
+                </button>
               </div>
             </div>
 
@@ -295,19 +291,41 @@ export default function EmployeeWarehouseReportsPage() {
               </p>
               <div className="space-y-2">
                 <button
-                  onClick={() => window.open(`/employee/warehouse/suppliers`, '_blank')}
+                  onClick={() => window.open(`/admin/warehouse/suppliers`, '_blank')}
                   className="w-full bg-teal-500 text-white px-4 py-2 rounded-lg hover:bg-teal-600 transition-colors"
                 >
                   Xem chi tiết
                 </button>
-                {canViewReports && (
-                  <button
-                    onClick={() => exportToExcel('suppliers')}
-                    className="w-full border border-teal-500 text-teal-600 px-4 py-2 rounded-lg hover:bg-teal-50 transition-colors"
-                  >
-                    Xuất Excel
-                  </button>
-                )}
+                <button
+                  onClick={() => exportToExcel('suppliers')}
+                  className="w-full border border-teal-500 text-teal-600 px-4 py-2 rounded-lg hover:bg-teal-50 transition-colors"
+                >
+                  Xuất Excel
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Cảnh báo tồn kho</h3>
+                <FiAlertCircle className="text-orange-500" size={24} />
+              </div>
+              <p className="text-gray-600 text-sm mb-4">
+                Danh sách sản phẩm sắp hết hoặc vượt mức tồn
+              </p>
+              <div className="space-y-2">
+                <button
+                  onClick={() => toast.info('Chức năng đang phát triển')}
+                  className="w-full bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
+                >
+                  Xem chi tiết
+                </button>
+                <button
+                  onClick={() => exportToExcel('alerts')}
+                  className="w-full border border-orange-500 text-orange-600 px-4 py-2 rounded-lg hover:bg-orange-50 transition-colors"
+                >
+                  Xuất Excel
+                </button>
               </div>
             </div>
           </div>

@@ -2,25 +2,13 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuthStore } from '@/store/authStore'
-import { hasPermission, type Position } from '@/lib/permissions'
-import toast from 'react-hot-toast'
 
-export default function EmployeeWarehouseExportCreateRedirect() {
+export default function AdminWarehouseExportCreateRedirect() {
   const router = useRouter()
-  const { employee } = useAuthStore()
   
   useEffect(() => {
-    const canCreate = hasPermission(employee?.position as Position, 'warehouse.export.create')
-    
-    if (!canCreate) {
-      toast.error('Bạn không có quyền tạo phiếu xuất kho')
-      router.push('/employee/warehouse/export')
-      return
-    }
-    
     router.push('/admin/inventory/transactions/create?type=EXPORT')
-  }, [router, employee])
+  }, [router])
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
