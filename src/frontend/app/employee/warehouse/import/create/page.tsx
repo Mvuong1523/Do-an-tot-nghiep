@@ -118,68 +118,150 @@ PROD-002,Sản phẩm mẫu 2,20,200000,24,Ghi chú mẫu`
       const text = await file.text()
       const lines = text.split('\n').map(line => line.trim()).filter(line => line)
       
-      // Parse supplier info (first 8 lines)
-      const supplierData: any = {}
-      for (let i = 0; i < Math.min(8, lines.length); i++) {
-        const [key, value] = lines[i].split(',').map(s => s.trim())
-        if (key === 'Nhà cung cấp') supplierData.name = value
-        if (key === 'Mã số thuế') supplierData.taxCode = value
-        if (key === 'Người liên hệ') supplierData.contactName = value
-        if (key === 'Số điện thoại') supplierData.phone = value
-        if (key === 'Email') supplierData.email = value
-        if (key === 'Địa chỉ') supplierData.address = value
-        if (key === 'Tài khoản ngân hàng') supplierData.bankAccount = value
-        if (key === 'Điều khoản thanh toán') supplierData.paymentTerm = value
-      }
-
-      // Find product header line
-      let productStartIndex = -1
-      for (let i = 0; i < lines.length; i++) {
-        if (lines[i].startsWith('SKU,')) {
-          productStartIndex = i + 1
-          break
-        }
-      }
-
-      if (productStartIndex === -1) {
-        toast.error('Không tìm thấy dữ liệu sản phẩm trong file')
-        return
-      }
-
-      // Parse products
-      const parsedItems: POItem[] = []
-      for (let i = productStartIndex; i < lines.length; i++) {
-        const parts = lines[i].split(',').map(s => s.trim())
-        if (parts.length >= 4) {
-          parsedItems.push({
-            sku: parts[0],
-            internalName: parts[1],
-            quantity: parseInt(parts[2]) || 0,
-            unitCost: parseFloat(parts[3]) || 0,
-            warrantyMonths: parseInt(parts[4]) || 0,
-            techSpecsJson: '',
-            note: parts[5] || ''
-          })
-        }
-      }
-
-      if (parsedItems.length === 0) {
-        toast.error('Không có sản phẩm nào trong file')
-        return
-      }
-
-      // Update form
-      if (supplierData.name && supplierData.taxCode) {
-        setNewSupplier({
-          ...newSupplier,
-          ...supplierData,
-          paymentTermDays: 30
-        })
-        setShowNewSupplierForm(true)
-      }
+      // Detect CSV format
+      const firstLine = lines[0]
+      const isProductListFormat = firstLine.includes('SKU,Tên sản phẩm') || firstLine.includes('SKU,') && firstLine.includes('Thông số kỹ thuật')
       
-      setItems(parsedItems)
-      toast.success(`Đã import ${parsedItems.length} sản phẩm từ file`)
+      if (isProductListFormat) {
+        // Format 1: Pure product list with header
+        // SKU,Tên sản phẩm,Loại sản phẩm,Giá bán,Số lượng,Mô tả,Thông số kỹ thuật (JSON)
+        const parsedItems: POItem[] = []
+        
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i]
+          if (!line) continue
+          
+          // Parse CSV with proper handling of quoted fields (for JSON)
+          const parts: string[] = []
+          let current = ''
+          let inQuotes = false
+          
+          for (let j = 0; j < line.length; j++) {
+            const char = line[j]
+            if (char === '"') {
+              inQuotes = !inQuotes
+            } else if (char === ',' && !inQuotes) {
+              parts.push(current)
+              current = ''
+            } else {
+              current += char
+            }
+          }
+          parts.push(current)
+          
+          // Clean up parts - remove quotes and trim
+          const cleanParts = parts.map(p => {
+            let cleaned = p.trim()
+            // Remove surrounding quotes if present
+            if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
+              cleaned = cleaned.slice(1, -1)
+            }
+            return cleaned
+          })
+          
+          console.log(`Row ${i}: Found ${cleanParts.length} columns`, cleanParts)
+          
+          if (cleanParts.length >= 5) {
+            // Column mapping for sample-import-products.csv:
+            // 0: SKU
+            // 1: Tên sản phẩm
+            // 2: Loại sản phẩm
+            // 3: Giá bán
+            // 4: Số lượng
+            // 5: Mô tả
+            // 6: Thông số kỹ thuật (JSON)
+            
+            let techSpecs = ''
+            if (cleanParts.length >= 7 && cleanParts[6]) {
+              techSpecs = cleanParts[6]
+              console.log(`Tech specs for ${cleanParts[0]}:`, techSpecs)
+            }
+            
+            parsedItems.push({
+              sku: cleanParts[0],
+              internalName: cleanParts[1],
+              quantity: parseInt(cleanParts[4]) || 0,
+              unitCost: parseFloat(cleanParts[3]) || 0,
+              warrantyMonths: 12, // Default warranty
+              techSpecsJson: techSpecs,
+              note: cleanParts[5] || ''
+            })
+          }
+        }
+        
+        if (parsedItems.length === 0) {
+          toast.error('Không có sản phẩm nào trong file')
+          return
+        }
+        
+        console.log('Parsed items:', parsedItems)
+        setItems(parsedItems)
+        toast.success(`Đã import ${parsedItems.length} sản phẩm từ file`)
+        
+      } else {
+        // Format 2: Supplier info + products
+        const supplierData: any = {}
+        for (let i = 0; i < Math.min(8, lines.length); i++) {
+          const [key, value] = lines[i].split(',').map(s => s.trim())
+          if (key === 'Nhà cung cấp') supplierData.name = value
+          if (key === 'Mã số thuế') supplierData.taxCode = value
+          if (key === 'Người liên hệ') supplierData.contactName = value
+          if (key === 'Số điện thoại') supplierData.phone = value
+          if (key === 'Email') supplierData.email = value
+          if (key === 'Địa chỉ') supplierData.address = value
+          if (key === 'Tài khoản ngân hàng') supplierData.bankAccount = value
+          if (key === 'Điều khoản thanh toán') supplierData.paymentTerm = value
+        }
+
+        // Find product header line
+        let productStartIndex = -1
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i].startsWith('SKU,')) {
+            productStartIndex = i + 1
+            break
+          }
+        }
+
+        if (productStartIndex === -1) {
+          toast.error('Không tìm thấy dữ liệu sản phẩm trong file')
+          return
+        }
+
+        // Parse products
+        const parsedItems: POItem[] = []
+        for (let i = productStartIndex; i < lines.length; i++) {
+          const parts = lines[i].split(',').map(s => s.trim())
+          if (parts.length >= 4) {
+            parsedItems.push({
+              sku: parts[0],
+              internalName: parts[1],
+              quantity: parseInt(parts[2]) || 0,
+              unitCost: parseFloat(parts[3]) || 0,
+              warrantyMonths: parseInt(parts[4]) || 0,
+              techSpecsJson: '',
+              note: parts[5] || ''
+            })
+          }
+        }
+
+        if (parsedItems.length === 0) {
+          toast.error('Không có sản phẩm nào trong file')
+          return
+        }
+
+        // Update form
+        if (supplierData.name && supplierData.taxCode) {
+          setNewSupplier({
+            ...newSupplier,
+            ...supplierData,
+            paymentTermDays: 30
+          })
+          setShowNewSupplierForm(true)
+        }
+        
+        setItems(parsedItems)
+        toast.success(`Đã import ${parsedItems.length} sản phẩm từ file`)
+      }
     } catch (error) {
       console.error('Error parsing CSV:', error)
       toast.error('Lỗi khi đọc file CSV')
