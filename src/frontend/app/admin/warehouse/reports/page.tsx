@@ -267,7 +267,7 @@ export default function AdminWarehouseReportsPage() {
               </p>
               <div className="space-y-2">
                 <button
-                  onClick={() => toast.info('Chức năng đang phát triển')}
+                  onClick={() => toast('Chức năng đang phát triển', { icon: 'ℹ️' })}
                   className="w-full bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600 transition-colors"
                 >
                   Xem chi tiết
@@ -315,7 +315,7 @@ export default function AdminWarehouseReportsPage() {
               </p>
               <div className="space-y-2">
                 <button
-                  onClick={() => toast.info('Chức năng đang phát triển')}
+                  onClick={() => toast('Chức năng đang phát triển', { icon: 'ℹ️' })}
                   className="w-full bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
                 >
                   Xem chi tiết

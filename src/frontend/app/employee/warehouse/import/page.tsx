@@ -26,7 +26,7 @@ export default function EmployeeWarehouseImportPage() {
 
   // Permission checks
   const canCreate = hasPermission(employee?.position as Position, 'warehouse.import.create')
-  const canEdit = hasPermission(employee?.position as Position, 'warehouse.import.edit')
+  const canApprove = hasPermission(employee?.position as Position, 'warehouse.import.approve')
 
   useEffect(() => {
     fetchPurchaseOrders()

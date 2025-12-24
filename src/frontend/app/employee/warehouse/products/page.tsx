@@ -23,8 +23,9 @@ export default function EmployeeWarehouseProductsPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
 
-  const canCreate = hasPermission(employee?.position as Position, 'warehouse.products.create')
-  const canEdit = hasPermission(employee?.position as Position, 'warehouse.products.edit')
+  // Warehouse staff can VIEW products, but only PRODUCT_MANAGER can create/edit
+  const canCreate = hasPermission(employee?.position as Position, 'products.create')
+  const canEdit = hasPermission(employee?.position as Position, 'products.edit')
 
   useEffect(() => {
     fetchProducts()
@@ -76,10 +77,9 @@ export default function EmployeeWarehouseProductsPage() {
           <div>
             <p className="text-sm text-blue-800 font-medium">Quyền hạn của bạn</p>
             <p className="text-sm text-blue-600 mt-1">
-              Bạn có thể xem danh sách sản phẩm kho, nhưng không thể thêm hoặc chỉnh sửa.
-              {employee?.position === 'WAREHOUSE' || employee?.position === 'PRODUCT_MANAGER'
-                ? ' Chỉ nhân viên kho và quản lý sản phẩm mới có quyền này.'
-                : ' Liên hệ quản lý kho nếu cần hỗ trợ.'}
+              {employee?.position === 'WAREHOUSE' 
+                ? 'Bạn có thể xem danh sách sản phẩm kho. Chỉ Quản lý sản phẩm mới có quyền tạo và chỉnh sửa sản phẩm.'
+                : 'Bạn có thể xem danh sách sản phẩm kho, nhưng không thể thêm hoặc chỉnh sửa. Liên hệ Quản lý sản phẩm nếu cần hỗ trợ.'}
             </p>
           </div>
         </div>

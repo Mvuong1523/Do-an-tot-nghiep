@@ -1,21 +1,652 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { FiPlus, FiTrash2, FiSave, FiArrowLeft, FiUpload, FiDownload } from 'react-icons/fi'
+import toast from 'react-hot-toast'
+import { inventoryApi } from '@/lib/api'
+import { useAuthStore } from '@/store/authStore'
 
-export default function AdminWarehouseImportCreateRedirect() {
+interface POItem {
+  sku: string
+  internalName: string
+  quantity: number
+  unitCost: number
+  warrantyMonths: number
+  techSpecsJson: string
+  note: string
+}
+
+export default function CreatePurchaseOrderPage() {
   const router = useRouter()
+  const { user } = useAuthStore()
+  const [loading, setLoading] = useState(false)
+  const [suppliers, setSuppliers] = useState<any[]>([])
+  const [showNewSupplierForm, setShowNewSupplierForm] = useState(false)
   
+  // Form data
+  const [poCode, setPoCode] = useState('')
+  const [selectedSupplier, setSelectedSupplier] = useState<any>(null)
+  const [note, setNote] = useState('')
+  const [items, setItems] = useState<POItem[]>([{
+    sku: '',
+    internalName: '',
+    quantity: 1,
+    unitCost: 0,
+    warrantyMonths: 0,
+    techSpecsJson: '',
+    note: ''
+  }])
+
+  // New supplier form
+  const [newSupplier, setNewSupplier] = useState({
+    name: '',
+    taxCode: '',
+    contactName: '',
+    phone: '',
+    email: '',
+    address: '',
+    bankAccount: '',
+    paymentTerm: '',
+    paymentTermDays: 30
+  })
+
   useEffect(() => {
-    router.push('/admin/inventory/transactions/create?type=IMPORT')
-  }, [router])
+    loadSuppliers()
+    generatePOCode()
+  }, [])
+
+  const loadSuppliers = async () => {
+    try {
+      const response = await inventoryApi.getSuppliers()
+      if (response.success) {
+        setSuppliers(response.data || [])
+      }
+    } catch (error) {
+      console.error('Error loading suppliers:', error)
+    }
+  }
+
+  const generatePOCode = () => {
+    const date = new Date()
+    const code = `PO${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}_${Date.now().toString().slice(-6)}`
+    setPoCode(code)
+  }
+
+  const downloadTemplate = () => {
+    const csvContent = `Nhà cung cấp,Công ty TNHH ABC
+Mã số thuế,0123456789
+Người liên hệ,Nguyễn Văn A
+Số điện thoại,0901234567
+Email,contact@abc.vn
+Địa chỉ,123 Đường ABC - Quận 1 - TP.HCM
+Tài khoản ngân hàng,1234567890 - Vietcombank
+Điều khoản thanh toán,Thanh toán trong 30 ngày
+
+SKU,Tên sản phẩm,Số lượng,Giá nhập,Bảo hành (tháng),Ghi chú
+PROD-001,Sản phẩm mẫu 1,10,100000,12,Ghi chú mẫu
+PROD-002,Sản phẩm mẫu 2,20,200000,24,Ghi chú mẫu`
+
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = 'template-import-warehouse.csv'
+    link.click()
+    toast.success('Đã tải template Excel')
+  }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.name.endsWith('.csv')) {
+      toast.error('Vui lòng chọn file CSV')
+      return
+    }
+
+    try {
+      const text = await file.text()
+      const lines = text.split('\n').map(line => line.trim()).filter(line => line)
+      
+      // Parse supplier info (first 8 lines)
+      const supplierData: any = {}
+      for (let i = 0; i < Math.min(8, lines.length); i++) {
+        const [key, value] = lines[i].split(',').map(s => s.trim())
+        if (key === 'Nhà cung cấp') supplierData.name = value
+        if (key === 'Mã số thuế') supplierData.taxCode = value
+        if (key === 'Người liên hệ') supplierData.contactName = value
+        if (key === 'Số điện thoại') supplierData.phone = value
+        if (key === 'Email') supplierData.email = value
+        if (key === 'Địa chỉ') supplierData.address = value
+        if (key === 'Tài khoản ngân hàng') supplierData.bankAccount = value
+        if (key === 'Điều khoản thanh toán') supplierData.paymentTerm = value
+      }
+
+      // Find product header line
+      let productStartIndex = -1
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].startsWith('SKU,')) {
+          productStartIndex = i + 1
+          break
+        }
+      }
+
+      if (productStartIndex === -1) {
+        toast.error('Không tìm thấy dữ liệu sản phẩm trong file')
+        return
+      }
+
+      // Parse products
+      const parsedItems: POItem[] = []
+      for (let i = productStartIndex; i < lines.length; i++) {
+        const parts = lines[i].split(',').map(s => s.trim())
+        if (parts.length >= 4) {
+          parsedItems.push({
+            sku: parts[0],
+            internalName: parts[1],
+            quantity: parseInt(parts[2]) || 0,
+            unitCost: parseFloat(parts[3]) || 0,
+            warrantyMonths: parseInt(parts[4]) || 0,
+            techSpecsJson: '',
+            note: parts[5] || ''
+          })
+        }
+      }
+
+      if (parsedItems.length === 0) {
+        toast.error('Không có sản phẩm nào trong file')
+        return
+      }
+
+      // Update form
+      if (supplierData.name && supplierData.taxCode) {
+        setNewSupplier({
+          ...newSupplier,
+          ...supplierData,
+          paymentTermDays: 30
+        })
+        setShowNewSupplierForm(true)
+      }
+      
+      setItems(parsedItems)
+      toast.success(`Đã import ${parsedItems.length} sản phẩm từ file`)
+    } catch (error) {
+      console.error('Error parsing CSV:', error)
+      toast.error('Lỗi khi đọc file CSV')
+    }
+  }
+
+  const addItem = () => {
+    setItems([...items, {
+      sku: '',
+      internalName: '',
+      quantity: 1,
+      unitCost: 0,
+      warrantyMonths: 0,
+      techSpecsJson: '',
+      note: ''
+    }])
+  }
+
+  const removeItem = (index: number) => {
+    if (items.length > 1) {
+      setItems(items.filter((_, i) => i !== index))
+    }
+  }
+
+  const updateItem = (index: number, field: keyof POItem, value: any) => {
+    const newItems = [...items]
+    newItems[index] = { ...newItems[index], [field]: value }
+    setItems(newItems)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    // Validation
+    if (!poCode) {
+      toast.error('Vui lòng nhập mã phiếu nhập')
+      return
+    }
+
+    if (!selectedSupplier && !showNewSupplierForm) {
+      toast.error('Vui lòng chọn nhà cung cấp')
+      return
+    }
+
+    if (showNewSupplierForm && (!newSupplier.name || !newSupplier.taxCode)) {
+      toast.error('Vui lòng nhập tên và mã số thuế nhà cung cấp')
+      return
+    }
+
+    if (items.length === 0) {
+      toast.error('Vui lòng thêm ít nhất một sản phẩm')
+      return
+    }
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      if (!item.sku || !item.internalName || item.quantity <= 0 || item.unitCost <= 0) {
+        toast.error(`Sản phẩm ${i + 1}: Vui lòng nhập đầy đủ thông tin`)
+        return
+      }
+    }
+
+    setLoading(true)
+    try {
+      const requestData = {
+        createdBy: user?.fullName || user?.email || 'Admin',
+        poCode,
+        supplier: showNewSupplierForm ? newSupplier : { taxCode: selectedSupplier.taxCode },
+        items: items.map(item => ({
+          sku: item.sku,
+          internalName: item.internalName,
+          quantity: item.quantity,
+          unitCost: item.unitCost,
+          warrantyMonths: item.warrantyMonths || 0,
+          techSpecsJson: item.techSpecsJson || '',
+          note: item.note || ''
+        })),
+        note
+      }
+
+      const response = await inventoryApi.createPurchaseOrder(requestData)
+      
+      if (response.success) {
+        toast.success('Tạo phiếu nhập kho thành công!')
+        router.push('/admin/warehouse/import')
+      } else {
+        toast.error(response.message || 'Có lỗi xảy ra')
+      }
+    } catch (error: any) {
+      console.error('Error creating purchase order:', error)
+      toast.error(error.message || 'Lỗi khi tạo phiếu nhập')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const calculateTotal = () => {
+    return items.reduce((sum, item) => sum + (item.quantity * item.unitCost), 0)
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
-        <p className="mt-4 text-gray-600">Đang chuyển hướng...</p>
+    <div className="p-6">
+      <div className="mb-6">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4"
+        >
+          <FiArrowLeft />
+          <span>Quay lại</span>
+        </button>
+        <h1 className="text-2xl font-bold text-gray-900">Tạo phiếu nhập kho</h1>
+        <p className="text-gray-600 mt-1">Tạo phiếu nhập hàng mới vào kho</p>
       </div>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Excel Import Section */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow-sm p-6 border border-blue-200">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                <FiUpload className="text-blue-600" />
+                <span>Nhập nhanh từ Excel/CSV</span>
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Tải file Excel/CSV để tự động điền thông tin nhà cung cấp và sản phẩm
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={downloadTemplate}
+              className="flex items-center space-x-2 px-4 py-2 bg-white border border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+            >
+              <FiDownload />
+              <span>Tải template</span>
+            </button>
+          </div>
+          
+          <div className="flex items-center space-x-4">
+            <label className="flex-1 cursor-pointer">
+              <div className="border-2 border-dashed border-blue-300 rounded-lg p-6 text-center hover:border-blue-500 hover:bg-blue-50 transition-colors">
+                <FiUpload className="mx-auto text-blue-500 mb-2" size={32} />
+                <p className="text-sm text-gray-700 font-medium">
+                  Click để chọn file CSV
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Hỗ trợ file .csv (UTF-8)
+                </p>
+              </div>
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+            </label>
+          </div>
+        </div>
+
+        {/* Basic Info */}
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <h2 className="text-lg font-semibold mb-4">Thông tin cơ bản</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Mã phiếu nhập <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={poCode}
+                onChange={(e) => setPoCode(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="PO20240101_123456"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Người tạo
+              </label>
+              <input
+                type="text"
+                value={user?.fullName || user?.email || ''}
+                disabled
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Supplier Selection */}
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Nhà cung cấp</h2>
+            <button
+              type="button"
+              onClick={() => setShowNewSupplierForm(!showNewSupplierForm)}
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              {showNewSupplierForm ? 'Chọn NCC có sẵn' : '+ Thêm NCC mới'}
+            </button>
+          </div>
+
+          {!showNewSupplierForm ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Chọn nhà cung cấp <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={selectedSupplier?.id || ''}
+                onChange={(e) => {
+                  const supplier = suppliers.find(s => s.id === parseInt(e.target.value))
+                  setSelectedSupplier(supplier)
+                }}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required={!showNewSupplierForm}
+              >
+                <option value="">-- Chọn nhà cung cấp --</option>
+                {suppliers.map(supplier => (
+                  <option key={supplier.id} value={supplier.id}>
+                    {supplier.name} - {supplier.taxCode}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tên NCC <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newSupplier.name}
+                  onChange={(e) => setNewSupplier({ ...newSupplier, name: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required={showNewSupplierForm}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Mã số thuế <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newSupplier.taxCode}
+                  onChange={(e) => setNewSupplier({ ...newSupplier, taxCode: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required={showNewSupplierForm}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Người liên hệ
+                </label>
+                <input
+                  type="text"
+                  value={newSupplier.contactName}
+                  onChange={(e) => setNewSupplier({ ...newSupplier, contactName: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Số điện thoại
+                </label>
+                <input
+                  type="text"
+                  value={newSupplier.phone}
+                  onChange={(e) => setNewSupplier({ ...newSupplier, phone: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={newSupplier.email}
+                  onChange={(e) => setNewSupplier({ ...newSupplier, email: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Địa chỉ
+                </label>
+                <input
+                  type="text"
+                  value={newSupplier.address}
+                  onChange={(e) => setNewSupplier({ ...newSupplier, address: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Items */}
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Danh sách sản phẩm</h2>
+            <button
+              type="button"
+              onClick={addItem}
+              className="flex items-center space-x-2 text-blue-600 hover:text-blue-800"
+            >
+              <FiPlus />
+              <span>Thêm sản phẩm</span>
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            {items.map((item, index) => (
+              <div key={index} className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-medium text-gray-900">Sản phẩm {index + 1}</h3>
+                  {items.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeItem(index)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <FiTrash2 />
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      SKU <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={item.sku}
+                      onChange={(e) => updateItem(index, 'sku', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="SKU001"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Tên sản phẩm <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={item.internalName}
+                      onChange={(e) => updateItem(index, 'internalName', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Tên sản phẩm"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Số lượng <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={item.quantity}
+                      onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 0)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      min="1"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Đơn giá <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={item.unitCost}
+                      onChange={(e) => updateItem(index, 'unitCost', parseFloat(e.target.value) || 0)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      min="0"
+                      step="0.01"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Bảo hành (tháng)
+                    </label>
+                    <input
+                      type="number"
+                      value={item.warrantyMonths}
+                      onChange={(e) => updateItem(index, 'warrantyMonths', parseInt(e.target.value) || 0)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      min="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Thành tiền
+                    </label>
+                    <input
+                      type="text"
+                      value={(item.quantity * item.unitCost).toLocaleString('vi-VN')}
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                    />
+                  </div>
+                  <div className="md:col-span-2 lg:col-span-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Thông số kỹ thuật (JSON)
+                    </label>
+                    <textarea
+                      value={item.techSpecsJson}
+                      onChange={(e) => updateItem(index, 'techSpecsJson', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      rows={2}
+                      placeholder='{"color": "red", "size": "XL"}'
+                    />
+                  </div>
+                  <div className="md:col-span-2 lg:col-span-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Ghi chú
+                    </label>
+                    <input
+                      type="text"
+                      value={item.note}
+                      onChange={(e) => updateItem(index, 'note', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Ghi chú về sản phẩm"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Total */}
+          <div className="mt-6 pt-4 border-t border-gray-200">
+            <div className="flex justify-between items-center">
+              <span className="text-lg font-semibold text-gray-900">Tổng cộng:</span>
+              <span className="text-2xl font-bold text-blue-600">
+                {calculateTotal().toLocaleString('vi-VN')} đ
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Note */}
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <h2 className="text-lg font-semibold mb-4">Ghi chú</h2>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            rows={4}
+            placeholder="Ghi chú về phiếu nhập..."
+          />
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center justify-end space-x-4">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            disabled={loading}
+          >
+            Hủy
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex items-center space-x-2 px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:bg-gray-400"
+          >
+            <FiSave />
+            <span>{loading ? 'Đang tạo...' : 'Tạo phiếu nhập'}</span>
+          </button>
+        </div>
+      </form>
     </div>
   )
 }
