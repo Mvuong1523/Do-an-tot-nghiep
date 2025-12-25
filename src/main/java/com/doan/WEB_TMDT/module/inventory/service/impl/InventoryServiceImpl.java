@@ -747,7 +747,7 @@ public class InventoryServiceImpl implements InventoryService {
             try {
                 createGHNOrderForExport(req.getOrderId(), exportOrder);
             } catch (Exception e) {
-                log.error("❌ Failed to create GHN order for export {}: {}", exportOrder.getExportCode(), e.getMessage());
+                log.error("Failed to create GHN order for export {}: {}", exportOrder.getExportCode(), e.getMessage());
                 // Don't fail the export, just log the error
                 // Admin can manually create GHN order later
             }

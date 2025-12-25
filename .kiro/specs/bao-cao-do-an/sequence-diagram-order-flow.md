@@ -1,660 +1,487 @@
-# Sơ Đồ Tuần Tự - Luồng Đặt Hàng (Order Flow)
+# Sơ Đồ Tuần Tự - Luồng Đặt Hàng và Thanh Toán
 
 ## Tổng Quan
 
-Tài liệu này mô tả chi tiết các sơ đồ tuần tự (sequence diagrams) cho luồng đặt hàng trong hệ thống TMDT, bao gồm:
+Tài liệu này mô tả các sơ đồ tuần tự (sequence diagrams) cho luồng đặt hàng và thanh toán trong hệ thống TMDT:
 - Luồng đặt hàng với thanh toán COD (Cash on Delivery)
 - Luồng đặt hàng với thanh toán Online (SePay)
-- Xử lý validation và error handling
-- Tương tác giữa các components
+- Xử lý webhook từ SePay
 
-**Requirements**: 1.1-1.5 (Quản lý đơn hàng), 8.1-8.5 (Thanh toán online)
+**Requirements**: 
+- 1.1-1.5 (Quản lý đơn hàng)
+- 8.1-8.5 (Thanh toán online SePay)
+- 9.1-9.3 (Tích hợp kế toán tự động)
 
 ---
 
 ## 1. Luồng Đặt Hàng COD (Cash on Delivery)
 
-### 1.1. Mô Tả
-
-Luồng này xử lý khi khách hàng chọn thanh toán khi nhận hàng (COD). Đơn hàng được tạo với trạng thái PENDING và chờ Sales staff xác nhận.
-
-### 1.2. Các Bước Chính
-
-1. Customer checkout với giỏ hàng
-2. Nhập thông tin giao hàng (địa chỉ, số điện thoại)
-3. Chọn phương thức thanh toán: COD
-4. Hệ thống validate dữ liệu
-5. Kiểm tra tồn kho (available quantity)
-6. Reserve stock (tăng reserved quantity)
-7. Tạo order với status PENDING
-8. Trả về order confirmation
-
-### 1.3. Sơ Đồ Tuần Tự
+### 1.1. Sơ Đồ Tuần Tự
 
 ```mermaid
 sequenceDiagram
     actor Customer
     participant UI as Next.js Frontend
-    participant API as API Gateway
+    participant API as Spring Boot API
     participant OrderCtrl as OrderController
     participant OrderSvc as OrderService
     participant InvSvc as InventoryService
     participant CartSvc as CartService
     participant DB as MySQL Database
     
-    Note over Customer,DB: Phase 1: Customer Checkout
-    Customer->>UI: Click "Đặt hàng" button
-    UI->>UI: Validate form data
+    Note over Customer,DB: Thêm sản phẩm vào giỏ hàng
+    Customer->>UI: Browse products
+    Customer->>UI: Click "Thêm vào giỏ"
+    UI->>API: POST /api/cart/add
+    API->>CartSvc: addToCart(customerId, productId, quantity)
+    CartSvc->>DB: INSERT/UPDATE cart_items
+    DB-->>CartSvc: Success
+    CartSvc-->>UI: Cart updated
+    UI-->>Customer: "Đã thêm vào giỏ hàng"
     
-    alt Form validation fails
-        UI-->>Customer: Show validation errors
-    else Form valid
-        UI->>API: POST /api/orders/create
-        Note right of UI: Request body:<br/>{<br/>  items: [{productId, quantity}],<br/>  shippingAddress: {...},<br/>  paymentMethod: "COD",<br/>  phone: "..."<br/>}
-        
-        API->>OrderCtrl: createOrder(OrderRequest)
-        activate OrderCtrl
-        
-        Note over OrderCtrl,DB: Phase 2: Validation & Stock Check
-        OrderCtrl->>OrderCtrl: Validate request data
-        OrderCtrl->>OrderSvc: createOrder(request)
-        activate OrderSvc
-        
-        OrderSvc->>OrderSvc: Validate shipping address
-        Note right of OrderSvc: Check required fields:<br/>- Province<br/>- District<br/>- Ward<br/>- Detailed address
-        
-        alt Address validation fails
-            OrderSvc-->>OrderCtrl: ValidationException
-            OrderCtrl-->>API: 400 Bad Request
-            API-->>UI: Error response
-            UI-->>Customer: "Địa chỉ không hợp lệ"
-        else Address valid
-            
-            OrderSvc->>InvSvc: checkStockAvailability(items)
-            activate InvSvc
-            
-            loop For each item
-                InvSvc->>DB: SELECT available_quantity<br/>FROM inventory_stock<br/>WHERE product_id = ?
-                DB-->>InvSvc: Stock data
-                InvSvc->>InvSvc: Check if available >= required
-            end
-            
-            alt Insufficient stock
-                InvSvc-->>OrderSvc: InsufficientStockException
-                Note right of InvSvc: Return details:<br/>- Product name<br/>- Required quantity<br/>- Available quantity
-                OrderSvc-->>OrderCtrl: StockException
-                OrderCtrl-->>API: 400 Bad Request
-                API-->>UI: Error with stock details
-                UI-->>Customer: "Sản phẩm X không đủ hàng<br/>(Cần: 5, Còn: 2)"
-            else Stock available
-                InvSvc-->>OrderSvc: Stock check passed
-                deactivate InvSvc
-                
-                Note over OrderSvc,DB: Phase 3: Reserve Stock & Create Order
-                OrderSvc->>InvSvc: reserveStock(items)
-                activate InvSvc
-                
-                loop For each item
-                    InvSvc->>DB: UPDATE inventory_stock<br/>SET reserved = reserved + ?<br/>WHERE product_id = ?
-                    Note right of DB: available = onHand - reserved - damaged<br/>This decreases available quantity
-                end
-                
-                InvSvc-->>OrderSvc: Stock reserved
-                deactivate InvSvc
-                
-                OrderSvc->>OrderSvc: Generate unique order code
-                Note right of OrderSvc: Format: ORD-YYYYMMDD-XXXXX
-                
-                OrderSvc->>OrderSvc: Calculate total amount
-                Note right of OrderSvc: total = sum(item.price * item.quantity)<br/>+ shippingFee
-                
-                OrderSvc->>DB: BEGIN TRANSACTION
-                
-                OrderSvc->>DB: INSERT INTO orders<br/>(order_code, customer_id, status,<br/>payment_method, total, shipping_address)
-                Note right of DB: status = 'PENDING'<br/>payment_method = 'COD'<br/>payment_status = 'UNPAID'
-                DB-->>OrderSvc: Order ID
-                
-                loop For each item
-                    OrderSvc->>DB: INSERT INTO order_items<br/>(order_id, product_id, quantity, price)
-                end
-                
-                OrderSvc->>CartSvc: clearCart(customerId)
-                activate CartSvc
-                CartSvc->>DB: DELETE FROM cart_items<br/>WHERE customer_id = ?
-                deactivate CartSvc
-                
-                OrderSvc->>DB: COMMIT TRANSACTION
-                
-                Note over OrderSvc,DB: Phase 4: Return Response
-                OrderSvc->>DB: SELECT order with items
-                DB-->>OrderSvc: Complete order data
-                
-                OrderSvc-->>OrderCtrl: OrderResponse
-                deactivate OrderSvc
-                OrderCtrl-->>API: 200 OK
-                deactivate OrderCtrl
-                API-->>UI: Order created successfully
-                UI-->>Customer: Show order confirmation<br/>"Đơn hàng #ORD-20231223-00001<br/>đã được tạo thành công"
-            end
-        end
-    end
-```
-
-### 1.4. Validation Rules
-
-#### Shipping Address Validation
-- **Province**: Required, must exist in province table
-- **District**: Required, must exist in district table and belong to selected province
-- **Ward**: Required, must exist in ward table and belong to selected district
-- **Detailed Address**: Required, min length 10 characters
-- **Phone**: Required, format: 10 digits starting with 0
-
-#### Stock Validation
-- **Available Quantity**: Must be >= requested quantity for each item
-- **Calculation**: available = onHand - reserved - damaged
-- **Atomic Check**: All items must pass stock check before creating order
-
-#### Business Rules
-- **Order Code**: Unique, auto-generated, format: ORD-YYYYMMDD-XXXXX
-- **Status**: New COD orders start with PENDING status
-- **Payment Status**: UNPAID for COD orders
-- **Stock Reservation**: Reserved quantity increases immediately upon order creation
-- **Cart Clearing**: Cart is cleared only after successful order creation
-
-### 1.5. Error Handling
-
-| Error Type | HTTP Code | Error Message | User Action |
-|------------|-----------|---------------|-------------|
-| Invalid Address | 400 | "Địa chỉ giao hàng không hợp lệ" | Re-enter address |
-| Insufficient Stock | 400 | "Sản phẩm X không đủ hàng (Cần: Y, Còn: Z)" | Reduce quantity or remove item |
-| Invalid Phone | 400 | "Số điện thoại không hợp lệ" | Re-enter phone number |
-| Database Error | 500 | "Lỗi hệ thống, vui lòng thử lại" | Retry or contact support |
-| Network Timeout | 504 | "Kết nối timeout, vui lòng thử lại" | Retry |
-
----
-
-## 2. Luồng Đặt Hàng Online Payment (SePay)
-
-### 2.1. Mô Tả
-
-Luồng này xử lý khi khách hàng chọn thanh toán online qua SePay. Hệ thống tạo đơn hàng với trạng thái PENDING_PAYMENT, generate QR code, và chờ webhook từ SePay để xác nhận thanh toán.
-
-### 2.2. Các Bước Chính
-
-1. Customer checkout và chọn Online Payment
-2. Hệ thống tạo order với status PENDING_PAYMENT
-3. Generate QR code từ SePay API
-4. Customer quét QR và chuyển khoản
-5. SePay gửi webhook notification
-6. Hệ thống verify webhook và match payment
-7. Update order status thành CONFIRMED
-8. Ghi nhận bút toán kế toán
-
-### 2.3. Sơ Đồ Tuần Tự - Tạo Đơn và Generate QR
-
-```mermaid
-sequenceDiagram
-    actor Customer
-    participant UI as Next.js Frontend
-    participant API as API Gateway
-    participant OrderCtrl as OrderController
-    participant OrderSvc as OrderService
-    participant PaymentSvc as PaymentService
-    participant InvSvc as InventoryService
-    participant SePay as SePay API
-    participant DB as MySQL Database
+    Note over Customer,DB: Checkout và đặt hàng
+    Customer->>UI: Click "Thanh toán"
+    UI->>API: GET /api/cart
+    API->>CartSvc: getCart(customerId)
+    CartSvc->>DB: SELECT cart_items
+    DB-->>CartSvc: Cart data
+    CartSvc-->>UI: Cart items
     
-    Note over Customer,DB: Phase 1: Create Order with Online Payment
-    Customer->>UI: Select "Thanh toán online"
-    UI->>API: POST /api/orders/create
-    Note right of UI: paymentMethod: "ONLINE"
+    UI-->>Customer: Show checkout form
+    Customer->>UI: Fill shipping info
+    Customer->>UI: Select payment: COD
+    Customer->>UI: Click "Đặt hàng"
     
-    API->>OrderCtrl: createOrder(OrderRequest)
-    activate OrderCtrl
+    UI->>API: POST /api/orders
+    API->>OrderCtrl: createOrder(request, auth)
+    OrderCtrl->>OrderSvc: createOrderFromCart(customerId, request)
     
-    OrderCtrl->>OrderSvc: createOrder(request)
-    activate OrderSvc
+    OrderSvc->>CartSvc: getCartItems(customerId)
+    CartSvc->>DB: SELECT cart_items
+    DB-->>CartSvc: Cart items
+    CartSvc-->>OrderSvc: List<CartItem>
     
-    Note over OrderSvc,DB: Validation & Stock Check (same as COD)
-    OrderSvc->>OrderSvc: Validate shipping address
-    OrderSvc->>InvSvc: checkStockAvailability(items)
-    activate InvSvc
-    InvSvc->>DB: Check available quantity
+    OrderSvc->>InvSvc: checkStockAvailability(cartItems)
+    InvSvc->>DB: SELECT available_quantity
     DB-->>InvSvc: Stock data
+    InvSvc-->>OrderSvc: Stock available
     
-    alt Insufficient stock
-        InvSvc-->>OrderSvc: InsufficientStockException
-        OrderSvc-->>OrderCtrl: Error
-        OrderCtrl-->>UI: 400 Bad Request
-        UI-->>Customer: Stock error message
-    else Stock available
-        InvSvc-->>OrderSvc: OK
-        deactivate InvSvc
-        
-        Note over OrderSvc,DB: Phase 2: Create Order & Payment Record
-        OrderSvc->>InvSvc: reserveStock(items)
-        
-        OrderSvc->>DB: BEGIN TRANSACTION
-        
-        OrderSvc->>DB: INSERT INTO orders<br/>(order_code, status, payment_method)
-        Note right of DB: status = 'PENDING_PAYMENT'<br/>payment_method = 'ONLINE'<br/>payment_status = 'UNPAID'
-        DB-->>OrderSvc: Order ID
-        
-        OrderSvc->>DB: INSERT INTO order_items
-        
-        Note over OrderSvc,PaymentSvc: Phase 3: Generate Payment QR Code
-        OrderSvc->>PaymentSvc: createPayment(orderId, amount)
-        activate PaymentSvc
-        
-        PaymentSvc->>PaymentSvc: Generate payment code
-        Note right of PaymentSvc: Format: PAY-YYYYMMDD-XXXXX
-        
-        PaymentSvc->>DB: INSERT INTO payments<br/>(payment_code, order_id, amount,<br/>status, expired_at)
-        Note right of DB: status = 'PENDING'<br/>expired_at = now + 15 minutes
-        DB-->>PaymentSvc: Payment ID
-        
-        PaymentSvc->>SePay: POST /api/v1/qr-code/generate
-        activate SePay
-        Note right of PaymentSvc: Request:<br/>{<br/>  accountNumber: "...",<br/>  amount: 500000,<br/>  description: "PAY-20231223-00001"<br/>}
-        
-        alt SePay API error
-            SePay-->>PaymentSvc: 500 Error
-            PaymentSvc-->>OrderSvc: PaymentException
-            OrderSvc->>DB: ROLLBACK TRANSACTION
-            OrderSvc-->>OrderCtrl: Error
-            OrderCtrl-->>UI: 500 Internal Error
-            UI-->>Customer: "Lỗi tạo QR code, vui lòng thử lại"
-        else SePay success
-            SePay-->>PaymentSvc: QR code data
-            deactivate SePay
-            Note right of SePay: Response:<br/>{<br/>  qrCode: "base64...",<br/>  qrDataURL: "https://..."<br/>}
-            
-            PaymentSvc->>DB: UPDATE payments<br/>SET qr_code = ?, qr_data_url = ?
-            
-            PaymentSvc-->>OrderSvc: PaymentResponse with QR
-            deactivate PaymentSvc
-            
-            OrderSvc->>DB: COMMIT TRANSACTION
-            
-            OrderSvc-->>OrderCtrl: OrderResponse + PaymentResponse
-            deactivate OrderSvc
-            OrderCtrl-->>API: 200 OK
-            deactivate OrderCtrl
-            
-            Note over UI,Customer: Phase 4: Display QR Code
-            API-->>UI: Order + Payment data
-            UI->>UI: Render QR code image
-            UI->>UI: Start countdown timer (15 minutes)
-            UI-->>Customer: Show QR code<br/>"Quét mã QR để thanh toán<br/>Số tiền: 500,000 VNĐ<br/>Hết hạn sau: 14:59"
-            
-            Customer->>Customer: Open banking app
-            Customer->>Customer: Scan QR code
-            Customer->>Customer: Confirm transfer
-        end
-    end
+    Note over OrderSvc,DB: Reserve Stock & Create Order
+    OrderSvc->>DB: BEGIN TRANSACTION
+    
+    OrderSvc->>InvSvc: reserveStock(cartItems)
+    InvSvc->>DB: UPDATE inventory_stock<br/>SET reserved = reserved + ?
+    InvSvc-->>OrderSvc: Stock reserved
+    
+    OrderSvc->>OrderSvc: Generate order code<br/>(ORD-YYYYMMDD-XXXXX)
+    
+    OrderSvc->>DB: INSERT INTO orders<br/>(status='PENDING', payment_method='COD')
+    DB-->>OrderSvc: Order ID
+    
+    OrderSvc->>DB: INSERT INTO order_items
+    
+    OrderSvc->>CartSvc: clearCart(customerId)
+    CartSvc->>DB: DELETE FROM cart_items
+    
+    OrderSvc->>DB: COMMIT TRANSACTION
+    
+    OrderSvc->>DB: SELECT order with items
+    DB-->>OrderSvc: Complete order data
+    
+    OrderSvc-->>OrderCtrl: Order created
+    OrderCtrl-->>API: 200 OK
+    API-->>UI: Order data
+    
+    UI->>UI: Redirect to order detail
+    UI-->>Customer: "Đơn hàng đã được tạo thành công!"
 ```
-
-### 2.4. Sơ Đồ Tuần Tự - Xử Lý Webhook SePay
-
-```mermaid
-sequenceDiagram
-    participant Bank as Customer's Bank
-    participant SePay as SePay System
-    participant Webhook as WebhookController
-    participant WebhookSvc as WebhookService
-    participant PaymentSvc as PaymentService
-    participant OrderSvc as OrderService
-    participant AcctSvc as AccountingService
-    participant DB as MySQL Database
-    participant UI as Frontend (Polling)
-    actor Customer
-    
-    Note over Bank,Customer: Phase 1: Customer Completes Transfer
-    Customer->>Bank: Transfer money via QR
-    Bank->>Bank: Process transaction
-    Bank->>SePay: Transaction notification
-    
-    Note over SePay,DB: Phase 2: SePay Webhook
-    SePay->>Webhook: POST /api/webhook/sepay
-    activate Webhook
-    Note right of SePay: Request body:<br/>{<br/>  transactionId: "...",<br/>  amount: 500000,<br/>  description: "PAY-20231223-00001",<br/>  transactionDate: "...",<br/>  signature: "..."<br/>}
-    
-    Webhook->>WebhookSvc: processSepayWebhook(request)
-    activate WebhookSvc
-    
-    Note over WebhookSvc: Phase 3: Verify Webhook Signature
-    WebhookSvc->>WebhookSvc: verifySignature(request)
-    Note right of WebhookSvc: Calculate HMAC-SHA256<br/>using secret key<br/>Compare with signature
-    
-    alt Invalid signature
-        WebhookSvc-->>Webhook: SecurityException
-        Webhook-->>SePay: 401 Unauthorized
-        Note right of Webhook: SePay will retry later
-    else Valid signature
-        
-        Note over WebhookSvc,DB: Phase 4: Check Duplicate
-        WebhookSvc->>DB: SELECT FROM payments<br/>WHERE transaction_id = ?
-        DB-->>WebhookSvc: Existing payment (if any)
-        
-        alt Duplicate transaction
-            WebhookSvc-->>Webhook: Already processed
-            Webhook-->>SePay: 200 OK (idempotent)
-            Note right of Webhook: Return success to prevent retry
-        else New transaction
-            
-            Note over WebhookSvc,DB: Phase 5: Match Payment
-            WebhookSvc->>WebhookSvc: Extract payment code from description
-            Note right of WebhookSvc: Parse "PAY-20231223-00001"<br/>from description field
-            
-            WebhookSvc->>DB: SELECT FROM payments<br/>WHERE payment_code = ?
-            DB-->>WebhookSvc: Payment record
-            
-            alt Payment not found
-                WebhookSvc->>DB: INSERT INTO unmatched_payments<br/>(transaction_id, amount, description)
-                Note right of DB: Store for manual review
-                WebhookSvc-->>Webhook: Payment not found
-                Webhook-->>SePay: 200 OK
-                Note right of Webhook: Still return 200 to prevent retry
-            else Payment found
-                
-                Note over WebhookSvc,DB: Phase 6: Verify Amount
-                WebhookSvc->>WebhookSvc: Compare amounts
-                
-                alt Amount mismatch
-                    WebhookSvc->>DB: UPDATE payments<br/>SET status = 'AMOUNT_MISMATCH',<br/>actual_amount = ?
-                    WebhookSvc->>DB: INSERT INTO payment_issues<br/>(payment_id, issue_type, description)
-                    Note right of DB: Flag for manual review
-                    WebhookSvc-->>Webhook: Amount mismatch
-                    Webhook-->>SePay: 200 OK
-                else Amount matches
-                    
-                    Note over WebhookSvc,DB: Phase 7: Update Payment & Order
-                    WebhookSvc->>DB: BEGIN TRANSACTION
-                    
-                    WebhookSvc->>DB: UPDATE payments<br/>SET status = 'COMPLETED',<br/>transaction_id = ?,<br/>paid_at = NOW()
-                    
-                    WebhookSvc->>PaymentSvc: confirmPayment(paymentId)
-                    activate PaymentSvc
-                    
-                    PaymentSvc->>DB: SELECT order_id FROM payments
-                    DB-->>PaymentSvc: Order ID
-                    
-                    PaymentSvc->>OrderSvc: updatePaymentStatus(orderId, PAID)
-                    activate OrderSvc
-                    
-                    OrderSvc->>DB: UPDATE orders<br/>SET payment_status = 'PAID',<br/>status = 'CONFIRMED',<br/>confirmed_at = NOW()
-                    Note right of DB: Auto-confirm order<br/>when payment received
-                    
-                    OrderSvc-->>PaymentSvc: Order updated
-                    deactivate OrderSvc
-                    
-                    PaymentSvc-->>WebhookSvc: Payment confirmed
-                    deactivate PaymentSvc
-                    
-                    Note over WebhookSvc,AcctSvc: Phase 8: Record Accounting Entry
-                    WebhookSvc->>AcctSvc: recordPayment(paymentId)
-                    activate AcctSvc
-                    
-                    AcctSvc->>DB: INSERT INTO financial_transaction<br/>(type, category, amount, order_id)
-                    Note right of DB: type = 'REVENUE'<br/>category = 'ONLINE_PAYMENT'<br/>amount = 500000
-                    
-                    AcctSvc-->>WebhookSvc: Accounting recorded
-                    deactivate AcctSvc
-                    
-                    WebhookSvc->>DB: COMMIT TRANSACTION
-                    
-                    WebhookSvc-->>Webhook: Success
-                    deactivate WebhookSvc
-                    Webhook-->>SePay: 200 OK
-                    deactivate Webhook
-                    
-                    Note over UI,Customer: Phase 9: Frontend Polling
-                    UI->>UI: Poll payment status every 3 seconds
-                    UI->>Webhook: GET /api/payments/{paymentCode}/status
-                    Webhook->>DB: SELECT status FROM payments
-                    DB-->>Webhook: status = 'COMPLETED'
-                    Webhook-->>UI: Payment completed
-                    
-                    UI->>UI: Stop polling
-                    UI->>UI: Redirect to success page
-                    UI-->>Customer: "Thanh toán thành công!<br/>Đơn hàng đã được xác nhận"
-                end
-            end
-        end
-    end
-```
-
-### 2.5. Payment Timeout Handling
-
-```mermaid
-sequenceDiagram
-    participant Scheduler as Spring Scheduler
-    participant PaymentSvc as PaymentService
-    participant OrderSvc as OrderService
-    participant InvSvc as InventoryService
-    participant DB as MySQL Database
-    
-    Note over Scheduler,DB: Runs every 5 minutes
-    Scheduler->>PaymentSvc: checkExpiredPayments()
-    activate PaymentSvc
-    
-    PaymentSvc->>DB: SELECT FROM payments<br/>WHERE status = 'PENDING'<br/>AND expired_at < NOW()
-    DB-->>PaymentSvc: List of expired payments
-    
-    loop For each expired payment
-        PaymentSvc->>DB: BEGIN TRANSACTION
-        
-        PaymentSvc->>DB: UPDATE payments<br/>SET status = 'EXPIRED'
-        
-        PaymentSvc->>DB: SELECT order_id FROM payments
-        DB-->>PaymentSvc: Order ID
-        
-        PaymentSvc->>OrderSvc: cancelOrder(orderId, "Payment timeout")
-        activate OrderSvc
-        
-        OrderSvc->>DB: UPDATE orders<br/>SET status = 'CANCELLED',<br/>cancel_reason = 'Payment timeout'
-        
-        OrderSvc->>InvSvc: releaseReservedStock(orderId)
-        activate InvSvc
-        
-        InvSvc->>DB: UPDATE inventory_stock<br/>SET reserved = reserved - ?<br/>WHERE product_id IN (...)
-        Note right of DB: Restore available quantity
-        
-        InvSvc-->>OrderSvc: Stock released
-        deactivate InvSvc
-        
-        OrderSvc-->>PaymentSvc: Order cancelled
-        deactivate OrderSvc
-        
-        PaymentSvc->>DB: COMMIT TRANSACTION
-        
-        Note right of PaymentSvc: Optional: Send email notification
-    end
-    
-    deactivate PaymentSvc
-```
-
-### 2.6. Business Rules - Online Payment
-
-#### Payment Expiration
-- **Timeout**: 15 minutes from order creation
-- **Scheduler**: Runs every 5 minutes to check expired payments
-- **Action**: Auto-cancel order and release reserved stock
-
-#### Webhook Security
-- **Signature Verification**: HMAC-SHA256 with secret key
-- **Idempotency**: Check transaction_id to prevent duplicate processing
-- **Response**: Always return 200 OK to prevent unnecessary retries
-
-#### Payment Matching
-- **Primary Key**: Payment code in transfer description (e.g., "PAY-20231223-00001")
-- **Fallback**: Manual matching by admin if description is incorrect
-- **Amount Verification**: Must match exactly, otherwise flag for review
-
-#### Order Status Transition
-- **On Payment Success**: PENDING_PAYMENT → CONFIRMED
-- **On Payment Timeout**: PENDING_PAYMENT → CANCELLED
-- **Stock Release**: Automatic when order is cancelled
 
 ---
 
-## 3. Validation và Error Handling
+## 2. Luồng Thanh Toán Online (SePay) - Happy Path
 
-### 3.1. Validation Points
+### 2.1. Sơ Đồ Tuần Tự - Tạo Payment và Hiển thị QR Code
 
 ```mermaid
-graph TD
-    A[Order Request] --> B{Form Validation}
-    B -->|Invalid| C[Return 400 with field errors]
-    B -->|Valid| D{Address Validation}
-    D -->|Invalid| E[Return 400 with address errors]
-    D -->|Valid| F{Stock Check}
-    F -->|Insufficient| G[Return 400 with stock details]
-    F -->|Available| H{Payment Method}
-    H -->|COD| I[Create Order - PENDING]
-    H -->|Online| J{Generate QR}
-    J -->|SePay Error| K[Return 500 - Retry]
-    J -->|Success| L[Create Order - PENDING_PAYMENT]
-    I --> M[Return Order Response]
-    L --> M
+sequenceDiagram
+    actor Customer
+    participant FE as Next.js Frontend<br/>(payment/[orderCode]/page.tsx)
+    participant PaymentCtrl as PaymentController
+    participant PaymentSvc as PaymentService
+    participant OrderRepo as OrderRepository
+    participant UserRepo as UserRepository
+    participant PaymentRepo as PaymentRepository
+    participant BankAccRepo as BankAccountRepository
+    participant DB as MySQL Database
+    
+    Note over Customer,DB: Khách hàng vào trang thanh toán
+    Customer->>FE: Truy cập /payment/{orderCode}
+    
+    FE->>FE: useEffect() - Check authentication
+    FE->>FE: loadPaymentInfo()
+    
+    Note over FE,DB: Load Order Info
+    FE->>PaymentCtrl: GET /api/orders/code/{orderCode}<br/>Headers: Authorization Bearer token
+    PaymentCtrl->>OrderRepo: findByOrderCode(orderCode)
+    OrderRepo->>DB: SELECT * FROM orders WHERE order_code = ?
+    DB-->>OrderRepo: Order data
+    OrderRepo-->>PaymentCtrl: Order entity
+    PaymentCtrl-->>FE: ApiResponse(Order data)
+    
+    FE->>FE: setOrder(orderData)
+    
+    Note over FE,DB: Load Payment Info
+    FE->>PaymentCtrl: GET /api/payment/order/{orderId}<br/>Headers: Authorization Bearer token
+    PaymentCtrl->>PaymentSvc: getPaymentByOrderId(orderId)
+    PaymentSvc->>PaymentRepo: findByOrderId(orderId)
+    PaymentRepo->>DB: SELECT * FROM payments WHERE order_id = ?
+    DB-->>PaymentRepo: Payment entity
+    PaymentRepo-->>PaymentSvc: Payment
+    PaymentSvc->>PaymentSvc: toPaymentResponse(payment)
+    PaymentSvc-->>PaymentCtrl: ApiResponse(PaymentResponse)
+    PaymentCtrl-->>FE: PaymentResponse {<br/>paymentCode, amount, status,<br/>bankCode, accountNumber,<br/>accountName, content,<br/>qrCodeUrl, expiredAt<br/>}
+    
+    FE->>FE: setPayment(paymentData)
+    FE->>FE: Calculate timeLeft from expiredAt
+    FE->>FE: startPolling() - every 15s
+    
+    Note over FE,Customer: Hiển thị trang thanh toán
+    FE-->>Customer: Render payment page:<br/>- QR Code image<br/>- Bank info (bankCode, accountNumber, accountName)<br/>- Amount to transfer<br/>- Transfer content (paymentCode)<br/>- Countdown timer<br/>- Copy buttons
+    
+    Customer->>Customer: Mở app ngân hàng
+    Customer->>Customer: Quét QR code
 ```
 
-### 3.2. Error Response Format
+### 2.2. Sơ Đồ Tuần Tự - Xử Lý Webhook và Cập Nhật Trạng Thái
 
-```json
+```mermaid
+sequenceDiagram
+    actor Customer
+    participant Bank as Banking App
+    participant SePay as SePay System
+    participant PaymentCtrl as PaymentController<br/>(Webhook Endpoint)
+    participant PaymentSvc as PaymentService
+    participant PaymentRepo as PaymentRepository
+    participant OrderRepo as OrderRepository
+    participant EventPub as ApplicationEventPublisher
+    participant DB as MySQL Database
+    participant FE as Frontend<br/>(Polling)
+    
+    Note over Customer,SePay: Khách hàng thực hiện chuyển khoản
+    Customer->>Bank: Xác nhận chuyển khoản<br/>Content: PAY20231223XXXX
+    Bank->>Bank: Xử lý giao dịch
+    Bank->>SePay: Thông báo giao dịch thành công
+    
+    Note over SePay,DB: SePay gọi webhook
+    SePay->>PaymentCtrl: POST /api/payment/sepay/webhook<br/>Body: SepayWebhookRequest {<br/>transactionId, bankCode,<br/>accountNumber, amount,<br/>content, status, signature<br/>}
+    
+    PaymentCtrl->>PaymentSvc: handleSepayWebhook(request)
+    
+    Note over PaymentSvc: Validate webhook
+    PaymentSvc->>PaymentSvc: Check content contains "PAY"
+    PaymentSvc->>PaymentSvc: extractPaymentCode(content)<br/>Extract "PAY20231223XXXX"
+    
+    PaymentSvc->>PaymentRepo: findByPaymentCode(paymentCode)
+    PaymentRepo->>DB: SELECT * FROM payments<br/>WHERE payment_code = ?
+    DB-->>PaymentRepo: Payment entity
+    PaymentRepo-->>PaymentSvc: Payment
+    
+    PaymentSvc->>BankAccRepo: findByIsDefaultTrue()
+    BankAccRepo->>DB: SELECT * FROM bank_accounts<br/>WHERE is_default = true
+    DB-->>BankAccRepo: BankAccount
+    BankAccRepo-->>PaymentSvc: BankAccount (for signature verification)
+    
+    PaymentSvc->>PaymentSvc: verifySignature(request, apiToken)
+    PaymentSvc->>PaymentSvc: Check payment.status != SUCCESS
+    PaymentSvc->>PaymentSvc: Check amount matches
+    PaymentSvc->>PaymentSvc: Check not expired
+    
+    Note over PaymentSvc,DB: Update Payment & Order (Transaction)
+    PaymentSvc->>DB: BEGIN TRANSACTION
+    
+    PaymentSvc->>PaymentRepo: save(payment)<br/>status = SUCCESS<br/>sepayTransactionId = request.transactionId<br/>paidAt = now()<br/>sepayResponse = request.toString()
+    PaymentRepo->>DB: UPDATE payments SET<br/>status = 'SUCCESS',<br/>sepay_transaction_id = ?,<br/>paid_at = ?,<br/>sepay_response = ?<br/>WHERE id = ?
+    
+    PaymentSvc->>PaymentSvc: Get order from payment.getOrder()
+    PaymentSvc->>PaymentSvc: Store oldStatus = order.getStatus()
+    
+    PaymentSvc->>OrderRepo: save(order)<br/>paymentStatus = PAID<br/>status = CONFIRMED<br/>confirmedAt = now()
+    OrderRepo->>DB: UPDATE orders SET<br/>payment_status = 'PAID',<br/>status = 'CONFIRMED',<br/>confirmed_at = ?<br/>WHERE id = ?
+    
+    PaymentSvc->>DB: COMMIT TRANSACTION
+    
+    Note over PaymentSvc,EventPub: Publish event for accounting
+    PaymentSvc->>EventPub: publishEvent(<br/>OrderStatusChangedEvent {<br/>order, oldStatus, newStatus<br/>})
+    EventPub->>EventPub: Notify AccountingEventListener
+    
+    PaymentSvc-->>PaymentCtrl: ApiResponse.success(<br/>"Xử lý thanh toán thành công")
+    PaymentCtrl-->>SePay: 200 OK
+    
+    Note over FE,Customer: Frontend polling phát hiện thành công
+    FE->>FE: Polling interval (15s) triggers
+    FE->>PaymentCtrl: GET /api/payment/{paymentCode}/status
+    PaymentCtrl->>PaymentSvc: checkPaymentStatus(paymentCode)
+    PaymentSvc->>PaymentRepo: findByPaymentCode(paymentCode)
+    PaymentRepo->>DB: SELECT * FROM payments<br/>WHERE payment_code = ?
+    DB-->>PaymentRepo: Payment (status = SUCCESS)
+    PaymentRepo-->>PaymentSvc: Payment
+    PaymentSvc->>PaymentSvc: toPaymentResponse(payment)
+    PaymentSvc-->>PaymentCtrl: ApiResponse(PaymentResponse {<br/>status: "SUCCESS"<br/>})
+    PaymentCtrl-->>FE: Payment status: SUCCESS
+    
+    FE->>FE: Detect status === 'SUCCESS'
+    FE->>FE: handlePaymentSuccess()
+    FE->>FE: clearInterval(pollingInterval)
+    FE->>FE: toast.success("Thanh toán thành công!")
+    FE->>FE: router.push(`/orders/${orderCode}?success=true`)
+    
+    FE-->>Customer: Redirect to order detail page<br/>✅ "Thanh toán thành công!"
+```
+
+---
+
+## 3. Key Components
+
+### 3.1. Frontend Components
+
+**PaymentPage** (`src/frontend/app/payment/[orderCode]/page.tsx`)
+- Load order và payment info khi mount
+- Hiển thị QR code và thông tin ngân hàng
+- Countdown timer (15 phút)
+- Polling payment status mỗi 15 giây
+- Auto-redirect khi thanh toán thành công
+- Nút hủy đơn hàng
+
+### 3.2. Backend Components
+
+**PaymentController** (`PaymentController.java`)
+- `POST /api/payment/create` - Tạo payment mới (Customer/Admin)
+- `GET /api/payment/{paymentCode}` - Lấy thông tin payment
+- `GET /api/payment/order/{orderId}` - Lấy payment theo orderId
+- `GET /api/payment/{paymentCode}/status` - Check trạng thái (Public)
+- `POST /api/payment/sepay/webhook` - Webhook từ SePay (Public)
+- `GET/POST /api/payment/test-webhook/{paymentCode}` - Test webhook (Dev)
+
+**PaymentService** (`PaymentServiceImpl.java`)
+- `createPayment()` - Tạo payment, generate QR code
+- `getPaymentByCode()` - Lấy payment theo code
+- `getPaymentByOrderId()` - Lấy payment theo orderId
+- `handleSepayWebhook()` - Xử lý webhook, update payment & order
+- `checkPaymentStatus()` - Check và auto-expire nếu hết hạn
+- `expireOldPayments()` - Cron job expire payments cũ
+
+### 3.3. DTOs
+
+**CreatePaymentRequest**
+```java
 {
-  "success": false,
-  "error": {
-    "code": "INSUFFICIENT_STOCK",
-    "message": "Không đủ hàng để đặt",
-    "details": [
-      {
-        "productId": 123,
-        "productName": "iPhone 15 Pro Max",
-        "required": 5,
-        "available": 2
-      }
-    ]
-  },
-  "timestamp": "2023-12-23T10:30:00Z"
+  orderId: Long,
+  amount: Double,
+  returnUrl: String (optional)
 }
 ```
 
-### 3.3. Retry Strategy
-
-| Scenario | Retry | Strategy |
-|----------|-------|----------|
-| Stock check fails | Yes | Immediate retry (user action) |
-| SePay QR generation fails | Yes | Exponential backoff (3 attempts) |
-| Webhook processing fails | Yes | SePay auto-retry (5 times, 5 min interval) |
-| Database timeout | Yes | Spring @Retryable (3 attempts) |
-| Payment timeout | No | Auto-cancel after 15 minutes |
-
----
-
-## 4. Performance Considerations
-
-### 4.1. Database Optimization
-
-- **Indexes**: 
-  - `orders(order_code)` - UNIQUE index for fast lookup
-  - `orders(customer_id, status)` - Composite index for customer order list
-  - `payments(payment_code)` - UNIQUE index for webhook matching
-  - `inventory_stock(product_id)` - Index for stock checks
-
-- **Transaction Isolation**: 
-  - Use `READ_COMMITTED` for order creation
-  - Use `SERIALIZABLE` for stock reservation to prevent race conditions
-
-### 4.2. Concurrency Handling
-
-```sql
--- Pessimistic locking for stock reservation
-SELECT * FROM inventory_stock 
-WHERE product_id = ? 
-FOR UPDATE;
-
-UPDATE inventory_stock 
-SET reserved = reserved + ? 
-WHERE product_id = ?;
-```
-
-### 4.3. Caching Strategy (Future Enhancement)
-
-- Cache product information (price, name) for 5 minutes
-- Cache province/district/ward data (rarely changes)
-- Do NOT cache inventory stock (real-time data)
-
----
-
-## 5. Monitoring và Logging
-
-### 5.1. Key Metrics
-
-- **Order Creation Rate**: Orders per minute
-- **Payment Success Rate**: Successful payments / Total payments
-- **Stock Check Latency**: Average time for stock validation
-- **Webhook Processing Time**: Time from webhook receipt to order update
-
-### 5.2. Log Events
-
+**PaymentResponse**
 ```java
-// Order creation
-log.info("Order created: orderCode={}, customerId={}, total={}, paymentMethod={}", 
-    orderCode, customerId, total, paymentMethod);
+{
+  paymentId: Long,
+  paymentCode: String,
+  amount: Double,
+  status: String,
+  bankCode: String,
+  accountNumber: String,
+  accountName: String,
+  content: String,
+  qrCodeUrl: String,
+  expiredAt: String,
+  message: String
+}
+```
 
-// Stock reservation
-log.info("Stock reserved: productId={}, quantity={}, remainingAvailable={}", 
-    productId, quantity, remainingAvailable);
+**SepayWebhookRequest**
+```java
+{
+  transactionId: String,
+  bankCode: String,
+  accountNumber: String,
+  amount: Double,
+  content: String,
+  transactionDate: String,
+  status: String,
+  signature: String
+}
+```
 
-// Payment webhook
-log.info("Payment webhook received: transactionId={}, amount={}, paymentCode={}", 
-    transactionId, amount, paymentCode);
+### 3.4. Entities
 
-// Payment matched
-log.info("Payment matched: paymentCode={}, orderId={}, status={}", 
-    paymentCode, orderId, newStatus);
+**Payment** (`Payment.java`)
+- id, paymentCode (unique)
+- order (OneToOne), user (ManyToOne)
+- amount, method (SEPAY), status (PENDING/SUCCESS/EXPIRED/FAILED)
+- sepayTransactionId, sepayBankCode, sepayAccountNumber, sepayAccountName
+- sepayContent, sepayQrCode, sepayResponse
+- createdAt, paidAt, expiredAt (15 phút), failureReason
 
-// Error cases
-log.error("Insufficient stock: productId={}, required={}, available={}", 
-    productId, required, available);
-log.error("Payment amount mismatch: expected={}, actual={}, paymentCode={}", 
-    expected, actual, paymentCode);
+**PaymentStatus** (Enum)
+- PENDING - Chờ thanh toán
+- SUCCESS - Thanh toán thành công
+- EXPIRED - Hết hạn
+- FAILED - Thất bại
+
+**PaymentMethod** (Enum)
+- SEPAY - Thanh toán qua SePay
+
+---
+
+## 4. Database Schema
+
+### 4.1. Key Tables
+
+**orders**
+- order_id (PK)
+- order_code (UNIQUE)
+- customer_id (FK)
+- payment_id (FK to payments)
+- status (PENDING, PENDING_PAYMENT, CONFIRMED, ...)
+- payment_method (COD, ONLINE)
+- payment_status (UNPAID, PAID, PENDING)
+- total
+- shipping_address
+- confirmed_at
+- created_at
+
+**order_items**
+- order_item_id (PK)
+- order_id (FK)
+- product_id (FK)
+- quantity
+- price
+
+**payments**
+- id (PK)
+- payment_code (UNIQUE) - Format: PAY20231223XXXX
+- order_id (FK to orders)
+- user_id (FK to users)
+- amount
+- method (SEPAY)
+- status (PENDING, SUCCESS, EXPIRED, FAILED)
+- sepay_transaction_id
+- sepay_bank_code
+- sepay_account_number
+- sepay_account_name
+- sepay_content
+- sepay_qr_code (URL)
+- sepay_response (TEXT)
+- created_at
+- paid_at
+- expired_at (created_at + 15 minutes)
+- failure_reason
+
+**bank_accounts**
+- id (PK)
+- bank_code
+- account_number
+- account_name
+- sepay_api_token
+- is_default (boolean)
+
+**inventory_stock**
+- stock_id (PK)
+- product_id (FK)
+- on_hand
+- reserved
+- damaged
+- available (computed: on_hand - reserved - damaged)
+
+**financial_transactions**
+- transaction_id (PK)
+- order_id (FK)
+- type (REVENUE, EXPENSE)
+- category (ONLINE_PAYMENT, COD_PAYMENT, ...)
+- amount
+- transaction_date
+
+---
+
+## 5. Business Rules
+
+### 5.1. Payment Flow
+- **Payment Creation**: Tạo payment khi order đã tồn tại (không tạo cùng lúc với order)
+- **Payment Code**: Format PAY + YYYYMMDD + 4 số random (e.g., PAY202312230001)
+- **QR Code**: Generate bằng VietQR API với template 'qr_only'
+- **Expiration**: Payment hết hạn sau 15 phút kể từ lúc tạo
+- **Bank Account**: Lấy từ bank_accounts table (is_default = true), fallback về config
+
+### 5.2. Order Status Transitions
+- **COD Orders**: PENDING → CONFIRMED (manual) → PREPARING → READY_TO_SHIP → SHIPPING → DELIVERED
+- **Online Payment Orders**: 
+  - PENDING_PAYMENT (chờ thanh toán)
+  - → CONFIRMED (auto sau khi thanh toán thành công)
+  - → PREPARING → READY_TO_SHIP → SHIPPING → DELIVERED
+- **Payment Expired**: PENDING_PAYMENT → CANCELLED (auto)
+
+### 5.3. Payment Status
+- **PENDING**: Chờ khách hàng chuyển khoản
+- **SUCCESS**: Webhook xác nhận thanh toán thành công
+- **EXPIRED**: Quá 15 phút chưa thanh toán
+- **FAILED**: Lỗi trong quá trình xử lý
+
+### 5.4. Webhook Processing
+- **Content Matching**: Extract payment code từ transfer content (có thể có text thêm)
+- **Signature Verification**: Verify với sepay_api_token từ bank_accounts
+- **Amount Validation**: So sánh amount từ webhook với payment.amount
+- **Idempotency**: Check payment.status != SUCCESS để tránh xử lý trùng
+- **Response**: Luôn return 200 OK cho SePay
+
+### 5.5. Frontend Polling
+- **Interval**: 15 giây (tối ưu để giảm tải server)
+- **Max Attempts**: 40 lần (10 phút)
+- **Primary Method**: Webhook là chính, polling chỉ là fallback
+- **Auto-redirect**: Khi detect status = SUCCESS
+
+### 5.6. Accounting Integration
+- **Trigger**: Publish OrderStatusChangedEvent khi order chuyển sang CONFIRMED
+- **Listener**: AccountingEventListener tự động tạo financial_transaction
+- **Type**: REVENUE
+- **Category**: ONLINE_PAYMENT
+
+---
+
+## 6. API Endpoints
+
+### 6.1. Order APIs
+
+```
+POST   /api/orders              - Create order from cart
+GET    /api/orders              - Get customer's orders
+GET    /api/orders/{orderId}    - Get order detail
+GET    /api/orders/code/{code}  - Get order by code
+PUT    /api/orders/{orderId}/cancel - Cancel order
+```
+
+### 6.2. Payment APIs
+
+```
+POST   /api/payment/create                    - Create payment (Customer/Admin)
+GET    /api/payment/{paymentCode}             - Get payment info (Customer/Admin)
+GET    /api/payment/order/{orderId}           - Get payment by orderId (Customer/Admin)
+GET    /api/payment/{paymentCode}/status      - Check payment status (Public)
+GET    /api/payment/my-payments               - Get user's payments (Customer/Admin)
+POST   /api/payment/sepay/webhook             - SePay webhook (Public)
+GET/POST /api/payment/test-webhook/{paymentCode} - Test webhook (Dev)
+POST   /api/payment/admin/expire-old-payments - Manual expire (Admin)
+```
+
+### 6.3. Cart APIs
+
+```
+POST   /api/cart/add            - Add item to cart
+GET    /api/cart                - Get cart items
+DELETE /api/cart/item/{itemId}  - Remove item from cart
 ```
 
 ---
 
-## 6. Kết Luận
-
-### 6.1. Điểm Mạnh
-
-1. **Validation Toàn Diện**: Kiểm tra dữ liệu ở nhiều tầng (frontend, backend, database)
-2. **Stock Management**: Reserve stock ngay khi tạo đơn để tránh overselling
-3. **Payment Security**: Webhook signature verification, idempotency check
-4. **Error Handling**: Chi tiết, user-friendly error messages
-5. **Transaction Safety**: ACID compliance với database transactions
-
-### 6.2. Trade-offs
-
-1. **Stock Reservation**: Reserved stock có thể bị "lock" nếu customer không thanh toán
-   - **Mitigation**: Auto-cancel sau 15 phút cho online payment
-   
-2. **Webhook Dependency**: Phụ thuộc vào SePay webhook cho payment confirmation
-   - **Mitigation**: Polling mechanism trên frontend, manual matching option
-
-3. **Database Load**: Multiple queries cho stock check và validation
-   - **Mitigation**: Indexes, connection pooling, future caching
-
-### 6.3. Future Improvements
-
-1. **Async Processing**: Use message queue (RabbitMQ/Kafka) for webhook processing
-2. **Caching**: Redis cache for product data and address data
-3. **Rate Limiting**: Prevent abuse of order creation endpoint
-4. **Notification**: Email/SMS notification for order status changes
-5. **Analytics**: Real-time dashboard for order metrics
-
----
-
-**Document Version**: 1.0  
-**Last Updated**: 2023-12-23  
+**Document Version**: 3.0  
+**Last Updated**: 2024-12-25  
 **Author**: System Analysis Team
