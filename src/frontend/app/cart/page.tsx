@@ -61,15 +61,25 @@ export default function CartPage() {
   }
 
   const handleRemoveItem = async (itemId: number) => {
+    console.log('🗑️ Attempting to remove item:', itemId)
     if (!confirm('Bạn có chắc muốn xóa sản phẩm này?')) return
     
     try {
+      console.log('📤 Calling removeCartItem API...')
       const response = await cartApi.removeCartItem(itemId)
+      console.log('📥 Remove response:', response)
+      
       if (response.success) {
-        loadCart()
+        console.log('✅ Remove successful, reloading cart...')
+        await loadCart()
+        console.log('✅ Cart reloaded')
         toast.success('Đã xóa sản phẩm')
+      } else {
+        console.error('❌ Remove failed:', response.message)
+        toast.error(response.message || 'Không thể xóa sản phẩm')
       }
     } catch (error: any) {
+      console.error('❌ Error removing item:', error)
       toast.error(error.message || 'Lỗi khi xóa')
     }
   }
@@ -167,7 +177,7 @@ export default function CartPage() {
                     {/* Quantity */}
                     <div className="flex items-center space-x-2">
                       <button
-                        onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
+                        onClick={() => handleUpdateQuantity(item.itemId, item.quantity - 1)}
                         className="w-8 h-8 border border-gray-300 rounded hover:bg-gray-100"
                       >
                         -
@@ -175,11 +185,11 @@ export default function CartPage() {
                       <input
                         type="number"
                         value={item.quantity}
-                        onChange={(e) => handleUpdateQuantity(item.id, parseInt(e.target.value) || 1)}
+                        onChange={(e) => handleUpdateQuantity(item.itemId, parseInt(e.target.value) || 1)}
                         className="w-16 text-center border border-gray-300 rounded py-1"
                       />
                       <button
-                        onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                        onClick={() => handleUpdateQuantity(item.itemId, item.quantity + 1)}
                         className="w-8 h-8 border border-gray-300 rounded hover:bg-gray-100"
                       >
                         +
@@ -195,7 +205,7 @@ export default function CartPage() {
 
                     {/* Remove */}
                     <button
-                      onClick={() => handleRemoveItem(item.id)}
+                      onClick={() => handleRemoveItem(item.itemId)}
                       className="text-red-500 hover:text-red-700 p-2"
                     >
                       <FiTrash2 size={20} />

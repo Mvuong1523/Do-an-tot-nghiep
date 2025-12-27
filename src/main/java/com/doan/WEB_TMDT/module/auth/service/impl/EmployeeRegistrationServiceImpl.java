@@ -27,14 +27,7 @@ public class EmployeeRegistrationServiceImpl implements EmployeeRegistrationServ
     @Override
     @Transactional
     public ApiResponse registerEmployee(String fullName, String email, String phone, String address, Position position, String note) {
-        System.out.println("=== REGISTER EMPLOYEE START ===");
-        System.out.println("Full Name: " + fullName);
-        System.out.println("Email: " + email);
-        System.out.println("Phone: " + phone);
-        System.out.println("Address: " + address);
-        System.out.println("Position: " + position);
-        System.out.println("Note: " + note);
-        
+
         // Kiểm tra email đã tồn tại trong registration (chờ duyệt) hoặc users (đã duyệt)
         if (registrationRepo.existsByEmail(email)) {
             System.out.println("ERROR: Email already exists in registration");
@@ -68,21 +61,12 @@ public class EmployeeRegistrationServiceImpl implements EmployeeRegistrationServ
                 .createdAt(LocalDateTime.now())
                 .build();
         
-        System.out.println("Before save - Total count: " + registrationRepo.count());
-        System.out.println("Saving registration to database...");
-        System.out.println("Registration object: " + reg);
+
         
         EmployeeRegistration saved = registrationRepo.save(reg);
-        System.out.println("✅ SAVE SUCCESSFUL - ID: " + saved.getId());
-        
+
         // Force flush to database immediately
         registrationRepo.flush();
-        System.out.println("✅ FLUSH SUCCESSFUL");
-        
-        System.out.println("After save - Total count: " + registrationRepo.count());
-        System.out.println("Verifying saved data exists: " + registrationRepo.existsById(saved.getId()));
-        
-        System.out.println("=== REGISTER EMPLOYEE END - SUCCESS ===");
         return ApiResponse.success("Gửi yêu cầu đăng ký nhân viên thành công, chờ admin duyệt!", saved);
     }
 
