@@ -21,6 +21,8 @@ public interface TaxReportRepository extends JpaRepository<TaxReport, Long> {
     
     boolean existsByReportCode(String reportCode);
     
+    java.util.Optional<TaxReport> findByReportCode(String reportCode);
+    
     @Query("SELECT SUM(t.remainingTax) FROM TaxReport t WHERE t.status != 'PAID'")
     Double sumRemainingTax();
     

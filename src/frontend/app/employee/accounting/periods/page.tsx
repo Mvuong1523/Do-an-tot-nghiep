@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { FiLock, FiUnlock } from 'react-icons/fi'
+import { FiLock, FiUnlock, FiRefreshCw } from 'react-icons/fi'
 
 export default function PeriodsPage() {
   const router = useRouter()
@@ -129,6 +129,36 @@ export default function PeriodsPage() {
     }
   }
 
+  const recalculatePeriod = async (id: number) => {
+    if (!confirm('Cập nhật dữ liệu kỳ từ giao dịch mới nhất?')) {
+      return
+    }
+
+    try {
+      setLoading(true)
+      const token = localStorage.getItem('auth_token')
+      const response = await fetch(`http://localhost:8080/api/accounting/periods/${id}/calculate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        toast.success('Cập nhật dữ liệu thành công')
+        loadPeriods()
+      } else {
+        toast.error(result.message || 'Lỗi khi cập nhật')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Lỗi khi cập nhật dữ liệu')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -194,17 +224,29 @@ export default function PeriodsPage() {
                       {period.closedBy || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      {period.status === 'OPEN' ? (
-                        <button
-                          onClick={() => closePeriod(period.id)}
-                          disabled={loading}
-                          className="inline-flex items-center px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50"
-                        >
-                          <FiLock className="mr-1" size={14} />
-                          Chốt kỳ
-                        </button>
-                      ) : (
-                        isAdmin && (
+                      <div className="flex justify-center space-x-2">
+                        {period.status === 'OPEN' && (
+                          <>
+                            <button
+                              onClick={() => recalculatePeriod(period.id)}
+                              disabled={loading}
+                              className="inline-flex items-center px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 disabled:opacity-50"
+                              title="Cập nhật dữ liệu"
+                            >
+                              <FiRefreshCw className="mr-1" size={14} />
+                              Cập nhật
+                            </button>
+                            <button
+                              onClick={() => closePeriod(period.id)}
+                              disabled={loading}
+                              className="inline-flex items-center px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50"
+                            >
+                              <FiLock className="mr-1" size={14} />
+                              Chốt kỳ
+                            </button>
+                          </>
+                        )}
+                        {period.status === 'CLOSED' && isAdmin && (
                           <button
                             onClick={() => reopenPeriod(period.id)}
                             disabled={loading}
@@ -213,8 +255,8 @@ export default function PeriodsPage() {
                             <FiUnlock className="mr-1" size={14} />
                             Mở khóa
                           </button>
-                        )
-                      )}
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -23,7 +23,7 @@ public class FinancialTransactionController {
     private final FinancialTransactionService transactionService;
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN') or (hasRole('EMPLOYEE') and @employeeSecurityService.hasPosition(authentication, 'ACCOUNTANT'))")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse> getAllTransactions(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
@@ -33,13 +33,13 @@ public class FinancialTransactionController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or (hasRole('EMPLOYEE') and @employeeSecurityService.hasPosition(authentication, 'ACCOUNTANT'))")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse> getTransactionById(@PathVariable Long id) {
         return ResponseEntity.ok(transactionService.getTransactionById(id));
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or (hasRole('EMPLOYEE') and @employeeSecurityService.hasPosition(authentication, 'ACCOUNTANT'))")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse> createTransaction(
             @RequestBody FinancialTransactionRequest request,
             Authentication authentication
@@ -49,7 +49,7 @@ public class FinancialTransactionController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or (hasRole('EMPLOYEE') and @employeeSecurityService.hasPosition(authentication, 'ACCOUNTANT'))")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse> updateTransaction(
             @PathVariable Long id,
             @RequestBody FinancialTransactionRequest request
@@ -58,13 +58,13 @@ public class FinancialTransactionController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or (hasRole('EMPLOYEE') and @employeeSecurityService.hasPosition(authentication, 'ACCOUNTANT'))")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse> deleteTransaction(@PathVariable Long id) {
         return ResponseEntity.ok(transactionService.deleteTransaction(id));
     }
 
     @PostMapping("/search")
-    @PreAuthorize("hasRole('ADMIN') or (hasRole('EMPLOYEE') and @employeeSecurityService.hasPosition(authentication, 'ACCOUNTANT'))")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse> searchTransactions(@RequestBody SearchRequest request) {
         return ResponseEntity.ok(transactionService.searchTransactions(request.getStartDate(), request.getEndDate()));
     }

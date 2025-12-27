@@ -147,11 +147,6 @@ export default function EmployeeLayout({
       path: '/employee/accounting',
       children: [
         {
-          title: 'Tổng quan',
-          icon: <FiFileText size={18} />,
-          path: '/employee/accounting',
-        },
-        {
           title: 'Giao dịch tài chính',
           icon: <FiFileText size={18} />,
           path: '/employee/accounting/transactions',

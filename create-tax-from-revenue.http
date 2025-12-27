@@ -1,0 +1,35 @@
+### Tạo Báo Cáo Thuế Tự Động Từ Doanh Thu Thực Tế
+
+### 1. Login
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "ketoan@gmail.com",
+  "password": "123456"
+}
+
+> {%
+  client.global.set("token", response.body.token);
+  client.log("✅ Login thành công");
+%}
+
+### 2. Kiểm tra doanh thu tháng 12/2025
+GET http://localhost:8080/api/accounting/tax/calculate-revenue?periodStart=2025-12-01&periodEnd=2025-12-31
+Authorization: Bearer {{token}}
+
+### 3. Tạo báo cáo VAT tháng 12/2025 TỰ ĐỘNG
+POST http://localhost:8080/api/accounting/tax/auto-create?periodStart=2025-12-01&periodEnd=2025-12-31&taxType=VAT
+Authorization: Bearer {{token}}
+
+### 4. Tạo báo cáo Thuế TNDN tháng 12/2025 TỰ ĐỘNG
+POST http://localhost:8080/api/accounting/tax/auto-create?periodStart=2025-12-01&periodEnd=2025-12-31&taxType=CORPORATE_TAX
+Authorization: Bearer {{token}}
+
+### 5. Xem tất cả báo cáo thuế
+GET http://localhost:8080/api/accounting/tax/reports
+Authorization: Bearer {{token}}
+
+### 6. Xem tổng quan thuế
+GET http://localhost:8080/api/accounting/tax/summary
+Authorization: Bearer {{token}}

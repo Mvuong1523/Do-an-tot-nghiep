@@ -74,16 +74,23 @@ export default function EmployeeDashboard() {
       console.log('📊 Stats response:', statsResponse)
       console.log('📊 Stats data:', statsResponse.data)
       
-      if (statsResponse.data) {
-        setStats(statsResponse.data)
+      // Backend trả về {success, message, data}, nên cần lấy data.data
+      const statsData = statsResponse.data?.data || statsResponse.data
+      if (statsData) {
+        setStats(statsData)
       }
 
       const ordersResponse = await api.get('/dashboard/recent-orders?limit=5')
       console.log('📦 Orders response:', ordersResponse)
       console.log('📦 Orders data:', ordersResponse.data)
       
-      if (ordersResponse.data) {
-        setRecentOrders(ordersResponse.data)
+      // Backend trả về {success, message, data}, nên cần lấy data.data
+      const ordersData = ordersResponse.data?.data || ordersResponse.data
+      if (Array.isArray(ordersData)) {
+        setRecentOrders(ordersData)
+      } else {
+        console.warn('⚠️ Orders data is not an array:', ordersData)
+        setRecentOrders([])
       }
       
       console.log('✅ Dashboard data loaded successfully')

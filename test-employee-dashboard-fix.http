@@ -1,0 +1,77 @@
+### Test Employee Dashboard Permission Fix
+### This file tests the dashboard endpoints with ACCOUNTANT user
+
+### 1. Login as ACCOUNTANT (ketoan@gmail.com)
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "ketoan@gmail.com",
+  "password": "123456"
+}
+
+> {%
+  client.global.set("auth_token", response.body.token);
+  client.log("Token: " + response.body.token);
+  client.log("User: " + JSON.stringify(response.body.user));
+  client.log("Employee: " + JSON.stringify(response.body.employee));
+%}
+
+### 2. Get Dashboard Stats (Should return 200 OK)
+GET http://localhost:8080/api/dashboard/stats
+Authorization: Bearer {{auth_token}}
+
+### 3. Get Recent Orders (Should return 200 OK)
+GET http://localhost:8080/api/dashboard/recent-orders?limit=5
+Authorization: Bearer {{auth_token}}
+
+### 4. Test with SALE position
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "sale@gmail.com",
+  "password": "123456"
+}
+
+> {%
+  client.global.set("sale_token", response.body.token);
+%}
+
+### 5. Get Dashboard Stats as SALE (Should return 200 OK)
+GET http://localhost:8080/api/dashboard/stats
+Authorization: Bearer {{sale_token}}
+
+### 6. Test with WAREHOUSE position
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "warehouse@gmail.com",
+  "password": "123456"
+}
+
+> {%
+  client.global.set("warehouse_token", response.body.token);
+%}
+
+### 7. Get Dashboard Stats as WAREHOUSE (Should return 200 OK)
+GET http://localhost:8080/api/dashboard/stats
+Authorization: Bearer {{warehouse_token}}
+
+### 8. Test Accounting Dashboard (ACCOUNTANT specific)
+GET http://localhost:8080/api/accounting/dashboard/stats
+Authorization: Bearer {{auth_token}}
+
+### 9. Test Accounting Reconciliation (ACCOUNTANT specific)
+GET http://localhost:8080/api/accounting/reconciliation/summary
+Authorization: Bearer {{auth_token}}
+
+### 10. Verify JWT Token Claims
+### Decode the token at https://jwt.io to verify:
+### - position: "ACCOUNTANT"
+### - role: "EMPLOYEE"
+### Expected authorities after fix:
+### - ACCOUNTANT
+### - EMPLOYEE
+### - ROLE_EMPLOYEE

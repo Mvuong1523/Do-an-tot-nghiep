@@ -13,4 +13,7 @@ public interface TaxReportService {
     ApiResponse submitTaxReport(Long id);
     ApiResponse markAsPaid(Long id);
     ApiResponse getTaxSummary();
+    ApiResponse calculateTaxableRevenue(String periodStart, String periodEnd);
+    ApiResponse autoCreateTaxReport(String periodStart, String periodEnd, TaxType taxType, String createdBy);
+    ApiResponse recalculateTaxReport(Long id);
 }

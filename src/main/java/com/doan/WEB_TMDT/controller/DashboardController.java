@@ -15,13 +15,13 @@ public class DashboardController {
     private final AccountingService accountingService;
 
     @GetMapping("/stats")
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_EMPLOYEE')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'EMPLOYEE', 'ACCOUNTANT', 'SALE', 'SALES', 'WAREHOUSE', 'PRODUCT_MANAGER', 'CSKH', 'SHIPPER')")
     public ApiResponse getDashboardStats() {
         return accountingService.getDashboardStats();
     }
 
     @GetMapping("/recent-orders")
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_EMPLOYEE')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'EMPLOYEE', 'ACCOUNTANT', 'SALE', 'SALES', 'WAREHOUSE', 'PRODUCT_MANAGER', 'CSKH', 'SHIPPER')")
     public ApiResponse getRecentOrders(@RequestParam(defaultValue = "10") int limit) {
         return accountingService.getRecentOrders(limit);
     }

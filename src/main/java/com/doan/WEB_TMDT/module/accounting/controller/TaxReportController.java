@@ -19,25 +19,25 @@ public class TaxReportController {
     private final TaxReportService taxReportService;
 
     @GetMapping("/reports")
-    @PreAuthorize("hasRole('ADMIN') or (hasRole('EMPLOYEE') and @employeeSecurityService.hasPosition(authentication, 'ACCOUNTANT'))")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse> getAllTaxReports() {
         return ResponseEntity.ok(taxReportService.getAllTaxReports());
     }
 
     @GetMapping("/reports/{type}")
-    @PreAuthorize("hasRole('ADMIN') or (hasRole('EMPLOYEE') and @employeeSecurityService.hasPosition(authentication, 'ACCOUNTANT'))")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse> getTaxReportsByType(@PathVariable TaxType type) {
         return ResponseEntity.ok(taxReportService.getTaxReportsByType(type));
     }
 
     @GetMapping("/reports/detail/{id}")
-    @PreAuthorize("hasRole('ADMIN') or (hasRole('EMPLOYEE') and @employeeSecurityService.hasPosition(authentication, 'ACCOUNTANT'))")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse> getTaxReportById(@PathVariable Long id) {
         return ResponseEntity.ok(taxReportService.getTaxReportById(id));
     }
 
     @PostMapping("/reports")
-    @PreAuthorize("hasRole('ADMIN') or (hasRole('EMPLOYEE') and @employeeSecurityService.hasPosition(authentication, 'ACCOUNTANT'))")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse> createTaxReport(
             @RequestBody TaxReportRequest request,
             Authentication authentication
@@ -47,7 +47,7 @@ public class TaxReportController {
     }
 
     @PutMapping("/reports/{id}")
-    @PreAuthorize("hasRole('ADMIN') or (hasRole('EMPLOYEE') and @employeeSecurityService.hasPosition(authentication, 'ACCOUNTANT'))")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse> updateTaxReport(
             @PathVariable Long id,
             @RequestBody TaxReportRequest request
@@ -56,20 +56,47 @@ public class TaxReportController {
     }
 
     @PostMapping("/reports/{id}/submit")
-    @PreAuthorize("hasRole('ADMIN') or (hasRole('EMPLOYEE') and @employeeSecurityService.hasPosition(authentication, 'ACCOUNTANT'))")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse> submitTaxReport(@PathVariable Long id) {
         return ResponseEntity.ok(taxReportService.submitTaxReport(id));
     }
 
     @PostMapping("/reports/{id}/mark-paid")
-    @PreAuthorize("hasRole('ADMIN') or (hasRole('EMPLOYEE') and @employeeSecurityService.hasPosition(authentication, 'ACCOUNTANT'))")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse> markAsPaid(@PathVariable Long id) {
         return ResponseEntity.ok(taxReportService.markAsPaid(id));
     }
 
     @GetMapping("/summary")
-    @PreAuthorize("hasRole('ADMIN') or (hasRole('EMPLOYEE') and @employeeSecurityService.hasPosition(authentication, 'ACCOUNTANT'))")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse> getTaxSummary() {
         return ResponseEntity.ok(taxReportService.getTaxSummary());
+    }
+
+    @GetMapping("/calculate-revenue")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
+    public ResponseEntity<ApiResponse> calculateTaxableRevenue(
+            @RequestParam String periodStart,
+            @RequestParam String periodEnd
+    ) {
+        return ResponseEntity.ok(taxReportService.calculateTaxableRevenue(periodStart, periodEnd));
+    }
+
+    @PostMapping("/auto-create")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
+    public ResponseEntity<ApiResponse> autoCreateTaxReport(
+            @RequestParam String periodStart,
+            @RequestParam String periodEnd,
+            @RequestParam TaxType taxType,
+            Authentication authentication
+    ) {
+        String createdBy = authentication.getName();
+        return ResponseEntity.ok(taxReportService.autoCreateTaxReport(periodStart, periodEnd, taxType, createdBy));
+    }
+
+    @PostMapping("/reports/{id}/recalculate")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
+    public ResponseEntity<ApiResponse> recalculateTaxReport(@PathVariable Long id) {
+        return ResponseEntity.ok(taxReportService.recalculateTaxReport(id));
     }
 }
