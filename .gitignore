@@ -48,4 +48,4 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
-src/main/resources/application.properties
+application.properties
