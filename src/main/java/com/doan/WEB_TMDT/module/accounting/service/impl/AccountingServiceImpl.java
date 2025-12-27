@@ -2,13 +2,20 @@ package com.doan.WEB_TMDT.module.accounting.service.impl;
 
 import com.doan.WEB_TMDT.common.dto.ApiResponse;
 import com.doan.WEB_TMDT.common.util.SecurityUtils;
+import com.doan.WEB_TMDT.dto.DashboardStatsDTO;
+import com.doan.WEB_TMDT.dto.OrderDTO;
 import com.doan.WEB_TMDT.module.accounting.dto.ReconciliationRequest;
 import com.doan.WEB_TMDT.module.accounting.entity.*;
 import com.doan.WEB_TMDT.module.accounting.repository.*;
 import com.doan.WEB_TMDT.module.accounting.service.AccountingService;
 import com.doan.WEB_TMDT.module.order.entity.Order;
+import com.doan.WEB_TMDT.module.order.entity.OrderStatus;
 import com.doan.WEB_TMDT.module.order.repository.OrderRepository;
+import com.doan.WEB_TMDT.module.product.repository.ProductRepository;
+import com.doan.WEB_TMDT.module.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -19,7 +26,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +37,9 @@ public class AccountingServiceImpl implements AccountingService {
     private final PaymentReconciliationRepository reconciliationRepo;
     private final AccountingPeriodRepository periodRepo;
     private final OrderRepository orderRepo;
+    private final ProductRepository productRepository;
+    private final UserRepository userRepository;
+    private final FinancialTransactionRepository financialTransactionRepo;
 
     @Override
     public ApiResponse getStats() {
@@ -48,6 +60,115 @@ public class AccountingServiceImpl implements AccountingService {
         stats.put("discrepancyAmount", discrepancyAmount != null ? discrepancyAmount : 0);
 
         return ApiResponse.success("Thống kê kế toán", stats);
+    }
+
+    @Override
+    public ApiResponse getDashboardStats() {
+        LocalDateTime startOfToday = LocalDate.now().atStartOfDay();
+        LocalDateTime endOfToday = LocalDate.now().atTime(LocalTime.MAX);
+
+        LocalDateTime startOfYesterday = LocalDate.now().minusDays(1).atStartOfDay();
+        LocalDateTime endOfYesterday = LocalDate.now().minusDays(1).atTime(LocalTime.MAX);
+
+        // Lấy doanh thu từ financial_transactions (REVENUE)
+        Double todayRevenue = financialTransactionRepo.sumAmountByTypeAndDateRange(
+            TransactionType.REVENUE, startOfToday, endOfToday
+        );
+        if (todayRevenue == null) todayRevenue = 0.0;
+
+        Double yesterdayRevenue = financialTransactionRepo.sumAmountByTypeAndDateRange(
+            TransactionType.REVENUE, startOfYesterday, endOfYesterday
+        );
+        if (yesterdayRevenue == null) yesterdayRevenue = 0.0;
+
+        // Lấy chi phí từ financial_transactions (EXPENSE)
+        Double todayExpense = financialTransactionRepo.sumAmountByTypeAndDateRange(
+            TransactionType.EXPENSE, startOfToday, endOfToday
+        );
+        if (todayExpense == null) todayExpense = 0.0;
+
+        Double yesterdayExpense = financialTransactionRepo.sumAmountByTypeAndDateRange(
+            TransactionType.EXPENSE, startOfYesterday, endOfYesterday
+        );
+        if (yesterdayExpense == null) yesterdayExpense = 0.0;
+
+        // Tính lợi nhuận
+        Double todayProfit = todayRevenue - todayExpense;
+        Double yesterdayProfit = yesterdayRevenue - yesterdayExpense;
+
+        // Tính tỷ suất lợi nhuận
+        Double profitMargin = todayRevenue > 0 ? (todayProfit / todayRevenue) * 100 : 0.0;
+
+        // Đếm số đơn hàng hôm nay
+        Long todayOrders = orderRepo.findAll().stream()
+                .filter(order -> order.getCreatedAt().isAfter(startOfToday) &&
+                        order.getCreatedAt().isBefore(endOfToday))
+                .count();
+
+        Long yesterdayOrders = orderRepo.findAll().stream()
+                .filter(order -> order.getCreatedAt().isAfter(startOfYesterday) &&
+                        order.getCreatedAt().isBefore(endOfYesterday))
+                .count();
+
+        // Total stats
+        Long totalProducts = productRepository.count();
+        Long totalCustomers = userRepository.findAll().stream()
+                .filter(user -> user.getRole().name().equals("CUSTOMER"))
+                .count();
+
+        // Calculate percentage changes
+        Double revenueChange = calculatePercentageChange(todayRevenue, yesterdayRevenue);
+        Double ordersChange = calculatePercentageChange(todayOrders, yesterdayOrders);
+        Double profitChange = calculatePercentageChange(todayProfit, yesterdayProfit);
+
+        DashboardStatsDTO stats = DashboardStatsDTO.builder()
+                .totalRevenue(todayRevenue)
+                .totalOrders(todayOrders)
+                .totalProfit(todayProfit)
+                .profitMargin(profitMargin)
+                .totalProducts(totalProducts)
+                .totalCustomers(totalCustomers)
+                .revenueChangePercent(revenueChange)
+                .ordersChangePercent(ordersChange)
+                .profitChangePercent(profitChange)
+                .build();
+
+        return ApiResponse.success("Dashboard stats", stats);
+    }
+
+    @Override
+    public ApiResponse getRecentOrders(int limit) {
+        PageRequest pageRequest = PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, "createdAt"));
+        List<OrderDTO> orders = orderRepo.findAll(pageRequest).getContent().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+        
+        return ApiResponse.success("Recent orders", orders);
+    }
+
+    private OrderDTO convertToDTO(Order order) {
+        String customerEmail = "N/A";
+        if (order.getCustomer() != null && order.getCustomer().getUser() != null) {
+            customerEmail = order.getCustomer().getUser().getEmail();
+        }
+        
+        return OrderDTO.builder()
+                .id(order.getId())
+                .orderCode(order.getOrderCode())
+                .totalAmount(order.getTotal())
+                .status(order.getStatus().name())
+                .createdAt(order.getCreatedAt())
+                .customerName(order.getCustomer() != null ? order.getCustomer().getFullName() : "N/A")
+                .customerEmail(customerEmail)
+                .build();
+    }
+
+    private Double calculatePercentageChange(Number current, Number previous) {
+        if (previous == null || previous.doubleValue() == 0) {
+            return 0.0;
+        }
+        double change = ((current.doubleValue() - previous.doubleValue()) / previous.doubleValue()) * 100;
+        return Math.round(change * 10.0) / 10.0;
     }
 
     @Override

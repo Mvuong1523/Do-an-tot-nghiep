@@ -23,8 +23,8 @@ export default function AccountingPage() {
       setLoading(true)
       const token = localStorage.getItem('auth_token')
       
-      // Load financial statement (revenue, expenses, profit)
-      const statsResponse = await fetch('http://localhost:8080/api/accounting/financial-statement', {
+      // Load financial statement dashboard (tháng hiện tại)
+      const statsResponse = await fetch('http://localhost:8080/api/accounting/financial-statement/dashboard', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       const statsResult = await statsResponse.json()

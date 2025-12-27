@@ -33,6 +33,18 @@ export default function EmployeeWarehouseReportsPage() {
   const fetchReportStats = async () => {
     try {
       setLoading(true)
+      // TODO: Create /api/inventory/reports/summary endpoint
+      // For now, set empty stats
+      setStats({
+        totalImports: 0,
+        totalExports: 0,
+        totalStock: 0,
+        lowStockItems: 0,
+        importValue: 0,
+        exportValue: 0
+      })
+      
+      /* Commented out until backend endpoint is created
       const token = localStorage.getItem('auth_token') || localStorage.getItem('token')
       
       const response = await fetch(
@@ -46,6 +58,7 @@ export default function EmployeeWarehouseReportsPage() {
       if (result.success) {
         setStats(result.data)
       }
+      */
     } catch (error) {
       console.error('Error fetching report stats:', error)
       setStats({

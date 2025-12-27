@@ -7,8 +7,6 @@ import com.doan.WEB_TMDT.module.accounting.repository.FinancialTransactionReposi
 import com.doan.WEB_TMDT.module.accounting.repository.SupplierPayableRepository;
 import com.doan.WEB_TMDT.module.accounting.repository.SupplierPaymentRepository;
 import com.doan.WEB_TMDT.module.accounting.service.FinancialStatementService;
-import com.doan.WEB_TMDT.module.order.entity.OrderStatus;
-import com.doan.WEB_TMDT.module.order.entity.PaymentStatus;
 import com.doan.WEB_TMDT.module.order.repository.OrderRepository;
 import com.doan.WEB_TMDT.module.payment.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
@@ -70,35 +68,28 @@ public class FinancialStatementServiceImpl implements FinancialStatementService 
     }
 
     private FinancialStatementResponse.RevenueSection calculateRevenue(LocalDateTime start, LocalDateTime end) {
-        // Lấy tất cả đơn hàng đã xác nhận và đã thanh toán trong kỳ
-        var orders = orderRepository.findByCreatedAtBetween(start, end).stream()
-                .filter(o -> (o.getStatus() == OrderStatus.CONFIRMED || 
-                             o.getStatus() == OrderStatus.PROCESSING ||
-                             o.getStatus() == OrderStatus.SHIPPING ||
-                             o.getStatus() == OrderStatus.DELIVERED ||
-                             o.getStatus() == OrderStatus.COMPLETED) &&
-                            o.getPaymentStatus() == PaymentStatus.PAID)
-                .toList();
+        // Lấy doanh thu từ financial_transactions thay vì orders
+        Double totalRevenueFromTransactions = transactionRepository.sumAmountByTypeAndDateRange(
+            TransactionType.REVENUE, start, end
+        );
+        
+        BigDecimal totalRevenue = totalRevenueFromTransactions != null 
+            ? BigDecimal.valueOf(totalRevenueFromTransactions) 
+            : BigDecimal.ZERO;
 
-        BigDecimal totalRevenue = BigDecimal.ZERO;
-        BigDecimal productRevenue = BigDecimal.ZERO;
+        // Tính chi tiết theo category (nếu cần)
+        BigDecimal productRevenue = totalRevenue; // Tạm thời gán bằng total
         BigDecimal shippingRevenue = BigDecimal.ZERO;
 
-        for (var order : orders) {
-            BigDecimal subtotal = BigDecimal.valueOf(order.getSubtotal());
-            BigDecimal shipping = BigDecimal.valueOf(order.getShippingFee());
-            
-            productRevenue = productRevenue.add(subtotal);
-            shippingRevenue = shippingRevenue.add(shipping);
-            totalRevenue = totalRevenue.add(subtotal).add(shipping);
-        }
+        // Đếm số đơn hàng trong kỳ (để hiển thị orderCount)
+        long orderCount = orderRepository.findByCreatedAtBetween(start, end).size();
 
         return FinancialStatementResponse.RevenueSection.builder()
                 .totalRevenue(totalRevenue)
                 .productRevenue(productRevenue)
                 .shippingRevenue(shippingRevenue)
                 .otherRevenue(BigDecimal.ZERO)
-                .orderCount(orders.size())
+                .orderCount((int) orderCount)
                 .build();
     }
 

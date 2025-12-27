@@ -44,6 +44,17 @@ export default function EmployeeWarehouseDashboard() {
 
   const fetchDashboardStats = async () => {
     try {
+      // TODO: Create /api/inventory/dashboard endpoint
+      // For now, just set empty stats
+      setStats({
+        totalProducts: 0,
+        totalStock: 0,
+        lowStock: 0,
+        pendingOrders: 0
+      })
+      setLoading(false)
+      
+      /* Commented out until backend endpoint is created
       const token = localStorage.getItem('auth_token') || localStorage.getItem('token')
       const res = await fetch('http://localhost:8080/api/inventory/dashboard', {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -52,6 +63,7 @@ export default function EmployeeWarehouseDashboard() {
       if (data.success) {
         setStats(data.data)
       }
+      */
     } catch (error) {
       console.error('Error fetching dashboard stats:', error)
     } finally {

@@ -88,10 +88,10 @@ export default function AdminDashboard() {
   const loadDashboardData = async () => {
     try {
       const statsResponse = await api.get('/dashboard/stats')
-      setStats(statsResponse.data)
+      setStats(statsResponse.data.data || statsResponse.data)
 
       const ordersResponse = await api.get('/dashboard/recent-orders?limit=5')
-      setRecentOrders(ordersResponse.data)
+      setRecentOrders(ordersResponse.data.data || ordersResponse.data)
     } catch (error) {
       console.error('Error loading dashboard data:', error)
       toast.error('Lỗi khi tải dữ liệu')
@@ -164,31 +164,31 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatsCard
           title="TỔNG KHÁCH HÀNG"
-          value={stats.totalCustomers}
-          subtitle={`${stats.totalCustomers} khách hàng đăng ký`}
+          value={stats.totalCustomers || 0}
+          subtitle={`${stats.totalCustomers || 0} khách hàng đăng ký`}
           icon={<FiUsers size={24} />}
           color="green"
           trend={{
-            value: stats.customersChangePercent,
-            isPositive: stats.customersChangePercent >= 0
+            value: stats.customersChangePercent || 0,
+            isPositive: (stats.customersChangePercent || 0) >= 0
           }}
         />
 
         <StatsCard
           title="TỔNG ĐƠN HÀNG"
-          value={stats.totalOrders}
-          subtitle={`${stats.totalOrders} đơn hàng trong tháng`}
+          value={stats.totalOrders || 0}
+          subtitle={`${stats.totalOrders || 0} đơn hàng trong tháng`}
           icon={<FiShoppingBag size={24} />}
           color="orange"
           trend={{
-            value: stats.ordersChangePercent,
-            isPositive: stats.ordersChangePercent >= 0
+            value: stats.ordersChangePercent || 0,
+            isPositive: (stats.ordersChangePercent || 0) >= 0
           }}
         />
 
         <StatsCard
           title="SẢN PHẨM HẾT HÀNG"
-          value={stats.lowStockProducts}
+          value={stats.lowStockProducts || 0}
           subtitle="Sản phẩm cần nhập thêm"
           icon={<FiAlertCircle size={24} />}
           color="red"
@@ -196,7 +196,7 @@ export default function AdminDashboard() {
 
         <StatsCard
           title="TỔNG SẢN PHẨM"
-          value={stats.totalProducts}
+          value={stats.totalProducts || 0}
           subtitle="Sản phẩm đang bán"
           icon={<FiPackage size={24} />}
           color="blue"
@@ -220,7 +220,7 @@ export default function AdminDashboard() {
               </h3>
               <div className="mt-2">
                 <p className="text-3xl font-bold text-yellow-900">
-                  {stats.pendingOrders}
+                  {stats.pendingOrders || 0}
                 </p>
                 <p className="text-xs text-yellow-700 mt-1">
                   Đơn hàng cần xác nhận và xử lý
@@ -250,7 +250,7 @@ export default function AdminDashboard() {
               </h3>
               <div className="mt-2">
                 <p className="text-3xl font-bold text-red-900">
-                  {stats.overdueOrders}
+                  {stats.overdueOrders || 0}
                 </p>
                 <p className="text-xs text-red-700 mt-1">
                   Đơn quá 4 ngày chưa giao xong
@@ -280,7 +280,7 @@ export default function AdminDashboard() {
               </h3>
               <div className="mt-2">
                 <p className="text-3xl font-bold text-orange-900">
-                  {stats.overduePayables}
+                  {stats.overduePayables || 0}
                 </p>
                 <p className="text-xs text-orange-700 mt-1">
                   Công nợ NCC chưa thanh toán
@@ -329,7 +329,7 @@ export default function AdminDashboard() {
                 {stats.totalProfit > 0 ? formatPrice(stats.totalProfit) : '(Sẽ được tính sau)'}
               </h3>
               <p className="text-gray-500 text-xs mt-1">
-                Tỷ suất: {stats.profitMargin.toFixed(1)}%
+                Tỷ suất: {stats.profitMargin != null ? stats.profitMargin.toFixed(1) : '0.0'}%
               </p>
             </div>
             <div className="bg-blue-500 p-3 rounded-lg text-white">

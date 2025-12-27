@@ -24,14 +24,14 @@ public class InventoryController {
     
     // ===== Warehouse Products =====
     @GetMapping("/warehouse-products")
-    @PreAuthorize("hasAnyAuthority('WAREHOUSE', 'PRODUCT_MANAGER', 'ADMIN', 'EMPLOYEE')")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse getWarehouseProducts() {
         var products = warehouseProductRepository.findAll();
         return ApiResponse.success("Danh sách sản phẩm kho", products);
     }
     
     @GetMapping("/warehouse-products/{id}")
-    @PreAuthorize("hasAnyAuthority('WAREHOUSE', 'PRODUCT_MANAGER', 'ADMIN', 'EMPLOYEE')")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse getWarehouseProduct(@PathVariable Long id) {
         var product = warehouseProductRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm #" + id));
@@ -58,7 +58,7 @@ public class InventoryController {
     }
     // ===== Suppliers =====
     @GetMapping("/suppliers")
-    @PreAuthorize("hasAnyAuthority('WAREHOUSE', 'ADMIN', 'EMPLOYEE')")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse getAllSuppliers() {
         return inventoryService.getAllSuppliers();
     }
@@ -70,7 +70,7 @@ public class InventoryController {
     }
 
     @GetMapping("/supplier/{supplierId}/products")
-    @PreAuthorize("hasAnyAuthority('WAREHOUSE', 'ADMIN', 'EMPLOYEE')")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse getProductsBySupplier(@PathVariable Long supplierId) {
         List<Product> products = productRepository.findAllByWarehouseProduct_Supplier_Id(supplierId);
         return ApiResponse.success("Danh sách sản phẩm", products);
@@ -120,14 +120,14 @@ public class InventoryController {
 
     // ===== Search by Specifications =====
     @GetMapping("/search")
-    @PreAuthorize("hasAnyAuthority('WAREHOUSE', 'ADMIN', 'EMPLOYEE')")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse searchBySpecs(@RequestParam String keyword) {
         var products = productSpecificationService.searchBySpecValue(keyword);
         return ApiResponse.success("Tìm thấy " + products.size() + " sản phẩm", products);
     }
 
     @GetMapping("/filter")
-    @PreAuthorize("hasAnyAuthority('WAREHOUSE', 'ADMIN', 'EMPLOYEE')")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse filterBySpecs(
             @RequestParam String key,
             @RequestParam String value
@@ -138,14 +138,14 @@ public class InventoryController {
 
     // ===== Stock View (PRODUCT_MANAGER có thể xem, nhưng chỉ đọc) =====
     @GetMapping("/stock")
-    @PreAuthorize("hasAnyAuthority('WAREHOUSE', 'PRODUCT_MANAGER', 'ADMIN', 'EMPLOYEE')")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse getStocks() {
         return inventoryService.getStocks();
     }
 
     // ===== Transaction History =====
     @GetMapping("/purchase-orders")
-    @PreAuthorize("hasAnyAuthority('WAREHOUSE', 'ADMIN', 'EMPLOYEE')")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse getPurchaseOrders(@RequestParam(required = false) String status) {
         com.doan.WEB_TMDT.module.inventory.entity.POStatus poStatus = null;
         if (status != null && !status.isEmpty()) {
@@ -155,7 +155,7 @@ public class InventoryController {
     }
 
     @GetMapping("/export-orders")
-    @PreAuthorize("hasAnyAuthority('WAREHOUSE', 'ADMIN', 'EMPLOYEE')")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse getExportOrders(@RequestParam(required = false) String status) {
         com.doan.WEB_TMDT.module.inventory.entity.ExportStatus exportStatus = null;
         if (status != null && !status.isEmpty()) {
@@ -165,13 +165,13 @@ public class InventoryController {
     }
 
     @GetMapping("/purchase-orders/{id}")
-    @PreAuthorize("hasAnyAuthority('WAREHOUSE', 'ADMIN', 'EMPLOYEE')")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse getPurchaseOrderDetail(@PathVariable Long id) {
         return inventoryService.getPurchaseOrderDetail(id);
     }
 
     @GetMapping("/export-orders/{id}")
-    @PreAuthorize("hasAnyAuthority('WAREHOUSE', 'ADMIN', 'EMPLOYEE')")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse getExportOrderDetail(@PathVariable Long id) {
         return inventoryService.getExportOrderDetail(id);
     }
