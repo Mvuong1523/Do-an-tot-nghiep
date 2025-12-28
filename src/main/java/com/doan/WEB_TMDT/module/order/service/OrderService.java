@@ -14,6 +14,7 @@ public interface OrderService {
     ApiResponse getMyOrders(Long customerId);
     ApiResponse cancelOrderByCustomer(Long orderId, Long customerId, String reason);
     ApiResponse getShippingStatus(Long orderId, Long customerId);
+    ApiResponse confirmReceived(Long orderId, Long customerId); // Khách xác nhận đã nhận hàng
     
     // Admin/Staff endpoints
     ApiResponse getAllOrders(String status, int page, int size);

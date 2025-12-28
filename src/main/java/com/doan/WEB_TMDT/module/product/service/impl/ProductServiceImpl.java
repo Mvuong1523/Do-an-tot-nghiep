@@ -105,6 +105,21 @@ public class ProductServiceImpl implements ProductService {
         System.out.println("Product: " + product.getName() + ", Category: " + 
             (product.getCategory() != null ? product.getCategory().getName() : "NULL"));
         
+        // Tính số lượng khả dụng từ InventoryStock (đã trừ reserved và damaged)
+        Long availableQty = 0L;
+        if (product.getWarehouseProduct() != null) {
+            Optional<com.doan.WEB_TMDT.module.inventory.entity.InventoryStock> stockOpt = 
+                    inventoryStockRepository.findByWarehouseProduct_Id(product.getWarehouseProduct().getId());
+            if (stockOpt.isPresent()) {
+                availableQty = stockOpt.get().getSellable(); // onHand - reserved - damaged
+            }
+        } else {
+            // Fallback nếu không có WarehouseProduct
+            Long stockQty = product.getStockQuantity() != null ? product.getStockQuantity() : 0L;
+            Long reservedQty = product.getReservedQuantity() != null ? product.getReservedQuantity() : 0L;
+            availableQty = Math.max(0, stockQty - reservedQty);
+        }
+        
         var dto = ProductWithSpecsDTO.builder()
                 .id(product.getId())
                 .name(product.getName())
@@ -112,6 +127,8 @@ public class ProductServiceImpl implements ProductService {
                 .price(product.getPrice())
                 .description(product.getDescription())
                 .stockQuantity(product.getStockQuantity())
+                .reservedQuantity(product.getReservedQuantity())
+                .availableQuantity(availableQty.intValue()) // Số lượng thực sự có thể bán
                 .categoryId(product.getCategory() != null ? product.getCategory().getId() : null)
                 .categoryName(product.getCategory() != null ? product.getCategory().getName() : null)
                 .images(images)

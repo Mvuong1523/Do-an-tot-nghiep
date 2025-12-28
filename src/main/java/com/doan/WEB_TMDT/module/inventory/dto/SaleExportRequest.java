@@ -10,9 +10,6 @@ import java.util.List;
 
 @Data
 public class SaleExportRequest {
-
-    // createdBy sẽ được set tự động từ Authentication trong controller
-    // Không cần @NotBlank vì frontend không gửi, backend tự set
     private String createdBy;        // Nhân viên thao tác xuất kho
 
     @NotNull

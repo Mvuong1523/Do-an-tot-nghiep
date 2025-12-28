@@ -85,6 +85,8 @@ public class Order {
     
     private String cancelReason; // Lý do hủy
     
+    private LocalDateTime completedAt; // Hoàn thành (khách xác nhận nhận hàng)
+    
     // GHN Shipping Integration
     private String ghnOrderCode; // Mã vận đơn GHN
     

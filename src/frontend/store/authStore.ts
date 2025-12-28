@@ -17,6 +17,7 @@ export interface User {
   role: 'CUSTOMER' | 'ADMIN' | 'EMPLOYEE'
   position?: 'WAREHOUSE' | 'PRODUCT_MANAGER' | 'ACCOUNTANT' | 'SALE' | 'SALES' | 'CSKH' | 'SHIPPER'
   status?: string
+  employeeId?: number // ID của employee (nếu là nhân viên)
   customer?: {
     fullName?: string
     phone?: string
@@ -25,7 +26,7 @@ export interface User {
     birthDate?: string
   }
   employee?: {
-    id?: number
+    id?: number // ID của employee trong bảng employees
     fullName?: string
     phone?: string
     address?: string
@@ -54,7 +55,11 @@ export const useAuthStore = create<AuthStore>()(
       isAuthenticated: false,
       login: (user: User) => set({ 
         user, 
-        employee: user.employee || null,
+        employee: user.employee || (user.employeeId ? { 
+          id: user.employeeId, 
+          fullName: user.fullName, 
+          position: user.position 
+        } : null),
         isAuthenticated: true 
       }),
       logout: () => {
@@ -69,7 +74,11 @@ export const useAuthStore = create<AuthStore>()(
       },
       setUser: (user: User | null) => set({ 
         user, 
-        employee: user?.employee || null,
+        employee: user?.employee || (user?.employeeId ? { 
+          id: user.employeeId, 
+          fullName: user.fullName, 
+          position: user.position 
+        } : null),
         isAuthenticated: !!user 
       }),
       setAuth: (user: User, token: string) => {
@@ -84,9 +93,17 @@ export const useAuthStore = create<AuthStore>()(
           localStorage.setItem('auth_token', token)
           localStorage.setItem('token', token)
         }
+        
+        // Đảm bảo employee.id được set đúng
+        const employeeData = user.employee || (user.employeeId ? { 
+          id: user.employeeId, 
+          fullName: user.fullName, 
+          position: user.position 
+        } : null)
+        
         set({ 
           user, 
-          employee: user.employee || null,
+          employee: employeeData,
           token, 
           isAuthenticated: true 
         })

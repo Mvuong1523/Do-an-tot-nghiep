@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
-import { FiArrowLeft, FiPackage, FiMapPin, FiCreditCard, FiClock, FiFileText } from 'react-icons/fi'
-import { orderApi } from '@/lib/api'
+import { FiArrowLeft, FiPackage, FiMapPin, FiCreditCard, FiClock, FiFileText, FiStar, FiCheckCircle } from 'react-icons/fi'
+import { orderApi, reviewApi } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
 import toast from 'react-hot-toast'
 import GHNTracking from '@/components/GHNTracking'
+import ReviewForm from '@/components/product/ReviewForm'
 
 export default function OrderDetailPage() {
   const router = useRouter()
@@ -17,6 +18,10 @@ export default function OrderDetailPage() {
   
   const [loading, setLoading] = useState(true)
   const [order, setOrder] = useState<any>(null)
+  const [reviewingProduct, setReviewingProduct] = useState<any>(null)
+  const [reviewedProducts, setReviewedProducts] = useState<Set<number>>(new Set())
+  const [confirming, setConfirming] = useState(false)
+  const [showReviewPrompt, setShowReviewPrompt] = useState(false)
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -73,6 +78,22 @@ export default function OrderDetailPage() {
         console.log('Shipped At:', orderData.shippedAt)
         console.log('Delivered At:', orderData.deliveredAt)
         console.log('================================')
+        
+        // Check which products have been reviewed
+        if ((orderData.status?.toUpperCase() === 'DELIVERED' || orderData.status?.toUpperCase() === 'COMPLETED') && orderData.items) {
+          const reviewed = new Set<number>()
+          for (const item of orderData.items) {
+            try {
+              const canReviewRes = await reviewApi.checkCanReview(orderData.orderId, item.productId)
+              if (canReviewRes.success && canReviewRes.data && !canReviewRes.data.canReview) {
+                reviewed.add(item.productId)
+              }
+            } catch (e) {
+              // Ignore errors
+            }
+          }
+          setReviewedProducts(reviewed)
+        }
       } else {
         toast.error('Không thể tải thông tin đơn hàng')
         router.push('/orders')
@@ -122,7 +143,9 @@ export default function OrderDetailPage() {
       case 'SHIPPING':
         return 'Đang giao hàng'
       case 'DELIVERED':
-        return 'Đã giao hàng'
+        return 'Đã giao hàng - Chờ xác nhận'
+      case 'COMPLETED':
+        return 'Hoàn thành'
       case 'CANCELLED':
         return 'Đã hủy'
       case 'PROCESSING':
@@ -147,11 +170,34 @@ export default function OrderDetailPage() {
       case 'SHIPPING':
         return 'bg-purple-100 text-purple-800'
       case 'DELIVERED':
+        return 'bg-yellow-100 text-yellow-800'
+      case 'COMPLETED':
         return 'bg-green-100 text-green-800'
       case 'CANCELLED':
         return 'bg-red-100 text-red-800'
       default:
         return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  // Xác nhận đã nhận hàng
+  const handleConfirmReceived = async () => {
+    if (!confirm('Xác nhận bạn đã nhận được hàng?')) return
+    
+    try {
+      setConfirming(true)
+      const response = await orderApi.confirmReceived(order.orderId)
+      if (response.success) {
+        toast.success('Đã xác nhận nhận hàng thành công!')
+        setShowReviewPrompt(true)
+        loadOrderDetails() // Reload để cập nhật trạng thái
+      } else {
+        toast.error(response.message || 'Không thể xác nhận')
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Lỗi khi xác nhận nhận hàng')
+    } finally {
+      setConfirming(false)
     }
   }
 
@@ -211,6 +257,18 @@ export default function OrderDetailPage() {
                 {getStatusText(order.status)}
               </span>
               
+              {/* Confirm Received Button - Show if order is DELIVERED */}
+              {order.status?.toUpperCase() === 'DELIVERED' && (
+                <button
+                  onClick={handleConfirmReceived}
+                  disabled={confirming}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold text-center hover:bg-green-700 transition-colors disabled:bg-gray-400 flex items-center justify-center gap-2"
+                >
+                  <FiCheckCircle />
+                  {confirming ? 'Đang xử lý...' : 'Xác nhận đã nhận hàng'}
+                </button>
+              )}
+              
               {/* Continue Payment Button - Show if order is PENDING_PAYMENT */}
               {(order.status === 'PENDING_PAYMENT' && (order.paymentStatus === 'UNPAID' || order.paymentStatus === 'PENDING')) && (
                 <Link
@@ -219,36 +277,6 @@ export default function OrderDetailPage() {
                 >
                   💳 Tiếp tục thanh toán
                 </Link>
-              )}
-              
-              {/* Nút cập nhật sang Đang giao - CHỈ hiện khi READY_TO_SHIP */}
-              {order.status?.toUpperCase() === 'READY_TO_SHIP' && (
-                <div className="space-y-2">
-                  <button
-                    onClick={async () => {
-                      if (confirm('⚠️ Xác nhận chuyển đơn hàng sang "Đang giao hàng"?\n\n✅ Chỉ nhấn khi:\n- Tài xế đã đến lấy hàng\n- Hàng đã được giao cho đơn vị vận chuyển\n\n❌ Không nhấn nếu hàng vẫn còn ở kho!')) {
-                        try {
-                          const { adminOrderApi } = await import('@/lib/api')
-                          const response = await adminOrderApi.markShippingFromReady(order.orderId)
-                          if (response.success) {
-                            toast.success('✅ Đã cập nhật sang "Đang giao hàng"')
-                            // Reload order details
-                            loadOrderDetails()
-                          }
-                        } catch (error: any) {
-                          toast.error(error.message || 'Lỗi khi cập nhật trạng thái')
-                        }
-                      }
-                    }}
-                    className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg font-bold text-center hover:bg-purple-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
-                  >
-                    <span>🚚</span>
-                    <span>Chuyển sang Đang giao</span>
-                  </button>
-                  <p className="text-xs text-gray-600 text-center">
-                    💡 Chỉ cập nhật khi tài xế đã lấy hàng
-                  </p>
-                </div>
               )}
             </div>
           </div>
@@ -274,6 +302,32 @@ export default function OrderDetailPage() {
                 <div className="text-sm text-yellow-800">
                   <p className="font-bold mb-1">Đơn hàng đang chờ thanh toán</p>
                   <p>Vui lòng hoàn tất thanh toán để đơn hàng được xử lý. Nhấn nút "Tiếp tục thanh toán" ở trên để thanh toán ngay.</p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Delivered Notice - Prompt to confirm */}
+          {order.status?.toUpperCase() === 'DELIVERED' && (
+            <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-start">
+                <span className="text-green-600 font-bold mr-2">📦</span>
+                <div className="text-sm text-green-800">
+                  <p className="font-bold mb-1">Đơn hàng đã được giao!</p>
+                  <p>Nếu bạn đã nhận được hàng, vui lòng nhấn nút "Xác nhận đã nhận hàng" để hoàn tất đơn hàng và đánh giá sản phẩm.</p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Completed Notice */}
+          {order.status?.toUpperCase() === 'COMPLETED' && (
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start">
+                <span className="text-blue-600 font-bold mr-2">✅</span>
+                <div className="text-sm text-blue-800">
+                  <p className="font-bold mb-1">Đơn hàng đã hoàn thành!</p>
+                  <p>Cảm ơn bạn đã mua hàng. Đừng quên đánh giá sản phẩm để giúp người mua khác nhé!</p>
                 </div>
               </div>
             </div>
@@ -304,8 +358,35 @@ export default function OrderDetailPage() {
                   )}
                 </div>
                 <div className="flex-1">
-                  <p className="font-medium text-gray-900">{item.productName}</p>
+                  <Link href={`/products/${item.productId}`} className="font-medium text-gray-900 hover:text-blue-600">
+                    {item.productName}
+                  </Link>
                   <p className="text-sm text-gray-600">Số lượng: {item.quantity}</p>
+                  
+                  {/* Review Button - Show for DELIVERED and COMPLETED orders */}
+                  {(order.status?.toUpperCase() === 'DELIVERED' || order.status?.toUpperCase() === 'COMPLETED') && (
+                    <div className="mt-2">
+                      {reviewedProducts.has(item.productId) ? (
+                        <span className="inline-flex items-center text-sm text-green-600">
+                          <FiStar className="mr-1 fill-current" size={14} />
+                          Đã đánh giá
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => setReviewingProduct({
+                            productId: item.productId,
+                            productName: item.productName,
+                            orderId: order.orderId,
+                            orderCode: order.orderCode
+                          })}
+                          className="inline-flex items-center text-sm text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                          <FiStar className="mr-1" size={14} />
+                          Đánh giá sản phẩm
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="text-right">
                   <p className="font-medium text-gray-900">{formatPrice(item.subtotal || (item.price * item.quantity))}</p>
@@ -406,8 +487,68 @@ export default function OrderDetailPage() {
           <GHNTracking orderId={order.orderId} ghnOrderCode={order.ghnOrderCode} />
         )}
 
+        {/* Review Modal */}
+        {reviewingProduct && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <ReviewForm
+              productId={reviewingProduct.productId}
+              productName={reviewingProduct.productName}
+              orderId={reviewingProduct.orderId}
+              orderCode={reviewingProduct.orderCode}
+              onSuccess={() => {
+                setReviewedProducts(prev => new Set([...prev, reviewingProduct.productId]))
+              }}
+              onClose={() => setReviewingProduct(null)}
+            />
+          </div>
+        )}
+
+        {/* Review Prompt Modal - Show after confirming received */}
+        {showReviewPrompt && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FiCheckCircle className="w-8 h-8 text-green-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Đơn hàng hoàn thành!</h3>
+                <p className="text-gray-600 mb-6">
+                  Cảm ơn bạn đã xác nhận nhận hàng. Hãy đánh giá sản phẩm để giúp người mua khác nhé!
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowReviewPrompt(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  >
+                    Để sau
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowReviewPrompt(false)
+                      // Mở form đánh giá sản phẩm đầu tiên
+                      if (order.items && order.items.length > 0) {
+                        const firstItem = order.items[0]
+                        setReviewingProduct({
+                          productId: firstItem.productId,
+                          productName: firstItem.productName,
+                          orderId: order.orderId,
+                          orderCode: order.orderCode
+                        })
+                      }
+                    }}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
+                  >
+                    <FiStar />
+                    Đánh giá ngay
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Order Timeline */}
-        {(order.confirmedAt || order.shippedAt || order.deliveredAt || order.cancelledAt) && (
+        {(order.confirmedAt || order.shippedAt || order.deliveredAt || order.completedAt || order.cancelledAt) && (
           <div className="bg-white rounded-lg shadow-sm p-6 mt-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
               <FiClock className="mr-2" />
@@ -449,6 +590,16 @@ export default function OrderDetailPage() {
                   <div>
                     <p className="font-medium text-gray-900">Đơn hàng đã được giao</p>
                     <p className="text-sm text-gray-600">{formatDate(order.deliveredAt)}</p>
+                  </div>
+                </div>
+              )}
+              
+              {order.completedAt && (
+                <div className="flex items-start">
+                  <div className="w-2 h-2 bg-green-600 rounded-full mt-2 mr-4"></div>
+                  <div>
+                    <p className="font-medium text-gray-900">Khách hàng đã xác nhận nhận hàng</p>
+                    <p className="text-sm text-gray-600">{formatDate(order.completedAt)}</p>
                   </div>
                 </div>
               )}

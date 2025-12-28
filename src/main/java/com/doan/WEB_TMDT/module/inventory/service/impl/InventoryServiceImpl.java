@@ -8,6 +8,8 @@ import com.doan.WEB_TMDT.module.inventory.dto.*;
 import com.doan.WEB_TMDT.module.inventory.entity.*;
 import com.doan.WEB_TMDT.module.inventory.repository.*;
 import com.doan.WEB_TMDT.module.inventory.service.InventoryService;
+import com.doan.WEB_TMDT.module.product.entity.Product;
+import com.doan.WEB_TMDT.module.product.repository.ProductRepository;
 
 // 💡 Thêm import entity ProductDetail đúng từ Product module
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +34,7 @@ public class InventoryServiceImpl implements InventoryService {
     private final ProductDetailRepository productDetailRepository;
     private final InventoryStockRepository inventoryStockRepository;
     private final SupplierRepository supplierRepository;
+    private final ProductRepository productRepository;
     private final com.doan.WEB_TMDT.module.inventory.service.ProductSpecificationService productSpecificationService;
     private final com.doan.WEB_TMDT.module.order.repository.OrderRepository orderRepository;
     private final ExportOrderItemRepository exportOrderItemRepository;
@@ -335,6 +338,9 @@ public class InventoryServiceImpl implements InventoryService {
 
             stock.setOnHand(stock.getOnHand() + details.size());
             inventoryStockRepository.save(stock);
+
+            // 7️⃣ Đồng bộ với bảng Product
+            syncStockWithProduct(wp, stock.getOnHand());
         }
 
         // 7️⃣ Cập nhật phiếu nhập
@@ -414,6 +420,9 @@ public class InventoryServiceImpl implements InventoryService {
             // 5️⃣ Cập nhật tồn kho
             stock.setOnHand(stock.getOnHand() - exportCount);
             inventoryStockRepository.save(stock);
+
+            // Đồng bộ với bảng Product
+            syncStockWithProduct(product, stock.getOnHand());
 
             // 6️⃣ Ghi dòng chi tiết phiếu xuất
             ExportOrderItem item = ExportOrderItem.builder()
@@ -726,6 +735,9 @@ public class InventoryServiceImpl implements InventoryService {
             stock.setOnHand(stock.getOnHand() - exportCount);
             inventoryStockRepository.save(stock);
 
+            // Đồng bộ với bảng Product
+            syncStockWithProduct(wp, stock.getOnHand());
+
             // Ghi dòng xuất kho
             ExportOrderItem exportItem = ExportOrderItem.builder()
                     .exportOrder(exportOrder)
@@ -893,6 +905,9 @@ public class InventoryServiceImpl implements InventoryService {
         stock.setOnHand(stock.getOnHand() - 1);
         inventoryStockRepository.save(stock);
 
+        // Đồng bộ với bảng Product
+        syncStockWithProduct(wp, stock.getOnHand());
+
         // Tạo phiếu xuất
         ExportOrder exportOrder = ExportOrder.builder()
                 .exportCode("EX-WARRANTY-" + System.currentTimeMillis())
@@ -917,5 +932,56 @@ public class InventoryServiceImpl implements InventoryService {
         exportOrderItemRepository.save(item);
 
         return ApiResponse.success("Xuất kho bảo hành thành công", exportOrder.getExportCode());
+    }
+
+    /**
+     * Helper method: Đồng bộ tồn kho giữa InventoryStock và Product
+     * Gọi sau mỗi lần thay đổi tồn kho (nhập/xuất)
+     */
+    private void syncStockWithProduct(WarehouseProduct wp, Long newOnHand) {
+        if (wp.getProduct() != null) {
+            Product product = wp.getProduct();
+            product.setStockQuantity(newOnHand);
+            productRepository.save(product);
+            log.info("✅ Đồng bộ tồn kho: {} -> {}", product.getName(), newOnHand);
+        }
+    }
+
+    /**
+     * Helper method: Đồng bộ reserved quantity giữa InventoryStock và Product
+     * Gọi sau mỗi lần thay đổi reserved (tạo đơn, hủy đơn)
+     */
+    private void syncReservedWithProduct(WarehouseProduct wp, Long newReserved) {
+        if (wp.getProduct() != null) {
+            Product product = wp.getProduct();
+            product.setReservedQuantity(newReserved);
+            productRepository.save(product);
+            log.info("✅ Đồng bộ reserved: {} -> {}", product.getName(), newReserved);
+        }
+    }
+
+    /**
+     * Public method: Đồng bộ reserved quantity - gọi từ OrderService
+     */
+    @Override
+    @Transactional
+    public void syncReservedQuantity(Long warehouseProductId, Long newReserved) {
+        WarehouseProduct wp = warehouseProductRepository.findById(warehouseProductId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm kho #" + warehouseProductId));
+
+        // Cập nhật InventoryStock
+        InventoryStock stock = inventoryStockRepository.findByWarehouseProduct_Id(warehouseProductId)
+                .orElse(InventoryStock.builder()
+                        .warehouseProduct(wp)
+                        .onHand(0L)
+                        .reserved(0L)
+                        .damaged(0L)
+                        .build());
+        
+        stock.setReserved(newReserved);
+        inventoryStockRepository.save(stock);
+
+        // Đồng bộ với Product
+        syncReservedWithProduct(wp, newReserved);
     }
 }

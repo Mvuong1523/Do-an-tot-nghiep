@@ -83,56 +83,6 @@ export default function EmployeeOrdersPage() {
     }
   }
 
-  const handleMarkAsShipping = async (orderId: number) => {
-    if (!canEdit) {
-      toast.error('Bạn không có quyền cập nhật trạng thái đơn hàng')
-      return
-    }
-
-    if (!confirm('Đánh dấu đơn hàng đang giao?')) return
-    
-    try {
-      setProcessingId(orderId)
-      const response = await adminOrderApi.markAsShipping(orderId)
-      
-      if (response.success) {
-        toast.success('Đã chuyển sang đang giao hàng')
-        loadOrders()
-      } else {
-        toast.error(response.message || 'Không thể cập nhật trạng thái')
-      }
-    } catch (error: any) {
-      toast.error(error.message || 'Lỗi khi cập nhật trạng thái')
-    } finally {
-      setProcessingId(null)
-    }
-  }
-
-  const handleMarkAsDelivered = async (orderId: number) => {
-    if (!canEdit) {
-      toast.error('Bạn không có quyền cập nhật trạng thái đơn hàng')
-      return
-    }
-
-    if (!confirm('Xác nhận đã giao hàng thành công?')) return
-    
-    try {
-      setProcessingId(orderId)
-      const response = await adminOrderApi.markAsDelivered(orderId)
-      
-      if (response.success) {
-        toast.success('Đã xác nhận giao hàng thành công')
-        loadOrders()
-      } else {
-        toast.error(response.message || 'Không thể cập nhật trạng thái')
-      }
-    } catch (error: any) {
-      toast.error(error.message || 'Lỗi khi cập nhật trạng thái')
-    } finally {
-      setProcessingId(null)
-    }
-  }
-
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
@@ -202,25 +152,26 @@ export default function EmployeeOrdersPage() {
           </button>
         ) : null
       case 'CONFIRMED':
-        return canEdit ? (
-          <button
-            onClick={() => handleMarkAsShipping(order.orderId)}
-            disabled={isProcessing}
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 transition-colors text-sm font-medium"
-          >
-            {isProcessing ? 'Đang xử lý...' : 'Đang giao'}
-          </button>
-        ) : null
+        // Đơn hàng đã xác nhận - chờ kho xuất hàng
+        return (
+          <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-sm">
+            Chờ xuất kho
+          </span>
+        )
+      case 'READY_TO_SHIP':
+        // Đơn hàng đã chuẩn bị - chờ shipper nhận
+        return (
+          <span className="px-3 py-1 bg-purple-50 text-purple-600 rounded-lg text-sm">
+            Chờ shipper nhận
+          </span>
+        )
       case 'SHIPPING':
-        return canEdit ? (
-          <button
-            onClick={() => handleMarkAsDelivered(order.orderId)}
-            disabled={isProcessing}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-colors text-sm font-medium"
-          >
-            {isProcessing ? 'Đang xử lý...' : 'Đã giao'}
-          </button>
-        ) : null
+        // Đang giao - chỉ shipper mới cập nhật được
+        return (
+          <span className="px-3 py-1 bg-purple-50 text-purple-600 rounded-lg text-sm">
+            Shipper đang giao
+          </span>
+        )
       default:
         return null
     }

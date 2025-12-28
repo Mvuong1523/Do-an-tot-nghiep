@@ -48,6 +48,7 @@ public class OrderResponse {
     private LocalDateTime confirmedAt;
     private LocalDateTime shippedAt;
     private LocalDateTime deliveredAt;
+    private LocalDateTime completedAt; // Khách xác nhận nhận hàng
     private LocalDateTime cancelledAt;
     private String cancelReason;
     

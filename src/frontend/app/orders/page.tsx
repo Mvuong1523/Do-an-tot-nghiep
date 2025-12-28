@@ -181,7 +181,7 @@ export default function OrdersPage() {
               { key: 'all', label: 'Tất cả' },
               { key: 'pending_payment', label: 'Chờ thanh toán' },
               { key: 'confirmed', label: 'Đã xác nhận' },
-              { key: 'ready_to_ship', label: '🚚 Đợi tài xế lấy hàng', highlight: true },
+              { key: 'ready_to_ship', label: 'Đợi tài xế lấy hàng', highlight: true },
               { key: 'shipping', label: 'Đang giao' },
               { key: 'delivered', label: 'Đã giao' },
               { key: 'cancelled', label: 'Đã hủy' },
@@ -259,31 +259,35 @@ export default function OrdersPage() {
                       Xem chi tiết
                     </Link>
                     
-                    {/* Nút cập nhật sang Đang giao - CHỈ hiện khi READY_TO_SHIP */}
-                    {order.status?.toUpperCase() === 'READY_TO_SHIP' && (
+                    {/* Nút hủy đơn - CHỈ hiện khi PENDING_PAYMENT, CONFIRMED, hoặc READY_TO_SHIP */}
+                    {['PENDING_PAYMENT', 'CONFIRMED', 'READY_TO_SHIP'].includes(order.status?.toUpperCase()) && (
                       <button
                         onClick={async () => {
-                          if (confirm('⚠️ Xác nhận chuyển đơn hàng sang "Đang giao hàng"?\n\n✅ Chỉ nhấn khi tài xế đã đến lấy hàng hoặc hàng đã được giao cho đơn vị vận chuyển.')) {
+                          const reason = prompt('Lý do hủy đơn (không bắt buộc):')
+                          if (reason === null) return // User clicked Cancel
+                          
+                          if (confirm('⚠️ Xác nhận hủy đơn hàng này?\n\nĐơn hàng sẽ bị hủy và không thể khôi phục.')) {
                             try {
-                              const { adminOrderApi } = await import('@/lib/api')
-                              const response = await adminOrderApi.markShippingFromReady(order.orderId)
+                              const response = await orderApi.cancelOrder(order.orderId, reason || undefined)
                               if (response.success) {
-                                toast.success('✅ Đã cập nhật sang "Đang giao hàng"')
+                                toast.success('✅ Đã hủy đơn hàng thành công')
                                 // Reload orders
                                 const ordersResponse = await orderApi.getAll()
                                 if (ordersResponse.success && ordersResponse.data) {
                                   setOrders(Array.isArray(ordersResponse.data) ? ordersResponse.data : [])
                                 }
+                              } else {
+                                toast.error(response.message || 'Không thể hủy đơn hàng')
                               }
                             } catch (error: any) {
-                              toast.error(error.message || 'Lỗi khi cập nhật trạng thái')
+                              toast.error(error.message || 'Lỗi khi hủy đơn hàng')
                             }
                           }
                         }}
-                        className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium shadow-md hover:shadow-lg"
+                        className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
                       >
-                        <FiTruck className="mr-2" />
-                        🚚 Chuyển sang Đang giao
+                        <FiX className="mr-2" />
+                        Hủy đơn
                       </button>
                     )}
                   </div>

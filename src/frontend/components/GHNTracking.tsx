@@ -106,7 +106,7 @@ export default function GHNTracking({ orderId, ghnOrderCode }: GHNTrackingProps)
           disabled={loading}
           className="text-sm text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50"
         >
-          {loading ? 'Đang tải...' : '🔄 Làm mới'}
+          {loading ? 'Đang tải...' : ' Làm mới'}
         </button>
       </div>
 
@@ -140,12 +140,12 @@ export default function GHNTracking({ orderId, ghnOrderCode }: GHNTrackingProps)
                 <p className="font-bold text-gray-900 text-lg">{trackingData.statusText || trackingData.currentStatus}</p>
                 {trackingData.currentWarehouse && (
                   <p className="text-sm text-gray-600 mt-1">
-                    📍 {trackingData.currentWarehouse}
+                     {trackingData.currentWarehouse}
                   </p>
                 )}
                 {trackingData.expectedDeliveryTime && (
                   <p className="text-sm text-gray-600 mt-1">
-                    ⏰ Dự kiến giao: {formatDate(trackingData.expectedDeliveryTime)}
+                    Dự kiến giao: {formatDate(trackingData.expectedDeliveryTime)}
                   </p>
                 )}
                 {trackingData.updatedDate && (

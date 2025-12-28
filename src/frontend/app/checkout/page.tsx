@@ -88,16 +88,28 @@ export default function CheckoutPage() {
       
       console.log('📦 Provinces response:', data)
       
-      if (data.success && data.data) {
-        console.log('✅ Loaded', data.data.length, 'provinces')
+      if (data.success && data.data && data.data.length > 0) {
+        console.log('✅ Loaded', data.data.length, 'provinces from GHN')
         setProvinces(data.data)
       } else {
-        console.error('❌ Failed to load provinces:', data.message)
-        toast.error('Không thể tải danh sách tỉnh/thành phố')
+        // Fallback to local data
+        console.warn('⚠️ GHN API failed, using local data')
+        const localProvinces = vietnamProvinces.map(p => ({
+          id: parseInt(p.code),
+          name: p.name
+        }))
+        setProvinces(localProvinces)
+        toast('Đang sử dụng dữ liệu địa chỉ offline', { icon: 'ℹ️' })
       }
     } catch (error) {
       console.error('❌ Error loading provinces:', error)
-      toast.error('Không thể tải danh sách tỉnh/thành phố')
+      // Fallback to local data
+      const localProvinces = vietnamProvinces.map(p => ({
+        id: parseInt(p.code),
+        name: p.name
+      }))
+      setProvinces(localProvinces)
+      toast('Đang sử dụng dữ liệu địa chỉ offline', { icon: 'ℹ️' })
     } finally {
       setLoadingProvinces(false)
     }
@@ -112,16 +124,36 @@ export default function CheckoutPage() {
       
       console.log('📦 Districts response:', data)
       
-      if (data.success && data.data) {
-        console.log('✅ Loaded', data.data.length, 'districts')
+      if (data.success && data.data && data.data.length > 0) {
+        console.log('✅ Loaded', data.data.length, 'districts from GHN')
         setDistricts(data.data)
       } else {
-        console.error('❌ Failed to load districts:', data.message)
-        toast.error('Không thể tải danh sách quận/huyện')
+        // Fallback to local data
+        console.warn('⚠️ GHN API failed for districts, using local data')
+        const province = vietnamProvinces.find(p => parseInt(p.code) === provinceId || p.name === form.province)
+        if (province) {
+          const localDistricts = province.districts.map(d => ({
+            id: parseInt(d.code),
+            name: d.name
+          }))
+          setDistricts(localDistricts)
+        } else {
+          setDistricts([])
+        }
       }
     } catch (error) {
       console.error('❌ Error loading districts:', error)
-      toast.error('Không thể tải danh sách quận/huyện')
+      // Fallback to local data
+      const province = vietnamProvinces.find(p => parseInt(p.code) === provinceId || p.name === form.province)
+      if (province) {
+        const localDistricts = province.districts.map(d => ({
+          id: parseInt(d.code),
+          name: d.name
+        }))
+        setDistricts(localDistricts)
+      } else {
+        setDistricts([])
+      }
     } finally {
       setLoadingDistricts(false)
     }

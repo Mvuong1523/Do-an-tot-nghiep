@@ -185,7 +185,7 @@ export default function HomePage() {
                         <span className="text-red-600 font-bold">
                           {formatPrice(product.price || 0)}
                         </span>
-                        {product.stockQuantity > 0 ? (
+                        {(product.availableQuantity !== undefined ? product.availableQuantity : product.stockQuantity) > 0 ? (
                           <span className="text-xs text-green-600">Còn hàng</span>
                         ) : (
                           <span className="text-xs text-red-600">Hết hàng</span>

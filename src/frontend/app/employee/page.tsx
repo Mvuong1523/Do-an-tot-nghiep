@@ -75,15 +75,29 @@ export default function EmployeeDashboard() {
       console.log('📊 Stats data:', statsResponse.data)
       
       if (statsResponse.data) {
-        setStats(statsResponse.data)
+        // Backend trả về ApiResponse { success, message, data }
+        const statsData = statsResponse.data.data || statsResponse.data
+        console.log('📊 Final stats:', statsData)
+        setStats(statsData)
       }
 
       const ordersResponse = await api.get('/dashboard/recent-orders?limit=5')
       console.log('📦 Orders response:', ordersResponse)
       console.log('📦 Orders data:', ordersResponse.data)
+      console.log('📦 Orders data type:', typeof ordersResponse.data)
+      console.log('📦 Is array?', Array.isArray(ordersResponse.data))
       
       if (ordersResponse.data) {
-        setRecentOrders(ordersResponse.data)
+        // Backend trả về ApiResponse { success, message, data: [...] }
+        // Đảm bảo data là array
+        const ordersData = Array.isArray(ordersResponse.data) 
+          ? ordersResponse.data 
+          : (ordersResponse.data.data && Array.isArray(ordersResponse.data.data))
+            ? ordersResponse.data.data
+            : []
+        
+        console.log('📦 Final orders data:', ordersData)
+        setRecentOrders(ordersData)
       }
       
       console.log('✅ Dashboard data loaded successfully')
@@ -336,7 +350,7 @@ export default function EmployeeDashboard() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {recentOrders.length === 0 ? (
+              {!Array.isArray(recentOrders) || recentOrders.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                     Chưa có đơn hàng nào

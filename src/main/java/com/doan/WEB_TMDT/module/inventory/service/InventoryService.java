@@ -22,4 +22,5 @@ public interface InventoryService {
     ApiResponse getStocks();
     ApiResponse exportForSale(SaleExportRequest req);
     ApiResponse exportForWarranty(WarrantyExportRequest req);
+    void syncReservedQuantity(Long warehouseProductId, Long newReserved);
 }

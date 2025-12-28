@@ -57,8 +57,10 @@ const LoginPage = () => {
             role: response.data.role, // Giữ nguyên role gốc
             position: response.data.position, // Thêm position ở level user
             status: response.data.status,
+            employeeId: response.data.employeeId, // Lưu employeeId ở level user
             // Thêm employee object nếu là EMPLOYEE
             employee: response.data.role === 'EMPLOYEE' ? {
+              id: response.data.employeeId, // QUAN TRỌNG: Lưu employeeId vào employee.id
               fullName: response.data.fullName,
               phone: response.data.phone,
               address: response.data.address,

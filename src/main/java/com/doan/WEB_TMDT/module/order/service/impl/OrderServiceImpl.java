@@ -48,6 +48,7 @@ public class OrderServiceImpl implements OrderService {
     private final PaymentService paymentService;
     private final ShippingService shippingService;
     private final ProductImageRepository productImageRepository;
+    private final com.doan.WEB_TMDT.module.inventory.service.InventoryService inventoryService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -158,10 +159,16 @@ public class OrderServiceImpl implements OrderService {
             
             // Reserve stock (giữ hàng để không bán cho người khác)
             Long currentReserved = product.getReservedQuantity() != null ? product.getReservedQuantity() : 0L;
-            product.setReservedQuantity(currentReserved + cartItem.getQuantity());
+            Long newReserved = currentReserved + cartItem.getQuantity();
+            product.setReservedQuantity(newReserved);
+            
+            // Đồng bộ reserved với InventoryStock
+            if (product.getWarehouseProduct() != null) {
+                inventoryService.syncReservedQuantity(product.getWarehouseProduct().getId(), newReserved);
+            }
             
             log.info("Product {} reserved: {} -> {} (ordered: {})", 
-                product.getName(), currentReserved, currentReserved + cartItem.getQuantity(), cartItem.getQuantity());
+                product.getName(), currentReserved, newReserved, cartItem.getQuantity());
             
             OrderItem orderItem = OrderItem.builder()
                     .order(order)
@@ -183,7 +190,7 @@ public class OrderServiceImpl implements OrderService {
 
         // 8. GHN order will be created later when warehouse exports the order
         // Store shipping info for later GHN creation
-        log.info("✅ Order created: {}", orderCode);
+        log.info("Order created: {}", orderCode);
         log.info("   - Shipping method: {}", shippingFee > 0 && !shippingService.isHanoiInnerCity(request.getProvince(), request.getDistrict()) ? "GHN" : "Internal");
         log.info("   - Ward code: {}", request.getWard());
         log.info("   - GHN order will be created when warehouse exports this order");
@@ -285,7 +292,13 @@ public class OrderServiceImpl implements OrderService {
             for (OrderItem item : order.getItems()) {
                 Product product = item.getProduct();
                 Long currentReserved = product.getReservedQuantity() != null ? product.getReservedQuantity() : 0L;
-                product.setReservedQuantity(Math.max(0, currentReserved - item.getQuantity()));
+                Long newReserved = Math.max(0, currentReserved - item.getQuantity());
+                product.setReservedQuantity(newReserved);
+                
+                // Đồng bộ reserved với InventoryStock
+                if (product.getWarehouseProduct() != null) {
+                    inventoryService.syncReservedQuantity(product.getWarehouseProduct().getId(), newReserved);
+                }
             }
             
             // Xóa payment trước (nếu có) để tránh foreign key constraint
@@ -312,19 +325,34 @@ public class OrderServiceImpl implements OrderService {
         }
 
         // Restore stock for cancelled order
+        // Logic khác nhau tùy theo trạng thái:
+        // - CONFIRMED: Hàng đang được giữ (reserved) → Trả lại reserved quantity
+        // - READY_TO_SHIP, SHIPPING: Hàng đã xuất kho → KHÔNG tự động cộng lại kho (cần nhập kho thủ công sau)
+        boolean isExported = (order.getStatus() == OrderStatus.READY_TO_SHIP || 
+                             order.getStatus() == OrderStatus.SHIPPING);
+        
         for (OrderItem item : order.getItems()) {
             Product product = item.getProduct();
-            Long currentStock = product.getStockQuantity();
-            Long restoredStock = currentStock + item.getQuantity();
-            product.setStockQuantity(restoredStock);
             
-            // Update reserved quantity
-            Long currentReserved = product.getReservedQuantity() != null ? product.getReservedQuantity() : 0L;
-            Long newReserved = Math.max(0, currentReserved - item.getQuantity());
-            product.setReservedQuantity(newReserved);
-            
-            log.info("Restored stock for product {}: {} -> {} (returned: {})", 
-                product.getName(), currentStock, restoredStock, item.getQuantity());
+            if (isExported) {
+                // Đơn đã xuất kho → KHÔNG tự động cộng lại kho
+                // Hàng cần được nhập lại kho thủ công sau này
+                log.info("Order {} cancelled after export - product {} needs manual re-import to warehouse", 
+                    order.getOrderCode(), product.getName());
+            } else {
+                // Đơn đang giữ hàng (CONFIRMED) → Chỉ trừ reserved quantity
+                Long currentReserved = product.getReservedQuantity() != null ? product.getReservedQuantity() : 0L;
+                Long newReserved = Math.max(0, currentReserved - item.getQuantity());
+                product.setReservedQuantity(newReserved);
+                
+                // Đồng bộ reserved với InventoryStock
+                if (product.getWarehouseProduct() != null) {
+                    inventoryService.syncReservedQuantity(product.getWarehouseProduct().getId(), newReserved);
+                }
+                
+                log.info("Released reserved quantity for product {} (CONFIRMED cancelled): {} -> {} (released: {})", 
+                    product.getName(), currentReserved, newReserved, item.getQuantity());
+            }
         }
 
         // Cancel order (chuyển status sang CANCELLED)
@@ -375,6 +403,35 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
+    @Override
+    @Transactional
+    public ApiResponse confirmReceived(Long orderId, Long customerId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
+        
+        // Kiểm tra đơn hàng thuộc về customer này
+        if (!order.getCustomer().getId().equals(customerId)) {
+            return ApiResponse.error("Bạn không có quyền thao tác với đơn hàng này");
+        }
+        
+        // Chỉ cho phép xác nhận khi đơn ở trạng thái DELIVERED
+        if (order.getStatus() != OrderStatus.DELIVERED) {
+            return ApiResponse.error("Chỉ có thể xác nhận nhận hàng khi đơn ở trạng thái 'Đã giao'");
+        }
+        
+        OrderStatus oldStatus = order.getStatus();
+        order.setStatus(OrderStatus.COMPLETED);
+        order.setCompletedAt(LocalDateTime.now());
+        orderRepository.save(order);
+        
+        // Publish event for accounting
+        publishOrderStatusChangeEvent(order, oldStatus, OrderStatus.COMPLETED);
+        
+        log.info("Customer {} confirmed received order {}", customerId, order.getOrderCode());
+        
+        return ApiResponse.success("Đã xác nhận nhận hàng thành công", toOrderResponse(order));
+    }
+
     // Helper methods
 
     private String generateOrderCode() {
@@ -423,6 +480,7 @@ public class OrderServiceImpl implements OrderService {
                 .confirmedAt(order.getConfirmedAt())
                 .shippedAt(order.getShippedAt())
                 .deliveredAt(order.getDeliveredAt())
+                .completedAt(order.getCompletedAt())
                 .cancelledAt(order.getCancelledAt())
                 .cancelReason(order.getCancelReason())
                 .ghnOrderCode(order.getGhnOrderCode())
@@ -591,7 +649,7 @@ public class OrderServiceImpl implements OrderService {
         // Publish event for accounting module
         publishOrderStatusChangeEvent(order, oldStatus, OrderStatus.SHIPPING);
 
-        log.info("✅ Sales staff manually marked order {} as SHIPPING (from READY_TO_SHIP)", order.getOrderCode());
+        log.info("Sales staff manually marked order {} as SHIPPING (from READY_TO_SHIP)", order.getOrderCode());
 
         OrderResponse response = toOrderResponse(order);
         return ApiResponse.success("Đã chuyển đơn hàng sang đang giao hàng", response);
@@ -603,13 +661,17 @@ public class OrderServiceImpl implements OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 
-        if (order.getStatus() != OrderStatus.SHIPPING) {
-            return ApiResponse.error("Chỉ có thể chuyển sang đã giao từ trạng thái đang giao hàng");
+        // Cho phép chuyển từ READY_TO_SHIP (shipper nội thành đã nhận) hoặc SHIPPING
+        if (order.getStatus() != OrderStatus.SHIPPING && order.getStatus() != OrderStatus.READY_TO_SHIP) {
+            return ApiResponse.error("Chỉ có thể chuyển sang đã giao từ trạng thái đang giao hàng hoặc đã chuẩn bị hàng");
         }
 
         OrderStatus oldStatus = order.getStatus();
         order.setStatus(OrderStatus.DELIVERED);
         order.setDeliveredAt(LocalDateTime.now());
+        if (order.getShippedAt() == null) {
+            order.setShippedAt(LocalDateTime.now()); // Set shipped time if not set
+        }
         order.setPaymentStatus(PaymentStatus.PAID); // Mark as paid when delivered (COD)
         orderRepository.save(order);
 
@@ -671,19 +733,34 @@ public class OrderServiceImpl implements OrderService {
         }
 
         // Restore stock for cancelled order
+        // Logic khác nhau tùy theo trạng thái:
+        // - PENDING_PAYMENT, CONFIRMED: Hàng đang được giữ (reserved) → Trả lại reserved quantity
+        // - READY_TO_SHIP, SHIPPING: Hàng đã xuất kho → KHÔNG tự động cộng lại kho (cần nhập kho thủ công sau)
+        boolean isExported = (order.getStatus() == OrderStatus.READY_TO_SHIP || 
+                             order.getStatus() == OrderStatus.SHIPPING);
+        
         for (OrderItem item : order.getItems()) {
             Product product = item.getProduct();
-            Long currentStock = product.getStockQuantity();
-            Long restoredStock = currentStock + item.getQuantity();
-            product.setStockQuantity(restoredStock);
             
-            // Update reserved quantity
-            Long currentReserved = product.getReservedQuantity() != null ? product.getReservedQuantity() : 0L;
-            Long newReserved = Math.max(0, currentReserved - item.getQuantity());
-            product.setReservedQuantity(newReserved);
-            
-            log.info("Restored stock for product {}: {} -> {} (returned: {})", 
-                product.getName(), currentStock, restoredStock, item.getQuantity());
+            if (isExported) {
+                // Đơn đã xuất kho → KHÔNG tự động cộng lại kho
+                // Hàng cần được nhập lại kho thủ công sau này
+                log.info("Order {} cancelled after export - product {} needs manual re-import to warehouse", 
+                    order.getOrderCode(), product.getName());
+            } else {
+                // Đơn đang giữ hàng (PENDING_PAYMENT, CONFIRMED) → Chỉ trừ reserved quantity
+                Long currentReserved = product.getReservedQuantity() != null ? product.getReservedQuantity() : 0L;
+                Long newReserved = Math.max(0, currentReserved - item.getQuantity());
+                product.setReservedQuantity(newReserved);
+                
+                // Đồng bộ reserved với InventoryStock
+                if (product.getWarehouseProduct() != null) {
+                    inventoryService.syncReservedQuantity(product.getWarehouseProduct().getId(), newReserved);
+                }
+                
+                log.info("Released reserved quantity for product {} (reserved order cancelled): {} -> {} (released: {})", 
+                    product.getName(), currentReserved, newReserved, item.getQuantity());
+            }
         }
         
         // Cancel order
