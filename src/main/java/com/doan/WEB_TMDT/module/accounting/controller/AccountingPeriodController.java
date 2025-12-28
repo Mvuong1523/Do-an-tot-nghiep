@@ -17,19 +17,19 @@ public class AccountingPeriodController {
     private final AccountingPeriodService periodService;
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN') or (hasRole('EMPLOYEE') and @employeeSecurityService.hasPosition(authentication, 'ACCOUNTANT'))")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse> getAllPeriods() {
         return ResponseEntity.ok(periodService.getAllPeriods());
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or (hasRole('EMPLOYEE') and @employeeSecurityService.hasPosition(authentication, 'ACCOUNTANT'))")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse> getPeriodById(@PathVariable Long id) {
         return ResponseEntity.ok(periodService.getPeriodById(id));
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or (hasRole('EMPLOYEE') and @employeeSecurityService.hasPosition(authentication, 'ACCOUNTANT'))")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse> createPeriod(
             @RequestParam String name,
             @RequestParam String startDate,
@@ -39,7 +39,7 @@ public class AccountingPeriodController {
     }
 
     @PostMapping("/{id}/close")
-    @PreAuthorize("hasRole('ADMIN') or (hasRole('EMPLOYEE') and @employeeSecurityService.hasPosition(authentication, 'ACCOUNTANT'))")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse> closePeriod(
             @PathVariable Long id,
             Authentication authentication
@@ -49,13 +49,13 @@ public class AccountingPeriodController {
     }
 
     @PostMapping("/{id}/reopen")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ADMIN')")
     public ResponseEntity<ApiResponse> reopenPeriod(@PathVariable Long id) {
         return ResponseEntity.ok(periodService.reopenPeriod(id));
     }
 
     @PostMapping("/{id}/calculate")
-    @PreAuthorize("hasRole('ADMIN') or (hasRole('EMPLOYEE') and @employeeSecurityService.hasPosition(authentication, 'ACCOUNTANT'))")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse> calculatePeriodStats(@PathVariable Long id) {
         return ResponseEntity.ok(periodService.calculatePeriodStats(id));
     }

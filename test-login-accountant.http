@@ -1,0 +1,31 @@
+### Test Login và Dashboard với ACCOUNTANT User
+
+### 1. Login as ACCOUNTANT
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "ketoan@gmail.com",
+  "password": "123456"
+}
+
+> {%
+  client.global.set("auth_token", response.body.token);
+  client.log("=== LOGIN RESPONSE ===");
+  client.log("Token: " + response.body.token);
+  client.log("User: " + JSON.stringify(response.body.user, null, 2));
+  client.log("Employee: " + JSON.stringify(response.body.employee, null, 2));
+  client.log("=====================");
+%}
+
+### 2. Test Dashboard Stats (Should return 200 OK now!)
+GET http://localhost:8080/api/dashboard/stats
+Authorization: Bearer {{auth_token}}
+
+### 3. Test Recent Orders (Should return 200 OK now!)
+GET http://localhost:8080/api/dashboard/recent-orders?limit=5
+Authorization: Bearer {{auth_token}}
+
+### 4. Test Accounting Dashboard (ACCOUNTANT specific)
+GET http://localhost:8080/api/accounting/dashboard/stats
+Authorization: Bearer {{auth_token}}

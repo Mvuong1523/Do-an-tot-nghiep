@@ -48,5 +48,9 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
+<<<<<<< HEAD
 src/main/resources/application.properties
 
+=======
+application.properties
+>>>>>>> a141d188d0d4ed2ca71154c4693e31c17c3fd8f2

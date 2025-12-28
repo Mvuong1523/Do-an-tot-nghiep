@@ -74,10 +74,16 @@ export default function EmployeeDashboard() {
       console.log('📊 Stats response:', statsResponse)
       console.log('📊 Stats data:', statsResponse.data)
       
+<<<<<<< HEAD
       if (statsResponse.data) {
         // Backend trả về ApiResponse { success, message, data }
         const statsData = statsResponse.data.data || statsResponse.data
         console.log('📊 Final stats:', statsData)
+=======
+      // Backend trả về {success, message, data}, nên cần lấy data.data
+      const statsData = statsResponse.data?.data || statsResponse.data
+      if (statsData) {
+>>>>>>> a141d188d0d4ed2ca71154c4693e31c17c3fd8f2
         setStats(statsData)
       }
 
@@ -87,6 +93,7 @@ export default function EmployeeDashboard() {
       console.log('📦 Orders data type:', typeof ordersResponse.data)
       console.log('📦 Is array?', Array.isArray(ordersResponse.data))
       
+<<<<<<< HEAD
       if (ordersResponse.data) {
         // Backend trả về ApiResponse { success, message, data: [...] }
         // Đảm bảo data là array
@@ -98,6 +105,15 @@ export default function EmployeeDashboard() {
         
         console.log('📦 Final orders data:', ordersData)
         setRecentOrders(ordersData)
+=======
+      // Backend trả về {success, message, data}, nên cần lấy data.data
+      const ordersData = ordersResponse.data?.data || ordersResponse.data
+      if (Array.isArray(ordersData)) {
+        setRecentOrders(ordersData)
+      } else {
+        console.warn('⚠️ Orders data is not an array:', ordersData)
+        setRecentOrders([])
+>>>>>>> a141d188d0d4ed2ca71154c4693e31c17c3fd8f2
       }
       
       console.log('✅ Dashboard data loaded successfully')

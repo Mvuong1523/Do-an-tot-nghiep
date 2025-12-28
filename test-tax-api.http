@@ -1,0 +1,31 @@
+### Test Tax API với ACCOUNTANT User
+
+### 1. Login as ACCOUNTANT
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "ketoan@gmail.com",
+  "password": "123456"
+}
+
+> {%
+  client.global.set("auth_token", response.body.token);
+  client.log("Token: " + response.body.token);
+%}
+
+### 2. Get All Tax Reports (Should return 200 OK with data)
+GET http://localhost:8080/api/accounting/tax/reports
+Authorization: Bearer {{auth_token}}
+
+### 3. Get Tax Summary (Should return 200 OK with summary)
+GET http://localhost:8080/api/accounting/tax/summary
+Authorization: Bearer {{auth_token}}
+
+### 4. Get VAT Reports Only
+GET http://localhost:8080/api/accounting/tax/reports/VAT
+Authorization: Bearer {{auth_token}}
+
+### 5. Get Corporate Tax Reports Only
+GET http://localhost:8080/api/accounting/tax/reports/CORPORATE_TAX
+Authorization: Bearer {{auth_token}}

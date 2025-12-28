@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { FiPlus, FiEdit, FiCheck, FiDollarSign } from 'react-icons/fi'
+import { FiPlus, FiEdit, FiCheck, FiDollarSign, FiRefreshCw } from 'react-icons/fi'
 
 export default function TaxPage() {
   const router = useRouter()
@@ -172,6 +172,37 @@ export default function TaxPage() {
     } catch (error) {
       console.error('Error:', error)
       toast.error('Lỗi khi cập nhật trạng thái')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const recalculateTaxReport = async (id: number) => {
+    if (!confirm('Cập nhật dữ liệu báo cáo từ giao dịch mới nhất?')) {
+      return
+    }
+
+    try {
+      setLoading(true)
+      const token = localStorage.getItem('auth_token')
+      const response = await fetch(`http://localhost:8080/api/accounting/tax/reports/${id}/recalculate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        toast.success('Cập nhật dữ liệu thành công')
+        loadTaxReports()
+        loadTaxSummary()
+      } else {
+        toast.error(result.message || 'Lỗi khi cập nhật')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Lỗi khi cập nhật dữ liệu')
     } finally {
       setLoading(false)
     }
@@ -362,8 +393,17 @@ export default function TaxPage() {
                         {report.status === 'DRAFT' && (
                           <>
                             <button
+                              onClick={() => recalculateTaxReport(report.id)}
+                              disabled={loading}
+                              className="text-purple-600 hover:text-purple-800 disabled:opacity-50"
+                              title="Cập nhật dữ liệu"
+                            >
+                              <FiRefreshCw size={16} />
+                            </button>
+                            <button
                               onClick={() => setEditingReport(report)}
                               className="text-blue-600 hover:text-blue-800"
+                              title="Sửa"
                             >
                               <FiEdit size={16} />
                             </button>
@@ -371,6 +411,7 @@ export default function TaxPage() {
                               onClick={() => submitTaxReport(report.id)}
                               disabled={loading}
                               className="text-green-600 hover:text-green-800 disabled:opacity-50"
+                              title="Nộp báo cáo"
                             >
                               <FiCheck size={16} />
                             </button>
@@ -381,6 +422,7 @@ export default function TaxPage() {
                             onClick={() => markAsPaid(report.id)}
                             disabled={loading}
                             className="text-green-600 hover:text-green-800 disabled:opacity-50"
+                            title="Đánh dấu đã thanh toán"
                           >
                             <FiDollarSign size={16} />
                           </button>
@@ -418,6 +460,7 @@ export default function TaxPage() {
 // Tax Report Modal Component
 function TaxReportModal({ report, onClose, onSuccess }: any) {
   const [loading, setLoading] = useState(false)
+  const [calculating, setCalculating] = useState(false)
   const [form, setForm] = useState({
     taxType: report?.taxType || 'VAT',
     periodStart: report?.periodStart?.split('T')[0] || '',
@@ -426,6 +469,53 @@ function TaxReportModal({ report, onClose, onSuccess }: any) {
     taxRate: report?.taxRate || '10',
     notes: report?.notes || ''
   })
+
+  const calculateRevenue = async () => {
+    if (!form.periodStart || !form.periodEnd) {
+      toast.error('Vui lòng chọn kỳ báo cáo trước')
+      return
+    }
+
+    try {
+      setCalculating(true)
+      const token = localStorage.getItem('auth_token')
+      const response = await fetch(
+        `http://localhost:8080/api/accounting/tax/calculate-revenue?periodStart=${form.periodStart}&periodEnd=${form.periodEnd}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      )
+
+      const result = await response.json()
+      if (result.success) {
+        const data = result.data
+        
+        // Tự động điền doanh thu chịu thuế
+        if (form.taxType === 'VAT') {
+          setForm({
+            ...form,
+            taxableRevenue: data.vatTaxableRevenue.toString()
+          })
+          toast.success(`Doanh thu chịu thuế VAT: ${data.vatTaxableRevenue.toLocaleString('vi-VN')} ₫`)
+        } else {
+          setForm({
+            ...form,
+            taxableRevenue: data.corporateTaxableRevenue.toString()
+          })
+          toast.success(`Lợi nhuận chịu thuế TNDN: ${data.corporateTaxableRevenue.toLocaleString('vi-VN')} ₫`)
+        }
+      } else {
+        toast.error(result.message || 'Lỗi khi tính toán')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Lỗi khi tính toán doanh thu')
+    } finally {
+      setCalculating(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -545,7 +635,17 @@ function TaxReportModal({ report, onClose, onSuccess }: any) {
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Doanh thu chịu thuế *</label>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm font-medium text-gray-700">Doanh thu chịu thuế *</label>
+                  <button
+                    type="button"
+                    onClick={calculateRevenue}
+                    disabled={calculating || !form.periodStart || !form.periodEnd}
+                    className="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {calculating ? '⏳ Đang tính...' : '🔄 Tính toán tự động'}
+                  </button>
+                </div>
                 <input
                   type="number"
                   value={form.taxableRevenue}
@@ -576,6 +676,7 @@ function TaxReportModal({ report, onClose, onSuccess }: any) {
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h4 className="text-sm font-medium text-blue-900 mb-2">Lưu ý:</h4>
               <ul className="text-sm text-blue-800 space-y-1">
+                <li>• Sử dụng "Tính toán tự động" để lấy doanh thu từ hệ thống</li>
                 <li>• Thuế VAT: Thường là 10% trên doanh thu bán hàng</li>
                 <li>• Thuế TNDN: Thường là 20% trên lợi nhuận trước thuế</li>
                 <li>• Báo cáo sẽ ở trạng thái "Nháp" sau khi tạo</li>

@@ -60,7 +60,6 @@ const menuItems: MenuItem[] = [
     icon: FiDollarSign, 
     label: 'Kế toán',
     children: [
-      { icon: FiDollarSign, label: 'Tổng quan', href: '/admin/accounting' },
       { icon: FiDollarSign, label: 'Giao dịch tài chính', href: '/admin/accounting/transactions' },
       { icon: FiDollarSign, label: 'Kỳ kế toán', href: '/admin/accounting/periods' },
       { icon: FiDollarSign, label: 'Quản lý thuế', href: '/admin/accounting/tax' },
