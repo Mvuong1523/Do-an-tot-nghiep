@@ -56,14 +56,14 @@ sequenceDiagram
     participant E3 as 📦 AccountingPeriod<br/>Entity
     
     User->>FE: Truy cập /admin/accounting
-    FE->>FE: Kiểm tra auth từ localStorage
+    FE->>FE: Kiểm tra auth từ localStorage<br/>Check role === 'ADMIN'
     
     alt Không có quyền
         FE->>User: Redirect đến /login hoặc /
-    else Có quyền (Admin/Accountant)
+    else Có quyền (Admin)
         
         Note over FE,E1: 1. Load Financial Statement
-        FE->>API1: GET /api/accounting/financial-statement
+        FE->>API1: GET /api/accounting/financial-statement<br/>(no date params = current period)
         API1->>API1: @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
         API1->>S1: getFinancialStatement(startDate, endDate)
         S1->>R1: sumAmountByTypeAndDateRange(REVENUE, ...)
@@ -82,6 +82,7 @@ sequenceDiagram
         
         Note over FE,E1: 2. Load Recent Transactions
         FE->>API2: GET /api/accounting/transactions?page=0&size=5
+        API2->>API2: @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
         API2->>S2: getAllTransactions(pageable)
         S2->>R1: findAllByOrderByTransactionDateDesc(pageable)
         R1->>E1: Load FinancialTransaction entities<br/>ORDER BY transactionDate DESC
@@ -92,6 +93,7 @@ sequenceDiagram
         
         Note over FE,E2: 3. Load Tax Summary
         FE->>API3: GET /api/accounting/tax/summary
+        API3->>API3: @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
         API3->>S3: getTaxSummary()
         S3->>R2: sumRemainingTaxByType(VAT)
         R2->>E2: Query TaxReport entities<br/>WHERE taxType='VAT' AND status!='PAID'
@@ -103,11 +105,17 @@ sequenceDiagram
         E2-->>R2: Sum of remainingTax
         R2-->>S3: corporateOwed
         
-        S3-->>API3: ApiResponse(totalOwed, vatOwed, corporateOwed)
+        S3->>R2: sumTotalPaid()
+        R2->>E2: Query TaxReport entities<br/>WHERE status='PAID'
+        E2-->>R2: Sum of paidAmount
+        R2-->>S3: totalPaid
+        
+        S3-->>API3: ApiResponse(totalOwed, vatOwed, corporateOwed, totalPaid)
         API3-->>FE: {success: true, data: {...}}
         
         Note over FE,E3: 4. Load Current Period
         FE->>API4: GET /api/accounting/periods
+        API4->>API4: @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
         API4->>S4: getAllPeriods()
         S4->>R3: findAllByOrderByStartDateDesc()
         R3->>E3: Load AccountingPeriod entities<br/>ORDER BY startDate DESC
@@ -116,7 +124,9 @@ sequenceDiagram
         S4-->>API4: ApiResponse(data: [...])
         API4-->>FE: {success: true, data: [...]}
         
-        FE->>User: ✅ Hiển thị Dashboard:<br/>📊 Stats cards<br/>📅 Current period<br/>📝 Recent transactions<br/>💰 Tax summary
+        FE->>FE: Find first OPEN period or use first period
+        
+        FE->>User: ✅ Hiển thị Dashboard:<br/>📊 Stats cards (revenue, expense, profit, tax)<br/>📅 Current period banner<br/>📝 Recent transactions table<br/>💰 Tax summary (VAT, Corporate, Total Paid)<br/>🔗 Quick links to all modules
     end
 ```
 
@@ -146,7 +156,7 @@ sequenceDiagram
     FE->>FE: Kiểm tra quyền (Admin/Accountant)
     
     FE->>Ctrl: GET /api/accounting/transactions?page=0&size=20
-    Ctrl->>Ctrl: @PreAuthorize("hasRole('ADMIN') or<br/>(hasRole('EMPLOYEE') and<br/>@employeeSecurityService.hasPosition(authentication, 'ACCOUNTANT'))")
+    Ctrl->>Ctrl: @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
     Ctrl->>Svc: getAllTransactions(PageRequest.of(0, 20))
     Svc->>Repo: findAllByOrderByTransactionDateDesc(pageable)
     Repo->>Entity: Load FinancialTransaction entities<br/>ORDER BY transactionDate DESC<br/>LIMIT 20 OFFSET 0
@@ -349,7 +359,7 @@ sequenceDiagram
     FE->>FE: Kiểm tra quyền (Admin/Accountant)
     
     FE->>Ctrl: GET /api/accounting/periods
-    Ctrl->>Ctrl: @PreAuthorize check
+    Ctrl->>Ctrl: @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
     Ctrl->>Svc: getAllPeriods()
     Svc->>Repo: findAllByOrderByStartDateDesc()
     Repo->>Entity: Load AccountingPeriod entities<br/>ORDER BY startDate DESC
@@ -569,6 +579,7 @@ sequenceDiagram
     
     Note over FE,Entity: 1. Load Tax Summary
     FE->>Ctrl: GET /api/accounting/tax/summary
+    Ctrl->>Ctrl: @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
     Ctrl->>Svc: getTaxSummary()
     
     Svc->>Repo: sumRemainingTaxByType(TaxType.VAT)
@@ -586,11 +597,17 @@ sequenceDiagram
     Entity-->>Repo: Sum of remainingTax
     Repo-->>Svc: totalOwed
     
+    Svc->>Repo: sumTotalPaid()
+    Repo->>Entity: Query all TaxReport entities<br/>WHERE status='PAID'
+    Entity-->>Repo: Sum of paidAmount
+    Repo-->>Svc: totalPaid
+    
     Svc-->>Ctrl: ApiResponse.success(summary)
     Ctrl-->>FE: {success: true, data: {...}}
     
     Note over FE,Entity: 2. Load All Tax Reports
     FE->>Ctrl: GET /api/accounting/tax/reports
+    Ctrl->>Ctrl: @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
     Ctrl->>Svc: getAllTaxReports()
     Svc->>Repo: findAllByOrderByPeriodStartDesc()
     Repo->>Entity: Load TaxReport entities<br/>ORDER BY periodStart DESC
@@ -692,6 +709,7 @@ sequenceDiagram
     User->>FE: Xác nhận
     
     FE->>Ctrl: POST /api/accounting/tax/reports/{id}/mark-paid
+    Ctrl->>Ctrl: @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
     Ctrl->>Svc: markAsPaid(id)
     
     Svc->>Repo1: findById(id)
@@ -719,6 +737,138 @@ sequenceDiagram
     Ctrl-->>FE: {success: true}
     
     FE->>User: ✅ Toast: "Đã đánh dấu thanh toán"
+```
+
+### 4.5 Tính toán doanh thu chịu thuế
+
+```mermaid
+sequenceDiagram
+    actor User as 👤 User
+    participant FE as 🖥️ Frontend
+    participant Ctrl as 🔌 TaxReport<br/>Controller
+    participant Svc as ⚙️ TaxReport<br/>Service
+    participant Repo as 💾 FinancialTransaction<br/>Repository
+    participant Entity as 📦 FinancialTransaction<br/>Entity
+    
+    User->>FE: Click "Tính doanh thu chịu thuế"
+    FE->>User: Hiển thị modal chọn kỳ
+    
+    User->>FE: Chọn periodStart, periodEnd
+    User->>FE: Click "Tính toán"
+    
+    FE->>Ctrl: GET /api/accounting/tax/calculate-revenue<br/>?periodStart=...&periodEnd=...
+    Ctrl->>Ctrl: @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
+    Ctrl->>Svc: calculateTaxableRevenue(periodStart, periodEnd)
+    
+    Svc->>Svc: Parse String to LocalDate
+    Svc->>Repo: findByTypeAndCategoryAndDateBetween(<br/>REVENUE, SALES, start, end)
+    Repo->>Entity: Query FinancialTransaction entities<br/>WHERE type='REVENUE'<br/>AND category='SALES'<br/>AND transactionDate BETWEEN ? AND ?
+    Entity-->>Repo: List<FinancialTransaction>
+    Repo-->>Svc: List<FinancialTransaction>
+    
+    Svc->>Svc: Calculate:<br/>taxableRevenue = sum(transactions.amount)<br/>vatAmount = taxableRevenue * 0.1<br/>corporateTaxAmount = taxableRevenue * 0.2
+    
+    Svc-->>Ctrl: ApiResponse.success({<br/>taxableRevenue,<br/>vatAmount,<br/>corporateTaxAmount<br/>})
+    Ctrl-->>FE: {success: true, data: {...}}
+    
+    FE->>User: ✅ Hiển thị kết quả tính toán
+```
+
+### 4.6 Tự động tạo báo cáo thuế
+
+```mermaid
+sequenceDiagram
+    actor User as 👤 User
+    participant FE as 🖥️ Frontend
+    participant Ctrl as 🔌 TaxReport<br/>Controller
+    participant Svc as ⚙️ TaxReport<br/>Service
+    participant Repo1 as 💾 FinancialTransaction<br/>Repository
+    participant Repo2 as 💾 TaxReport<br/>Repository
+    participant E1 as 📦 FinancialTransaction<br/>Entity
+    participant E2 as 📦 TaxReport<br/>Entity
+    
+    User->>FE: Click "Tự động tạo báo cáo thuế"
+    FE->>User: Hiển thị modal
+    
+    User->>FE: Chọn periodStart, periodEnd, taxType
+    User->>FE: Click "Tạo tự động"
+    
+    FE->>Ctrl: POST /api/accounting/tax/auto-create<br/>?periodStart=...&periodEnd=...&taxType=...
+    Ctrl->>Ctrl: @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
+    Ctrl->>Ctrl: Authentication.getName() → createdBy
+    Ctrl->>Svc: autoCreateTaxReport(periodStart, periodEnd, taxType, createdBy)
+    
+    Note over Svc,E1: Tính toán doanh thu chịu thuế
+    Svc->>Svc: Parse dates
+    Svc->>Repo1: findByTypeAndCategoryAndDateBetween(<br/>REVENUE, SALES, start, end)
+    Repo1->>E1: Query FinancialTransaction entities
+    E1-->>Repo1: List<FinancialTransaction>
+    Repo1-->>Svc: List<FinancialTransaction>
+    
+    Svc->>Svc: Calculate:<br/>taxableRevenue = sum(amounts)<br/>taxRate = (taxType == VAT) ? 10% : 20%<br/>taxAmount = taxableRevenue * taxRate
+    
+    Note over Svc,E2: Tạo báo cáo thuế
+    Svc->>E2: TaxReport.builder()<br/>.reportCode("TAX" + timestamp)<br/>.taxType(taxType)<br/>.periodStart(periodStart)<br/>.periodEnd(periodEnd)<br/>.taxableRevenue(taxableRevenue)<br/>.taxRate(taxRate)<br/>.taxAmount(taxAmount)<br/>.paidAmount(0.0)<br/>.remainingTax(taxAmount)<br/>.status(TaxStatus.DRAFT)<br/>.createdBy(createdBy)<br/>.build()
+    
+    Svc->>Repo2: save(taxReport)
+    Repo2->>E2: Persist TaxReport entity
+    E2-->>Repo2: TaxReport
+    Repo2-->>Svc: TaxReport
+    
+    Svc-->>Ctrl: ApiResponse.success(taxReport)
+    Ctrl-->>FE: {success: true, data: {...}}
+    
+    FE->>User: ✅ Toast: "Tạo báo cáo tự động thành công"
+```
+
+### 4.7 Tính lại báo cáo thuế
+
+```mermaid
+sequenceDiagram
+    actor User as 👤 User
+    participant FE as 🖥️ Frontend
+    participant Ctrl as 🔌 TaxReport<br/>Controller
+    participant Svc as ⚙️ TaxReport<br/>Service
+    participant Repo1 as 💾 TaxReport<br/>Repository
+    participant Repo2 as 💾 FinancialTransaction<br/>Repository
+    participant E1 as 📦 TaxReport<br/>Entity
+    participant E2 as 📦 FinancialTransaction<br/>Entity
+    
+    User->>FE: Click "Tính lại"
+    FE->>User: Confirm dialog
+    User->>FE: Xác nhận
+    
+    FE->>Ctrl: POST /api/accounting/tax/reports/{id}/recalculate
+    Ctrl->>Ctrl: @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
+    Ctrl->>Svc: recalculateTaxReport(id)
+    
+    Note over Svc,E1: Load báo cáo thuế
+    Svc->>Repo1: findById(id)
+    Repo1->>E1: Load TaxReport entity
+    E1-->>Repo1: Optional<TaxReport>
+    Repo1-->>Svc: Optional<TaxReport>
+    
+    Svc->>Svc: Validate status == DRAFT
+    
+    Note over Svc,E2: Tính lại doanh thu chịu thuế
+    Svc->>Repo2: findByTypeAndCategoryAndDateBetween(<br/>REVENUE, SALES, periodStart, periodEnd)
+    Repo2->>E2: Query FinancialTransaction entities
+    E2-->>Repo2: List<FinancialTransaction>
+    Repo2-->>Svc: List<FinancialTransaction>
+    
+    Svc->>Svc: Calculate:<br/>newTaxableRevenue = sum(amounts)<br/>newTaxAmount = newTaxableRevenue * taxRate<br/>newRemainingTax = newTaxAmount - paidAmount
+    
+    Svc->>E1: taxReport.setTaxableRevenue(newTaxableRevenue)<br/>taxReport.setTaxAmount(newTaxAmount)<br/>taxReport.setRemainingTax(newRemainingTax)
+    
+    Svc->>Repo1: save(taxReport)
+    Repo1->>E1: Update TaxReport entity
+    E1-->>Repo1: TaxReport
+    Repo1-->>Svc: TaxReport
+    
+    Svc-->>Ctrl: ApiResponse.success(taxReport)
+    Ctrl-->>FE: {success: true, data: {...}}
+    
+    FE->>User: ✅ Toast: "Tính lại thành công"
 ```
 
 ### Entity: TaxReport
@@ -803,7 +953,7 @@ sequenceDiagram
     User->>FE: Click "Tải dữ liệu"
     
     FE->>Ctrl: GET /api/accounting/shipping-reconciliation<br/>?startDate=...&endDate=...
-    Ctrl->>Ctrl: @PreAuthorize check
+    Ctrl->>Ctrl: @PreAuthorize("hasRole('ADMIN') or<br/>@employeeSecurityService.hasPosition(authentication, 'ACCOUNTANT')")
     Ctrl->>Svc: generateReconciliation(startDate, endDate)
     
     Note over Svc,E1: Load đơn hàng đã thanh toán
@@ -823,7 +973,7 @@ sequenceDiagram
     Svc->>Svc: Build ShippingReconciliationResponse:<br/>- totalOrders<br/>- totalShippingFeeCollected<br/>- totalShippingCostPaid<br/>- shippingProfit<br/>- profitMargin<br/>- details: List<OrderShippingDetail>
     
     Svc-->>Ctrl: ShippingReconciliationResponse
-    Ctrl-->>FE: {success: true, data: {...}}
+    Ctrl-->>FE: ApiResponse.success("Tải dữ liệu đối soát thành công", data)
     
     FE->>User: ✅ Hiển thị:<br/>📊 Summary cards<br/>📋 Bảng chi tiết đối soát
 ```
@@ -1314,20 +1464,79 @@ Database (MySQL/PostgreSQL)
 
 ### Các Controller chính
 
-1. **FinancialTransactionController** - `/api/accounting/transactions`
-2. **AccountingPeriodController** - `/api/accounting/periods`
-3. **TaxReportController** - `/api/accounting/tax`
-4. **SupplierPayableController** - `/api/accounting/payables`
-5. **FinancialStatementController** - `/api/accounting/financial-statement`
-6. **AdvancedReportController** - `/api/accounting/reports`
+1. **AccountingDashboardController** - `/api/accounting/dashboard`
+   - GET `/stats` - Dashboard statistics
+   - GET `/recent-orders` - Recent orders
+
+2. **FinancialStatementController** - `/api/accounting/financial-statement`
+   - GET `/` - Financial statement (with date params)
+   - GET `/revenue` - Revenue report
+   - GET `/expenses` - Expense report
+   - GET `/profit` - Profit report
+   - GET `/cash-flow` - Cash flow report
+   - GET `/dashboard` - Dashboard overview
+   - GET `/monthly/{year}/{month}` - Monthly report
+   - GET `/quarterly/{year}/{quarter}` - Quarterly report
+   - GET `/yearly/{year}` - Yearly report
+
+3. **FinancialTransactionController** - `/api/accounting/transactions`
+   - GET `/` - Get all transactions (paginated)
+   - GET `/{id}` - Get transaction by ID
+   - POST `/` - Create transaction
+   - PUT `/{id}` - Update transaction
+   - DELETE `/{id}` - Delete transaction
+   - POST `/search` - Search transactions by date range
+
+4. **AccountingPeriodController** - `/api/accounting/periods`
+   - GET `/` - Get all periods
+   - GET `/{id}` - Get period by ID
+   - POST `/` - Create period
+   - POST `/{id}/close` - Close period
+   - POST `/{id}/reopen` - Reopen period (Admin only)
+   - POST `/{id}/calculate` - Calculate period stats
+
+5. **TaxReportController** - `/api/accounting/tax`
+   - GET `/reports` - Get all tax reports
+   - GET `/reports/{type}` - Get reports by type
+   - GET `/reports/detail/{id}` - Get report by ID
+   - POST `/reports` - Create tax report
+   - PUT `/reports/{id}` - Update tax report
+   - POST `/reports/{id}/submit` - Submit tax report
+   - POST `/reports/{id}/mark-paid` - Mark as paid
+   - GET `/summary` - Get tax summary
+   - GET `/calculate-revenue` - Calculate taxable revenue
+   - POST `/auto-create` - Auto create tax report
+   - POST `/reports/{id}/recalculate` - Recalculate tax report
+
+6. **SupplierPayableController** - `/api/accounting/payables`
+   - GET `/` - Get all payables
+   - GET `/{id}` - Get payable by ID
+   - GET `/supplier/{supplierId}` - Get payables by supplier
+   - GET `/overdue` - Get overdue payables
+   - GET `/upcoming` - Get upcoming payables
+   - POST `/payments` - Make payment
+   - GET `/{payableId}/payments` - Get payment history
+   - GET `/stats` - Get payable stats
+   - GET `/report` - Get payable report
+
 7. **ShippingReconciliationController** - `/api/accounting/shipping-reconciliation`
+   - GET `/` - Get shipping reconciliation
+   - GET `/export` - Export to Excel (TODO)
+
+8. **AdvancedReportController** - `/api/accounting/reports`
+   - POST `/profit-loss` - Generate profit & loss report
+   - POST `/cash-flow` - Generate cash flow report
+   - POST `/expense-analysis` - Generate expense analysis
 
 ### Security & Authorization
 
 Tất cả endpoints đều được bảo vệ bởi:
-- `@PreAuthorize("hasRole('ADMIN')")` - Chỉ Admin
-- `@PreAuthorize("hasRole('ADMIN') or (hasRole('EMPLOYEE') and @employeeSecurityService.hasPosition(authentication, 'ACCOUNTANT'))")` - Admin hoặc Accountant
-- `@PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT', 'WAREHOUSE_MANAGER')")` - Nhiều roles
+- `@PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")` - Admin hoặc Accountant
+- `@PreAuthorize("hasAnyAuthority('ADMIN')")` - Chỉ Admin (reopen period)
+- `@PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT', 'WAREHOUSE_MANAGER')")` - Admin, Accountant hoặc Warehouse Manager (payables)
+- `@PreAuthorize("hasRole('ADMIN') or @employeeSecurityService.hasPosition(authentication, 'ACCOUNTANT')")` - Admin hoặc Employee với position ACCOUNTANT (advanced reports, shipping reconciliation)
+
+**Lưu ý**: Frontend kiểm tra role từ localStorage, Backend kiểm tra quyền qua Spring Security
 
 ### Database Tables
 
@@ -1355,12 +1564,60 @@ supplier_payments (id, payment_code, supplier_payable_id, amount, payment_method
 Tài liệu này mô tả đầy đủ các luồng nghiệp vụ kế toán từ Frontend đến Backend với đúng tên Controller, Service, Repository và Entity theo code thực tế. Mỗi sequence diagram cho thấy rõ:
 
 1. **User interaction** - Người dùng thao tác trên giao diện
-2. **Frontend logic** - Validation, state management
-3. **API calls** - HTTP requests với đúng endpoint
-4. **Controller layer** - Authentication, authorization
-5. **Service layer** - Business logic, calculations
-6. **Repository layer** - Data access methods
-7. **Entity layer** - Domain models, lifecycle hooks
-8. **Database** - Actual data persistence
+2. **Frontend logic** - Validation, state management, localStorage auth
+3. **API calls** - HTTP requests với đúng endpoint và parameters
+4. **Controller layer** - Authentication với `@PreAuthorize`, authorization checks
+5. **Service layer** - Business logic, calculations, data transformations
+6. **Repository layer** - Data access methods, JPA queries
+7. **Entity layer** - Domain models, lifecycle hooks (`@PrePersist`, `@PreUpdate`)
+8. **Database** - Actual data persistence với MySQL/PostgreSQL
 
-Tất cả đều dựa trên code backend thực tế đã được implement.
+### Các tính năng chính đã được implement:
+
+**Dashboard & Overview:**
+- Tổng quan tài chính (doanh thu, chi phí, lợi nhuận)
+- Thống kê thuế (VAT, TNDN, tổng đã nộp)
+- Kỳ kế toán hiện tại
+- Giao dịch gần đây
+- Quick links đến các module
+
+**Financial Transactions:**
+- CRUD operations với pagination
+- Search by date range
+- Auto-generate transaction code
+- Support multiple transaction types (REVENUE, EXPENSE, REFUND)
+- Support multiple categories (SALES, SHIPPING, TAX, SUPPLIER_PAYMENT, etc.)
+
+**Accounting Periods:**
+- Create, view, close, reopen periods
+- Auto-calculate revenue, expense, profit
+- Discrepancy rate validation (max 15%)
+- Only Admin can reopen closed periods
+
+**Tax Management:**
+- Create, update, submit, mark paid tax reports
+- Support VAT (10%) and Corporate Tax (20%)
+- Auto-calculate taxable revenue from financial transactions
+- Auto-create tax reports with one click
+- Recalculate tax reports when data changes
+- Tax summary dashboard
+
+**Supplier Payables:**
+- Track payables by supplier
+- Overdue and upcoming payables alerts
+- Payment history tracking
+- Auto-update status (UNPAID, PARTIAL, PAID, OVERDUE)
+- Integration with financial transactions
+
+**Advanced Reports:**
+- Profit & Loss Report
+- Cash Flow Report
+- Expense Analysis
+- Customizable date ranges and grouping
+
+**Shipping Reconciliation:**
+- Compare shipping fees collected vs actual costs
+- Calculate profit margins
+- Detailed order-by-order breakdown
+
+Tất cả đều dựa trên code backend và frontend thực tế đã được implement và đang hoạt động.

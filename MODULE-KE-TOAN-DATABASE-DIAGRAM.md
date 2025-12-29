@@ -15,7 +15,458 @@ Module Kế Toán (Accounting) quản lý toàn bộ các giao dịch tài chín
 
 ---
 
-## 🎨 CLASS DIAGRAM (Mermaid)
+## 🏗️ CLASS DIAGRAM - KIẾN TRÚC PHÂN TẦNG (Layered Architecture)
+
+```mermaid
+classDiagram
+    %% ========================================
+    %% CONTROLLER LAYER - Tầng điều khiển
+    %% ========================================
+    
+    class AccountingController {
+        <<Controller>>
+        -financialTransactionService: FinancialTransactionService
+        -accountingPeriodService: AccountingPeriodService
+        +getFinancialStatement(periodId) ResponseEntity
+        +getTransactions(filters) ResponseEntity
+        +createTransaction(request) ResponseEntity
+        +getDashboardSummary() ResponseEntity
+        +exportReport(periodId) ResponseEntity
+    }
+    
+    class SupplierPayableController {
+        <<Controller>>
+        -supplierPayableService: SupplierPayableService
+        -supplierPaymentService: SupplierPaymentService
+        +getAllPayables(filters) ResponseEntity
+        +getPayableById(id) ResponseEntity
+        +createPayment(payableId, request) ResponseEntity
+        +getPaymentHistory(payableId) ResponseEntity
+        +getOverduePayables() ResponseEntity
+        +getAgingReport() ResponseEntity
+    }
+    
+    class TaxReportController {
+        <<Controller>>
+        -taxReportService: TaxReportService
+        +getAllTaxReports(filters) ResponseEntity
+        +getTaxReportById(id) ResponseEntity
+        +createTaxReport(request) ResponseEntity
+        +calculateTaxableRevenue(periodStart, periodEnd) ResponseEntity
+        +submitTaxReport(id) ResponseEntity
+        +markAsPaid(id, amount) ResponseEntity
+        +recalculateTax(id) ResponseEntity
+    }
+    
+    class PaymentReconciliationController {
+        <<Controller>>
+        -reconciliationService: PaymentReconciliationService
+        +getAllReconciliations(filters) ResponseEntity
+        +reconcilePayment(orderId) ResponseEntity
+        +getMismatchedPayments() ResponseEntity
+        +resolveDiscrepancy(id, note) ResponseEntity
+    }
+    
+    %% ========================================
+    %% SERVICE LAYER - Tầng nghiệp vụ
+    %% ========================================
+    
+    class FinancialTransactionService {
+        <<Service>>
+        -transactionRepository: FinancialTransactionRepository
+        -accountingPeriodService: AccountingPeriodService
+        +createTransaction(dto) FinancialTransaction
+        +getTransactionsByPeriod(periodId) List~FinancialTransaction~
+        +getTransactionsByType(type) List~FinancialTransaction~
+        +getTransactionsByOrder(orderId) List~FinancialTransaction~
+        +getTransactionsBySupplier(supplierId) List~FinancialTransaction~
+        +calculateTotalRevenue(startDate, endDate) Double
+        +calculateTotalExpense(startDate, endDate) Double
+        +generateTransactionCode() String
+    }
+    
+    class AccountingPeriodService {
+        <<Service>>
+        -periodRepository: AccountingPeriodRepository
+        -transactionService: FinancialTransactionService
+        +createPeriod(dto) AccountingPeriod
+        +getCurrentPeriod() AccountingPeriod
+        +closePeriod(periodId, closedBy) AccountingPeriod
+        +calculatePeriodSummary(periodId) PeriodSummary
+        +updatePeriodTotals(periodId) void
+        +canModifyPeriod(periodId) boolean
+    }
+    
+    class SupplierPayableService {
+        <<Service>>
+        -payableRepository: SupplierPayableRepository
+        -supplierRepository: SupplierRepository
+        -purchaseOrderRepository: PurchaseOrderRepository
+        +createPayable(purchaseOrderId) SupplierPayable
+        +getPayablesBySupplier(supplierId) List~SupplierPayable~
+        +getOverduePayables() List~SupplierPayable~
+        +updatePayableStatus(payableId) void
+        +calculateAgingReport() AgingReport
+        +getTotalPayablesBySupplier(supplierId) BigDecimal
+    }
+    
+    class SupplierPaymentService {
+        <<Service>>
+        -paymentRepository: SupplierPaymentRepository
+        -payableService: SupplierPayableService
+        -transactionService: FinancialTransactionService
+        +createPayment(payableId, dto) SupplierPayment
+        +getPaymentsByPayable(payableId) List~SupplierPayment~
+        +getPaymentsBySupplier(supplierId) List~SupplierPayment~
+        +processPayment(payment) void
+        +generatePaymentCode() String
+    }
+    
+    class TaxReportService {
+        <<Service>>
+        -taxReportRepository: TaxReportRepository
+        -transactionService: FinancialTransactionService
+        +createTaxReport(dto) TaxReport
+        +calculateTaxableRevenue(startDate, endDate) Double
+        +calculateTaxAmount(revenue, taxType) Double
+        +submitReport(reportId) TaxReport
+        +markAsPaid(reportId, amount) TaxReport
+        +recalculateTax(reportId) TaxReport
+        +generateReportCode() String
+    }
+    
+    class PaymentReconciliationService {
+        <<Service>>
+        -reconciliationRepository: PaymentReconciliationRepository
+        -orderRepository: OrderRepository
+        +reconcilePayment(orderId) PaymentReconciliation
+        +getMismatchedPayments() List~PaymentReconciliation~
+        +calculateDiscrepancy(systemAmount, gatewayAmount) BigDecimal
+        +resolveDiscrepancy(reconciliationId, note) void
+    }
+    
+    %% ========================================
+    %% REPOSITORY LAYER - Tầng truy xuất dữ liệu
+    %% ========================================
+    
+    class FinancialTransactionRepository {
+        <<Repository>>
+        <<interface>>
+        +findByType(type) List~FinancialTransaction~
+        +findByCategory(category) List~FinancialTransaction~
+        +findByOrderId(orderId) List~FinancialTransaction~
+        +findBySupplierId(supplierId) List~FinancialTransaction~
+        +findByTransactionDateBetween(start, end) List~FinancialTransaction~
+        +sumAmountByTypeAndDateRange(type, start, end) Double
+    }
+    
+    class AccountingPeriodRepository {
+        <<Repository>>
+        <<interface>>
+        +findByStatus(status) List~AccountingPeriod~
+        +findByStartDateLessThanEqualAndEndDateGreaterThanEqual(date) Optional~AccountingPeriod~
+        +findCurrentPeriod() Optional~AccountingPeriod~
+    }
+    
+    class SupplierPayableRepository {
+        <<Repository>>
+        <<interface>>
+        +findBySupplierId(supplierId) List~SupplierPayable~
+        +findByStatus(status) List~SupplierPayable~
+        +findByDueDateBeforeAndStatusNot(date, status) List~SupplierPayable~
+        +sumRemainingAmountBySupplierId(supplierId) BigDecimal
+    }
+    
+    class SupplierPaymentRepository {
+        <<Repository>>
+        <<interface>>
+        +findByPayableId(payableId) List~SupplierPayment~
+        +findByPaymentDateBetween(start, end) List~SupplierPayment~
+    }
+    
+    class TaxReportRepository {
+        <<Repository>>
+        <<interface>>
+        +findByTaxType(taxType) List~TaxReport~
+        +findByStatus(status) List~TaxReport~
+        +findByPeriodStartAndPeriodEnd(start, end) Optional~TaxReport~
+    }
+    
+    class PaymentReconciliationRepository {
+        <<Repository>>
+        <<interface>>
+        +findByStatus(status) List~PaymentReconciliation~
+        +findByOrderId(orderId) Optional~PaymentReconciliation~
+        +findByGateway(gateway) List~PaymentReconciliation~
+    }
+    
+    %% ========================================
+    %% ENTITY LAYER - Tầng thực thể
+    %% ========================================
+    
+    class FinancialTransaction {
+        <<Entity>>
+        -id: Long
+        -transactionCode: String
+        -type: TransactionType
+        -category: TransactionCategory
+        -amount: Double
+        -orderId: Long
+        -supplierId: Long
+        -description: String
+        -transactionDate: LocalDateTime
+        -createdAt: LocalDateTime
+        -createdBy: String
+        +generateTransactionCode() String
+        +isRevenue() boolean
+        +isExpense() boolean
+    }
+    
+    class AccountingPeriod {
+        <<Entity>>
+        -id: Long
+        -name: String
+        -startDate: LocalDate
+        -endDate: LocalDate
+        -status: PeriodStatus
+        -totalRevenue: Double
+        -totalExpense: Double
+        -netProfit: Double
+        -discrepancyRate: Double
+        -closedAt: LocalDateTime
+        -closedBy: String
+        +calculateNetProfit() Double
+        +closePeriod(closedBy) void
+        +canModify() boolean
+    }
+    
+    class SupplierPayable {
+        <<Entity>>
+        -id: Long
+        -payableCode: String
+        -supplier: Supplier
+        -purchaseOrder: PurchaseOrder
+        -totalAmount: BigDecimal
+        -paidAmount: BigDecimal
+        -remainingAmount: BigDecimal
+        -status: PayableStatus
+        -invoiceDate: LocalDate
+        -dueDate: LocalDate
+        +calculateRemainingAmount() BigDecimal
+        +updateStatus() void
+        +isOverdue() boolean
+    }
+    
+    class SupplierPayment {
+        <<Entity>>
+        -id: Long
+        -paymentCode: String
+        -payable: SupplierPayable
+        -amount: BigDecimal
+        -paymentDate: LocalDate
+        -paymentMethod: PaymentMethod
+        -referenceNumber: String
+        +generatePaymentCode() String
+        +validateAmount() boolean
+    }
+    
+    class TaxReport {
+        <<Entity>>
+        -id: Long
+        -reportCode: String
+        -taxType: TaxType
+        -periodStart: LocalDate
+        -periodEnd: LocalDate
+        -taxableRevenue: Double
+        -taxRate: Double
+        -taxAmount: Double
+        -paidAmount: Double
+        -remainingTax: Double
+        -status: TaxStatus
+        +calculateTaxAmount() Double
+        +submit() void
+        +markAsPaid(amount) void
+    }
+    
+    class PaymentReconciliation {
+        <<Entity>>
+        -id: Long
+        -orderId: String
+        -transactionId: String
+        -gateway: String
+        -systemAmount: BigDecimal
+        -gatewayAmount: BigDecimal
+        -discrepancy: BigDecimal
+        -status: ReconciliationStatus
+        +calculateDiscrepancy() BigDecimal
+        +isMatched() boolean
+    }
+    
+    %% ========================================
+    %% DTO CLASSES - Data Transfer Objects
+    %% ========================================
+    
+    class TransactionDTO {
+        <<DTO>>
+        +type: String
+        +category: String
+        +amount: Double
+        +orderId: Long
+        +supplierId: Long
+        +description: String
+        +transactionDate: LocalDateTime
+    }
+    
+    class PayableDTO {
+        <<DTO>>
+        +supplierId: Long
+        +purchaseOrderId: Long
+        +totalAmount: BigDecimal
+        +invoiceDate: LocalDate
+        +paymentTermDays: Integer
+        +note: String
+    }
+    
+    class PaymentDTO {
+        <<DTO>>
+        +payableId: Long
+        +amount: BigDecimal
+        +paymentDate: LocalDate
+        +paymentMethod: String
+        +referenceNumber: String
+        +note: String
+    }
+    
+    class TaxReportDTO {
+        <<DTO>>
+        +taxType: String
+        +periodStart: LocalDate
+        +periodEnd: LocalDate
+        +taxableRevenue: Double
+        +taxRate: Double
+    }
+    
+    %% ========================================
+    %% RELATIONSHIPS - Mối quan hệ giữa các tầng
+    %% ========================================
+    
+    %% Controller -> Service
+    AccountingController --> FinancialTransactionService : uses
+    AccountingController --> AccountingPeriodService : uses
+    SupplierPayableController --> SupplierPayableService : uses
+    SupplierPayableController --> SupplierPaymentService : uses
+    TaxReportController --> TaxReportService : uses
+    PaymentReconciliationController --> PaymentReconciliationService : uses
+    
+    %% Service -> Repository
+    FinancialTransactionService --> FinancialTransactionRepository : uses
+    FinancialTransactionService --> AccountingPeriodService : uses
+    AccountingPeriodService --> AccountingPeriodRepository : uses
+    AccountingPeriodService --> FinancialTransactionService : uses
+    SupplierPayableService --> SupplierPayableRepository : uses
+    SupplierPaymentService --> SupplierPaymentRepository : uses
+    SupplierPaymentService --> SupplierPayableService : uses
+    SupplierPaymentService --> FinancialTransactionService : uses
+    TaxReportService --> TaxReportRepository : uses
+    TaxReportService --> FinancialTransactionService : uses
+    PaymentReconciliationService --> PaymentReconciliationRepository : uses
+    
+    %% Repository -> Entity
+    FinancialTransactionRepository ..> FinancialTransaction : manages
+    AccountingPeriodRepository ..> AccountingPeriod : manages
+    SupplierPayableRepository ..> SupplierPayable : manages
+    SupplierPaymentRepository ..> SupplierPayment : manages
+    TaxReportRepository ..> TaxReport : manages
+    PaymentReconciliationRepository ..> PaymentReconciliation : manages
+    
+    %% Controller -> DTO
+    AccountingController ..> TransactionDTO : uses
+    SupplierPayableController ..> PayableDTO : uses
+    SupplierPayableController ..> PaymentDTO : uses
+    TaxReportController ..> TaxReportDTO : uses
+    
+    %% Service -> Entity
+    FinancialTransactionService ..> FinancialTransaction : creates/updates
+    AccountingPeriodService ..> AccountingPeriod : creates/updates
+    SupplierPayableService ..> SupplierPayable : creates/updates
+    SupplierPaymentService ..> SupplierPayment : creates/updates
+    TaxReportService ..> TaxReport : creates/updates
+    PaymentReconciliationService ..> PaymentReconciliation : creates/updates
+    
+    %% ========================================
+    %% NOTES
+    %% ========================================
+    
+    note for AccountingController "REST API endpoints\n@RestController\n@RequestMapping('/api/accounting')"
+    note for FinancialTransactionService "Business logic\n@Service\n@Transactional"
+    note for FinancialTransactionRepository "Data access\nextends JpaRepository"
+    note for FinancialTransaction "JPA Entity\n@Entity\n@Table('financial_transactions')"
+```
+
+### 📋 Giải Thích Kiến Trúc Phân Tầng
+
+#### 1. **Controller Layer (Tầng Điều Khiển)**
+- **Vai trò**: Tiếp nhận HTTP requests, validate input, gọi service, trả về response
+- **Annotation**: `@RestController`, `@RequestMapping`
+- **Các Controller**:
+  - `AccountingController`: Quản lý giao dịch tài chính và kỳ kế toán
+  - `SupplierPayableController`: Quản lý công nợ và thanh toán NCC
+  - `TaxReportController`: Quản lý báo cáo thuế
+  - `PaymentReconciliationController`: Đối soát thanh toán
+
+#### 2. **Service Layer (Tầng Nghiệp Vụ)**
+- **Vai trò**: Xử lý logic nghiệp vụ, transaction management
+- **Annotation**: `@Service`, `@Transactional`
+- **Các Service**:
+  - `FinancialTransactionService`: Logic giao dịch tài chính
+  - `AccountingPeriodService`: Logic kỳ kế toán
+  - `SupplierPayableService`: Logic công nợ NCC
+  - `SupplierPaymentService`: Logic thanh toán NCC
+  - `TaxReportService`: Logic báo cáo thuế
+  - `PaymentReconciliationService`: Logic đối soát
+
+#### 3. **Repository Layer (Tầng Truy Xuất Dữ Liệu)**
+- **Vai trò**: Truy xuất database, CRUD operations
+- **Annotation**: `@Repository`, extends `JpaRepository`
+- **Các Repository**: Mỗi entity có một repository tương ứng
+
+#### 4. **Entity Layer (Tầng Thực Thể)**
+- **Vai trò**: Ánh xạ với database tables
+- **Annotation**: `@Entity`, `@Table`
+- **Các Entity**: 6 entity chính của module kế toán
+
+#### 5. **DTO Layer (Data Transfer Objects)**
+- **Vai trò**: Truyền dữ liệu giữa các tầng, validate input
+- **Annotation**: `@Data`, `@Valid`
+- **Các DTO**: TransactionDTO, PayableDTO, PaymentDTO, TaxReportDTO
+
+### 🔄 Luồng Xử Lý Request
+
+```
+Client Request
+    ↓
+Controller (validate, parse)
+    ↓
+Service (business logic)
+    ↓
+Repository (database query)
+    ↓
+Entity (data mapping)
+    ↓
+Database
+```
+
+### 🎯 Nguyên Tắc Thiết Kế
+
+1. **Separation of Concerns**: Mỗi tầng có trách nhiệm riêng
+2. **Dependency Injection**: Sử dụng Spring DI
+3. **Single Responsibility**: Mỗi class có một nhiệm vụ duy nhất
+4. **Open/Closed Principle**: Mở cho mở rộng, đóng cho sửa đổi
+5. **Interface Segregation**: Repository extends JpaRepository
+
+---
+
+## 🎨 CLASS DIAGRAM (Mermaid) - CẢI TIẾN
 
 ```mermaid
 classDiagram
@@ -36,6 +487,12 @@ classDiagram
         -transactionDate: LocalDateTime
         -createdAt: LocalDateTime
         -createdBy: String
+        +generateTransactionCode() String
+        +isRevenue() boolean
+        +isExpense() boolean
+        +getFormattedAmount() String
+        +belongsToOrder(Long orderId) boolean
+        +belongsToSupplier(Long supplierId) boolean
     }
 
     
@@ -53,6 +510,15 @@ classDiagram
         -closedAt: LocalDateTime
         -closedBy: String
         -createdAt: LocalDateTime
+        +calculateNetProfit() Double
+        +calculateDiscrepancyRate() Double
+        +closePeriod(String closedBy) void
+        +isOpen() boolean
+        +isClosed() boolean
+        +canModify() boolean
+        +addRevenue(Double amount) void
+        +addExpense(Double amount) void
+        +containsDate(LocalDate date) boolean
     }
     
     %% Entity: SupplierPayable
@@ -72,7 +538,15 @@ classDiagram
         -createdAt: LocalDateTime
         -updatedAt: LocalDateTime
         -createdBy: String
-        +updateStatus(): void
+        +generatePayableCode() String
+        +calculateRemainingAmount() BigDecimal
+        +updateStatus() void
+        +addPayment(BigDecimal amount) void
+        +isOverdue() boolean
+        +isPaid() boolean
+        +isPartiallyPaid() boolean
+        +getDaysOverdue() Integer
+        +getPaymentProgress() Double
     }
 
     
@@ -88,6 +562,11 @@ classDiagram
         -note: String
         -createdAt: LocalDateTime
         -createdBy: String
+        +generatePaymentCode() String
+        +validateAmount() boolean
+        +isCashPayment() boolean
+        +isBankTransfer() boolean
+        +getFormattedAmount() String
     }
     
     %% Entity: PaymentReconciliation
@@ -97,6 +576,7 @@ classDiagram
         -transactionId: String
         -gateway: String
         -systemAmount: BigDecimal
+        -gatewayAmount: BigDecimal
         -discrepancy: BigDecimal
         -status: ReconciliationStatus
         -transactionDate: LocalDateTime
@@ -104,6 +584,12 @@ classDiagram
         -reconciledBy: String
         -note: String
         -createdAt: LocalDateTime
+        +calculateDiscrepancy() BigDecimal
+        +isMatched() boolean
+        +isMismatched() boolean
+        +hasDiscrepancy() boolean
+        +reconcile(String reconciledBy) void
+        +getDiscrepancyPercentage() Double
     }
 
     
@@ -124,6 +610,16 @@ classDiagram
         -paidAt: LocalDateTime
         -createdAt: LocalDateTime
         -createdBy: String
+        +generateReportCode() String
+        +calculateTaxAmount() Double
+        +calculateRemainingTax() Double
+        +submit() void
+        +markAsPaid(Double amount) void
+        +isDraft() boolean
+        +isSubmitted() boolean
+        +isPaid() boolean
+        +isVAT() boolean
+        +isCorporateTax() boolean
     }
     
     %% ========================================
@@ -135,6 +631,8 @@ classDiagram
         REVENUE
         EXPENSE
         REFUND
+        +getDisplayName() String
+        +isPositive() boolean
     }
     
     class TransactionCategory {
@@ -147,6 +645,8 @@ classDiagram
         REFUND
         OTHER_REVENUE
         OTHER_EXPENSE
+        +getDisplayName() String
+        +getTransactionType() TransactionType
     }
 
     
@@ -156,6 +656,9 @@ classDiagram
         PARTIAL
         PAID
         OVERDUE
+        +getDisplayName() String
+        +getColor() String
+        +canPay() boolean
     }
     
     class PaymentMethod {
@@ -163,12 +666,16 @@ classDiagram
         CASH
         BANK_TRANSFER
         CHECK
+        +getDisplayName() String
+        +requiresReference() boolean
     }
     
     class PeriodStatus {
         <<enumeration>>
         OPEN
         CLOSED
+        +getDisplayName() String
+        +canModify() boolean
     }
     
     class ReconciliationStatus {
@@ -177,12 +684,16 @@ classDiagram
         MISMATCHED
         MISSING_IN_SYSTEM
         MISSING_IN_GATEWAY
+        +getDisplayName() String
+        +requiresAction() boolean
     }
     
     class TaxType {
         <<enumeration>>
         VAT
         CORPORATE_TAX
+        +getDisplayName() String
+        +getDefaultRate() Double
     }
     
     class TaxStatus {
@@ -190,6 +701,8 @@ classDiagram
         DRAFT
         SUBMITTED
         PAID
+        +getDisplayName() String
+        +canEdit() boolean
     }
     
     class PaymentStatus {
@@ -198,6 +711,7 @@ classDiagram
         PAID
         FAILED
         REFUNDED
+        +getDisplayName() String
     }
     
     class OrderStatus {
@@ -209,6 +723,7 @@ classDiagram
         SHIPPING
         DELIVERED
         CANCELLED
+        +getDisplayName() String
     }
     
     class POStatus {
@@ -216,6 +731,7 @@ classDiagram
         PENDING
         RECEIVED
         CANCELLED
+        +getDisplayName() String
     }
 
     
@@ -236,6 +752,10 @@ classDiagram
         -paymentTerm: String
         -paymentTermDays: Integer
         -active: Boolean
+        +getTotalPayables() BigDecimal
+        +getTotalPaid() BigDecimal
+        +getTotalRemaining() BigDecimal
+        +hasOverduePayables() boolean
     }
     
     class PurchaseOrder {
@@ -248,6 +768,9 @@ classDiagram
         -createdBy: String
         -note: String
         -items: List~PurchaseOrderItem~
+        +calculateTotalAmount() BigDecimal
+        +isReceived() boolean
+        +canCreatePayable() boolean
     }
 
     
@@ -283,6 +806,8 @@ classDiagram
         -cancelReason: String
         -ghnOrderCode: String
         -ghnShippingStatus: String
+        +isDelivered() boolean
+        +canCreateTransaction() boolean
     }
     
     class Customer {
@@ -318,6 +843,7 @@ classDiagram
         -warrantyMonths: Integer
         -note: String
         -productDetails: List~ProductDetail~
+        +calculateTotal() BigDecimal
     }
 
     
@@ -326,48 +852,322 @@ classDiagram
     %% ========================================
     
     %% Quan hệ trong module Accounting
-    FinancialTransaction --> TransactionType : type
-    FinancialTransaction --> TransactionCategory : category
-    FinancialTransaction ..> Order : orderId (optional)
-    FinancialTransaction ..> Supplier : supplierId (optional)
+    FinancialTransaction "0..*" --> "1" TransactionType : type
+    FinancialTransaction "0..*" --> "1" TransactionCategory : category
+    FinancialTransaction "0..*" ..> "0..1" Order : orderId (optional)
+    FinancialTransaction "0..*" ..> "0..1" Supplier : supplierId (optional)
     
-    AccountingPeriod --> PeriodStatus : status
+    AccountingPeriod "1" --> "1" PeriodStatus : status
     
-    SupplierPayable --> Supplier : supplier (ManyToOne)
-    SupplierPayable --> PurchaseOrder : purchaseOrder (ManyToOne)
-    SupplierPayable --> PayableStatus : status
+    SupplierPayable "0..*" --> "1" Supplier : supplier
+    SupplierPayable "0..1" --> "1" PurchaseOrder : purchaseOrder
+    SupplierPayable "1" --> "1" PayableStatus : status
+    SupplierPayable "1" o-- "0..*" SupplierPayment : payments
     
-    SupplierPayment --> SupplierPayable : payable (ManyToOne)
-    SupplierPayment --> PaymentMethod : paymentMethod
+    SupplierPayment "0..*" --> "1" SupplierPayable : payable
+    SupplierPayment "1" --> "1" PaymentMethod : paymentMethod
     
-    PaymentReconciliation ..> Order : orderId (reference)
-    PaymentReconciliation --> ReconciliationStatus : status
+    PaymentReconciliation "0..*" ..> "1" Order : orderId (reference)
+    PaymentReconciliation "1" --> "1" ReconciliationStatus : status
     
-    TaxReport --> TaxType : taxType
-    TaxReport --> TaxStatus : status
+    TaxReport "1" --> "1" TaxType : taxType
+    TaxReport "1" --> "1" TaxStatus : status
     
     %% Quan hệ giữa các module
-    PurchaseOrder --> Supplier : supplier (ManyToOne)
-    PurchaseOrder *-- PurchaseOrderItem : items (OneToMany - Composition)
+    PurchaseOrder "0..*" --> "1" Supplier : supplier
+    PurchaseOrder "1" *-- "1..*" PurchaseOrderItem : items (composition)
+    PurchaseOrder "1" --> "1" POStatus : status
     
-    PurchaseOrderItem --> PurchaseOrder : purchaseOrder (ManyToOne)
-    PurchaseOrderItem --> WarehouseProduct : warehouseProduct (ManyToOne)
-    PurchaseOrderItem *-- ProductDetail : productDetails (OneToMany - Composition)
+    PurchaseOrderItem "0..*" --> "1" PurchaseOrder : purchaseOrder
+    PurchaseOrderItem "0..*" --> "1" WarehouseProduct : warehouseProduct
+    PurchaseOrderItem "1" *-- "0..*" ProductDetail : productDetails (composition)
     
     %% Quan hệ từ Order
-    Order --> Customer : customer (ManyToOne)
-    Order --> PaymentStatus : paymentStatus
-    Order --> OrderStatus : status
-    Order *-- OrderItem : items (OneToMany - Composition)
+    Order "0..*" --> "1" Customer : customer
+    Order "1" --> "1" PaymentStatus : paymentStatus
+    Order "1" --> "1" OrderStatus : status
+    Order "1" *-- "1..*" OrderItem : items (composition)
     
-    OrderItem --> Order : order (ManyToOne)
-    OrderItem --> Product : product (ManyToOne)
+    OrderItem "0..*" --> "1" Order : order
+    OrderItem "0..*" --> "1" Product : product
     
-    Customer --> User : user (OneToOne)
+    Customer "1" --> "1" User : user
+    
+    %% ========================================
+    %% GHI CHÚ QUAN HỆ
+    %% ========================================
+    
+    note for FinancialTransaction "Tự động tạo khi:\n- Order DELIVERED (REVENUE)\n- SupplierPayment created (EXPENSE)\n- Refund processed (REFUND)"
+    
+    note for SupplierPayable "Tự động tạo khi:\n- PurchaseOrder RECEIVED\n- Status tự động update khi payment"
+    
+    note for AccountingPeriod "Tự động tính:\n- totalRevenue từ transactions\n- totalExpense từ transactions\n- netProfit = revenue - expense"
+    
+    note for TaxReport "Tự động tính thuế:\n- VAT: 10% doanh thu\n- CORPORATE_TAX: 20% lợi nhuận"
 ```
 
 ---
 
+## 🗄️ ERD DIAGRAM (Entity Relationship Diagram)
+
+```mermaid
+erDiagram
+    %% ========================================
+    %% MODULE KẾ TOÁN - ACCOUNTING TABLES
+    %% ========================================
+    
+    FINANCIAL_TRANSACTIONS {
+        BIGINT id PK "Auto Increment"
+        VARCHAR transaction_code UK "Mã giao dịch (TXN...)"
+        ENUM type "REVENUE, EXPENSE, REFUND"
+        ENUM category "SALES, SHIPPING, PAYMENT_FEE, TAX, etc"
+        DOUBLE amount "Số tiền"
+        BIGINT order_id FK "ID đơn hàng (nullable)"
+        BIGINT supplier_id FK "ID nhà cung cấp (nullable)"
+        VARCHAR description "Mô tả"
+        DATETIME transaction_date "Ngày giao dịch"
+        DATETIME created_at "Ngày tạo"
+        VARCHAR created_by "Người tạo"
+    }
+    
+    ACCOUNTING_PERIODS {
+        BIGINT id PK "Auto Increment"
+        VARCHAR name "Tên kỳ (Tháng 12/2024)"
+        DATE start_date "Ngày bắt đầu"
+        DATE end_date "Ngày kết thúc"
+        ENUM status "OPEN, CLOSED"
+        DOUBLE total_revenue "Tổng doanh thu"
+        DOUBLE total_expense "Tổng chi phí"
+        DOUBLE net_profit "Lợi nhuận ròng"
+        DOUBLE discrepancy_rate "Tỷ lệ sai lệch %"
+        DATETIME closed_at "Thời gian chốt"
+        VARCHAR closed_by "Người chốt"
+        DATETIME created_at "Ngày tạo"
+    }
+    
+    SUPPLIER_PAYABLES {
+        BIGINT id PK "Auto Increment"
+        VARCHAR payable_code UK "Mã công nợ (AP-...)"
+        BIGINT supplier_id FK "ID nhà cung cấp"
+        BIGINT purchase_order_id FK "ID phiếu nhập"
+        DECIMAL total_amount "Tổng tiền phải trả"
+        DECIMAL paid_amount "Số tiền đã trả"
+        DECIMAL remaining_amount "Số tiền còn nợ"
+        ENUM status "UNPAID, PARTIAL, PAID, OVERDUE"
+        DATE invoice_date "Ngày hóa đơn"
+        DATE due_date "Ngày hạn thanh toán"
+        INT payment_term_days "Số ngày nợ"
+        TEXT note "Ghi chú"
+        DATETIME created_at "Ngày tạo"
+        DATETIME updated_at "Ngày cập nhật"
+        VARCHAR created_by "Người tạo"
+    }
+    
+    SUPPLIER_PAYMENTS {
+        BIGINT id PK "Auto Increment"
+        VARCHAR payment_code UK "Mã thanh toán (PAY-...)"
+        BIGINT payable_id FK "ID công nợ"
+        DECIMAL amount "Số tiền thanh toán"
+        DATE payment_date "Ngày thanh toán"
+        ENUM payment_method "CASH, BANK_TRANSFER, CHECK"
+        VARCHAR reference_number "Số tham chiếu"
+        TEXT note "Ghi chú"
+        DATETIME created_at "Ngày tạo"
+        VARCHAR created_by "Người tạo"
+    }
+    
+    PAYMENT_RECONCILIATION {
+        BIGINT id PK "Auto Increment"
+        VARCHAR order_id "Mã đơn hàng"
+        VARCHAR transaction_id "Mã giao dịch gateway"
+        VARCHAR gateway "VNPAY, MOMO, ZALOPAY"
+        DECIMAL system_amount "Số tiền hệ thống"
+        DECIMAL gateway_amount "Số tiền gateway"
+        DECIMAL discrepancy "Chênh lệch"
+        ENUM status "MATCHED, MISMATCHED, etc"
+        DATETIME transaction_date "Ngày giao dịch"
+        DATETIME reconciled_at "Ngày đối soát"
+        VARCHAR reconciled_by "Người đối soát"
+        TEXT note "Ghi chú"
+        DATETIME created_at "Ngày tạo"
+    }
+    
+    TAX_REPORTS {
+        BIGINT id PK "Auto Increment"
+        VARCHAR report_code UK "Mã báo cáo (TAX...)"
+        ENUM tax_type "VAT, CORPORATE_TAX"
+        DATE period_start "Ngày bắt đầu kỳ"
+        DATE period_end "Ngày kết thúc kỳ"
+        DOUBLE taxable_revenue "Doanh thu chịu thuế"
+        DOUBLE tax_rate "Thuế suất %"
+        DOUBLE tax_amount "Số thuế phải nộp"
+        DOUBLE paid_amount "Số thuế đã nộp"
+        DOUBLE remaining_tax "Số thuế còn nợ"
+        ENUM status "DRAFT, SUBMITTED, PAID"
+        DATETIME submitted_at "Ngày gửi"
+        DATETIME paid_at "Ngày nộp"
+        DATETIME created_at "Ngày tạo"
+        VARCHAR created_by "Người tạo"
+    }
+    
+    %% ========================================
+    %% RELATED TABLES - INVENTORY MODULE
+    %% ========================================
+    
+    SUPPLIERS {
+        BIGINT id PK "Auto Increment"
+        BOOLEAN auto_created "Tự động tạo"
+        VARCHAR name "Tên NCC"
+        VARCHAR contact_name "Người liên hệ"
+        VARCHAR phone "Số điện thoại"
+        VARCHAR email "Email"
+        VARCHAR address "Địa chỉ"
+        VARCHAR tax_code "Mã số thuế"
+        VARCHAR bank_account "Tài khoản ngân hàng"
+        VARCHAR payment_term "Điều khoản thanh toán"
+        INT payment_term_days "Số ngày nợ"
+        BOOLEAN active "Trạng thái"
+    }
+    
+    PURCHASE_ORDERS {
+        BIGINT id PK "Auto Increment"
+        VARCHAR po_code UK "Mã phiếu nhập"
+        BIGINT supplier_id FK "ID nhà cung cấp"
+        DATETIME order_date "Ngày đặt"
+        DATETIME received_date "Ngày nhận"
+        ENUM status "PENDING, RECEIVED, CANCELLED"
+        VARCHAR created_by "Người tạo"
+        TEXT note "Ghi chú"
+    }
+    
+    PURCHASE_ORDER_ITEMS {
+        BIGINT id PK "Auto Increment"
+        BIGINT purchase_order_id FK "ID phiếu nhập"
+        VARCHAR sku "Mã SKU"
+        BIGINT warehouse_product_id FK "ID sản phẩm kho"
+        BIGINT quantity "Số lượng"
+        DOUBLE unit_cost "Đơn giá"
+        INT warranty_months "Tháng bảo hành"
+        TEXT note "Ghi chú"
+    }
+    
+    %% ========================================
+    %% RELATED TABLES - ORDER MODULE
+    %% ========================================
+    
+    ORDERS {
+        BIGINT id PK "Auto Increment"
+        VARCHAR order_code UK "Mã đơn hàng"
+        BIGINT customer_id FK "ID khách hàng"
+        VARCHAR shipping_address "Địa chỉ giao"
+        VARCHAR province "Tỉnh/TP"
+        VARCHAR district "Quận/Huyện"
+        VARCHAR ward "Phường/Xã"
+        DOUBLE subtotal "Tạm tính"
+        DOUBLE shipping_fee "Phí ship"
+        DOUBLE discount "Giảm giá"
+        DOUBLE total "Tổng tiền"
+        ENUM payment_status "PENDING, PAID, FAILED, REFUNDED"
+        VARCHAR payment_method "Phương thức thanh toán"
+        ENUM status "PENDING, CONFIRMED, DELIVERED, etc"
+        DATETIME created_at "Ngày tạo"
+        DATETIME delivered_at "Ngày giao"
+        VARCHAR ghn_order_code "Mã GHN"
+    }
+    
+    CUSTOMERS {
+        BIGINT id PK "Auto Increment"
+        BIGINT user_id FK "ID user"
+        VARCHAR full_name "Họ tên"
+        VARCHAR phone "Số điện thoại"
+        VARCHAR gender "Giới tính"
+        DATE birth_date "Ngày sinh"
+        VARCHAR address "Địa chỉ"
+    }
+    
+    USERS {
+        BIGINT id PK "Auto Increment"
+        VARCHAR email UK "Email"
+        VARCHAR password "Mật khẩu"
+        ENUM role "CUSTOMER, ADMIN, EMPLOYEE"
+        BOOLEAN active "Trạng thái"
+    }
+    
+    %% ========================================
+    %% RELATIONSHIPS - MỐI QUAN HỆ
+    %% ========================================
+    
+    %% Accounting Module Internal Relationships
+    SUPPLIER_PAYABLES ||--o{ SUPPLIER_PAYMENTS : "has many"
+    SUPPLIER_PAYABLES }o--|| SUPPLIERS : "belongs to"
+    SUPPLIER_PAYABLES }o--|| PURCHASE_ORDERS : "created from"
+    
+    FINANCIAL_TRANSACTIONS }o..o| ORDERS : "references (optional)"
+    FINANCIAL_TRANSACTIONS }o..o| SUPPLIERS : "references (optional)"
+    
+    PAYMENT_RECONCILIATION }o..|| ORDERS : "reconciles"
+    
+    %% Cross-Module Relationships
+    PURCHASE_ORDERS }o--|| SUPPLIERS : "ordered from"
+    PURCHASE_ORDERS ||--o{ PURCHASE_ORDER_ITEMS : "contains"
+    
+    ORDERS }o--|| CUSTOMERS : "placed by"
+    CUSTOMERS ||--|| USERS : "has account"
+    
+    %% ========================================
+    %% BUSINESS RULES NOTES
+    %% ========================================
+```
+
+### 📋 Giải Thích Ký Hiệu ERD
+
+| Ký Hiệu | Ý Nghĩa | Ví Dụ |
+|---------|---------|-------|
+| `||--o{` | One-to-Many (1:N) | 1 SupplierPayable có nhiều SupplierPayments |
+| `}o--||` | Many-to-One (N:1) | Nhiều SupplierPayables thuộc 1 Supplier |
+| `||--||` | One-to-One (1:1) | 1 Customer có 1 User |
+| `}o..o\|` | Many-to-Optional-One | Nhiều Transactions tham chiếu 0 hoặc 1 Order |
+| `PK` | Primary Key | Khóa chính |
+| `FK` | Foreign Key | Khóa ngoại |
+| `UK` | Unique Key | Khóa duy nhất |
+
+### 🔗 Các Mối Quan Hệ Chính
+
+#### 1. **Trong Module Kế Toán**
+- `SUPPLIER_PAYABLES` ← `SUPPLIER_PAYMENTS` (1:N)
+  - Một công nợ có nhiều lần thanh toán
+  
+- `SUPPLIERS` → `SUPPLIER_PAYABLES` (1:N)
+  - Một nhà cung cấp có nhiều công nợ
+  
+- `PURCHASE_ORDERS` → `SUPPLIER_PAYABLES` (1:1)
+  - Một phiếu nhập tạo một công nợ
+
+#### 2. **Liên Kết với Module Khác**
+- `FINANCIAL_TRANSACTIONS` ⇢ `ORDERS` (N:0..1)
+  - Giao dịch có thể tham chiếu đơn hàng (optional)
+  
+- `FINANCIAL_TRANSACTIONS` ⇢ `SUPPLIERS` (N:0..1)
+  - Giao dịch có thể tham chiếu nhà cung cấp (optional)
+  
+- `PAYMENT_RECONCILIATION` ⇢ `ORDERS` (N:1)
+  - Đối soát tham chiếu đơn hàng
+
+#### 3. **Module Inventory**
+- `SUPPLIERS` → `PURCHASE_ORDERS` (1:N)
+  - Một NCC có nhiều phiếu nhập
+  
+- `PURCHASE_ORDERS` → `PURCHASE_ORDER_ITEMS` (1:N)
+  - Một phiếu nhập có nhiều items
+
+#### 4. **Module Order**
+- `CUSTOMERS` → `ORDERS` (1:N)
+  - Một khách hàng có nhiều đơn hàng
+  
+- `CUSTOMERS` ← `USERS` (1:1)
+  - Một customer có một user account
+
+---
 
 ## 📊 CHI TIẾT CÁC BẢNG
 
@@ -796,3 +1596,316 @@ Kết thúc kỳ kế toán
 **Tài liệu này được tạo tự động từ source code**  
 **Ngày tạo:** 2024-12-25  
 **Version:** 1.0
+
+
+---
+
+## 🏛️ SƠ ĐỒ KIẾN TRÚC PHÂN TẦNG - PACKAGE DIAGRAM
+
+### Cấu Trúc Package
+
+```
+com.doan.WEB_TMDT.module.accounting/
+│
+├── controller/                    # REST API Controllers
+│   ├── AccountingController
+│   ├── SupplierPayableController
+│   └── TaxReportController
+│
+├── service/                       # Service Interfaces
+│   ├── FinancialTransactionService
+│   ├── AccountingPeriodService
+│   ├── SupplierPayableService
+│   ├── SupplierPaymentService
+│   └── TaxReportService
+│
+├── service/impl/                  # Service Implementations
+│   ├── FinancialTransactionServiceImpl
+│   ├── AccountingPeriodServiceImpl
+│   ├── SupplierPayableServiceImpl
+│   ├── SupplierPaymentServiceImpl
+│   └── TaxReportServiceImpl
+│
+├── repository/                    # JPA Repositories
+│   ├── FinancialTransactionRepository
+│   ├── AccountingPeriodRepository
+│   ├── SupplierPayableRepository
+│   ├── SupplierPaymentRepository
+│   └── TaxReportRepository
+│
+├── entity/                        # JPA Entities
+│   ├── FinancialTransaction
+│   ├── AccountingPeriod
+│   ├── SupplierPayable
+│   ├── SupplierPayment
+│   ├── PaymentReconciliation
+│   └── TaxReport
+│
+└── dto/                          # Data Transfer Objects
+    ├── TransactionDTO
+    ├── PayableDTO
+    ├── PaymentDTO
+    └── TaxReportDTO
+```
+
+### Sơ Đồ Lớp Theo Kiến Trúc (Giống Ảnh)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          CONTROLLER LAYER                                    │
+│  @RestController, @RequestMapping("/api/accounting")                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌──────────────────────┐  ┌──────────────────────┐  ┌──────────────────┐ │
+│  │ AccountingController │  │SupplierPayableCtrl   │  │ TaxReportCtrl    │ │
+│  ├──────────────────────┤  ├──────────────────────┤  ├──────────────────┤ │
+│  │ -transactionService  │  │ -payableService      │  │ -taxReportService│ │
+│  │ -periodService       │  │ -paymentService      │  │                  │ │
+│  ├──────────────────────┤  ├──────────────────────┤  ├──────────────────┤ │
+│  │ +getTransactions()   │  │ +getAllPayables()    │  │ +getAllReports() │ │
+│  │ +createTransaction() │  │ +createPayment()     │  │ +createReport()  │ │
+│  │ +getDashboard()      │  │ +getOverdue()        │  │ +submitReport()  │ │
+│  └──────────────────────┘  └──────────────────────┘  └──────────────────┘ │
+│                                                                              │
+└──────────────────────────────────┬───────────────────────────────────────────┘
+                                   │ uses
+                                   ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          SERVICE INTERFACE LAYER                             │
+│  @Service (interfaces)                                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌────────────────────────┐  ┌────────────────────┐  ┌──────────────────┐ │
+│  │FinancialTransaction    │  │SupplierPayable     │  │ TaxReport        │ │
+│  │Service <<interface>>   │  │Service <<interface>>│  │Service <<if>>    │ │
+│  ├────────────────────────┤  ├────────────────────┤  ├──────────────────┤ │
+│  │ +createTransaction()   │  │ +createPayable()   │  │ +createReport()  │ │
+│  │ +getByPeriod()         │  │ +getBySupplier()   │  │ +calculateTax()  │ │
+│  │ +calculateRevenue()    │  │ +getOverdue()      │  │ +submitReport()  │ │
+│  └────────────────────────┘  └────────────────────┘  └──────────────────┘ │
+│                                                                              │
+└──────────────────────────────────┬───────────────────────────────────────────┘
+                                   │ implements
+                                   ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     SERVICE IMPLEMENTATION LAYER                             │
+│  @Service, @Transactional                                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌────────────────────────┐  ┌────────────────────┐  ┌──────────────────┐ │
+│  │FinancialTransaction    │  │SupplierPayable     │  │ TaxReport        │ │
+│  │ServiceImpl             │  │ServiceImpl         │  │ServiceImpl       │ │
+│  ├────────────────────────┤  ├────────────────────┤  ├──────────────────┤ │
+│  │ -transactionRepo       │  │ -payableRepo       │  │ -taxReportRepo   │ │
+│  │ -periodService         │  │ -supplierRepo      │  │ -transactionSvc  │ │
+│  ├────────────────────────┤  ├────────────────────┤  ├──────────────────┤ │
+│  │ +createTransaction()   │  │ +createPayable()   │  │ +createReport()  │ │
+│  │ +getByPeriod()         │  │ +getBySupplier()   │  │ +calculateTax()  │ │
+│  │ +calculateRevenue()    │  │ +updateStatus()    │  │ +submitReport()  │ │
+│  └────────────────────────┘  └────────────────────┘  └──────────────────┘ │
+│                                                                              │
+└──────────────────────────────────┬───────────────────────────────────────────┘
+                                   │ uses
+                                   ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          REPOSITORY LAYER                                    │
+│  @Repository, extends JpaRepository<Entity, Long>                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌────────────────────────┐  ┌────────────────────┐  ┌──────────────────┐ │
+│  │FinancialTransaction    │  │SupplierPayable     │  │ TaxReport        │ │
+│  │Repository <<if>>       │  │Repository <<if>>   │  │Repository <<if>> │ │
+│  ├────────────────────────┤  ├────────────────────┤  ├──────────────────┤ │
+│  │ +findByType()          │  │ +findBySupplier()  │  │ +findByTaxType() │ │
+│  │ +findByCategory()      │  │ +findByStatus()    │  │ +findByStatus()  │ │
+│  │ +findByOrderId()       │  │ +findOverdue()     │  │ +findByPeriod()  │ │
+│  │ +sumAmountByType()     │  │ +sumRemaining()    │  │                  │ │
+│  └────────────────────────┘  └────────────────────┘  └──────────────────┘ │
+│                                                                              │
+└──────────────────────────────────┬───────────────────────────────────────────┘
+                                   │ manages
+                                   ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            ENTITY LAYER                                      │
+│  @Entity, @Table                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌────────────────────────┐  ┌────────────────────┐  ┌──────────────────┐ │
+│  │FinancialTransaction    │  │SupplierPayable     │  │ TaxReport        │ │
+│  ├────────────────────────┤  ├────────────────────┤  ├──────────────────┤ │
+│  │ -id: Long              │  │ -id: Long          │  │ -id: Long        │ │
+│  │ -transactionCode       │  │ -payableCode       │  │ -reportCode      │ │
+│  │ -type: Enum            │  │ -supplier          │  │ -taxType: Enum   │ │
+│  │ -category: Enum        │  │ -purchaseOrder     │  │ -periodStart     │ │
+│  │ -amount: Double        │  │ -totalAmount       │  │ -periodEnd       │ │
+│  │ -orderId: Long         │  │ -paidAmount        │  │ -taxableRevenue  │ │
+│  │ -supplierId: Long      │  │ -remainingAmount   │  │ -taxRate         │ │
+│  │ -description           │  │ -status: Enum      │  │ -taxAmount       │ │
+│  │ -transactionDate       │  │ -dueDate           │  │ -status: Enum    │ │
+│  ├────────────────────────┤  ├────────────────────┤  ├──────────────────┤ │
+│  │ +generateCode()        │  │ +calculateRemain() │  │ +calculateTax()  │ │
+│  │ +isRevenue()           │  │ +updateStatus()    │  │ +submit()        │ │
+│  │ +isExpense()           │  │ +isOverdue()       │  │ +markAsPaid()    │ │
+│  └────────────────────────┘  └────────────────────┘  └──────────────────┘ │
+│                                                                              │
+│  ┌────────────────────────┐  ┌────────────────────┐                        │
+│  │AccountingPeriod        │  │SupplierPayment     │                        │
+│  ├────────────────────────┤  ├────────────────────┤                        │
+│  │ -id: Long              │  │ -id: Long          │                        │
+│  │ -name: String          │  │ -paymentCode       │                        │
+│  │ -startDate             │  │ -payable           │                        │
+│  │ -endDate               │  │ -amount            │                        │
+│  │ -status: Enum          │  │ -paymentDate       │                        │
+│  │ -totalRevenue          │  │ -paymentMethod     │                        │
+│  │ -totalExpense          │  │ -referenceNumber   │                        │
+│  │ -netProfit             │  ├────────────────────┤                        │
+│  ├────────────────────────┤  │ +generateCode()    │                        │
+│  │ +calculateProfit()     │  │ +validateAmount()  │                        │
+│  │ +closePeriod()         │  └────────────────────┘                        │
+│  │ +canModify()           │                                                 │
+│  └────────────────────────┘                                                 │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Mô Tả Chi Tiết Các Tầng
+
+#### 1. **Controller Layer** (Tầng Điều Khiển)
+- **Package**: `com.doan.WEB_TMDT.module.accounting.controller`
+- **Annotation**: `@RestController`, `@RequestMapping`
+- **Nhiệm vụ**:
+  - Tiếp nhận HTTP requests từ client
+  - Validate input data
+  - Gọi service layer để xử lý logic
+  - Trả về HTTP response (JSON)
+- **Các Controller**:
+  - `AccountingController`: API cho giao dịch tài chính và kỳ kế toán
+  - `SupplierPayableController`: API cho công nợ và thanh toán NCC
+  - `TaxReportController`: API cho báo cáo thuế
+
+#### 2. **Service Interface Layer** (Tầng Interface Nghiệp Vụ)
+- **Package**: `com.doan.WEB_TMDT.module.accounting.service`
+- **Annotation**: Không có (chỉ là interface)
+- **Nhiệm vụ**:
+  - Định nghĩa contract cho business logic
+  - Cho phép loose coupling
+  - Dễ dàng mock trong testing
+- **Các Interface**:
+  - `FinancialTransactionService`
+  - `AccountingPeriodService`
+  - `SupplierPayableService`
+  - `SupplierPaymentService`
+  - `TaxReportService`
+
+#### 3. **Service Implementation Layer** (Tầng Triển Khai Nghiệp Vụ)
+- **Package**: `com.doan.WEB_TMDT.module.accounting.service.impl`
+- **Annotation**: `@Service`, `@Transactional`
+- **Nhiệm vụ**:
+  - Implement business logic thực tế
+  - Quản lý transaction
+  - Gọi repository để truy xuất dữ liệu
+  - Xử lý exception
+- **Các Implementation**:
+  - `FinancialTransactionServiceImpl`
+  - `AccountingPeriodServiceImpl`
+  - `SupplierPayableServiceImpl`
+  - `SupplierPaymentServiceImpl`
+  - `TaxReportServiceImpl`
+
+#### 4. **Repository Layer** (Tầng Truy Xuất Dữ Liệu)
+- **Package**: `com.doan.WEB_TMDT.module.accounting.repository`
+- **Annotation**: `@Repository`
+- **Extends**: `JpaRepository<Entity, Long>`
+- **Nhiệm vụ**:
+  - CRUD operations
+  - Custom query methods
+  - Spring Data JPA tự động implement
+- **Các Repository**:
+  - `FinancialTransactionRepository`
+  - `AccountingPeriodRepository`
+  - `SupplierPayableRepository`
+  - `SupplierPaymentRepository`
+  - `TaxReportRepository`
+
+#### 5. **Entity Layer** (Tầng Thực Thể)
+- **Package**: `com.doan.WEB_TMDT.module.accounting.entity`
+- **Annotation**: `@Entity`, `@Table`
+- **Nhiệm vụ**:
+  - Ánh xạ với database tables
+  - Chứa business logic đơn giản
+  - Định nghĩa relationships
+- **Các Entity**:
+  - `FinancialTransaction`
+  - `AccountingPeriod`
+  - `SupplierPayable`
+  - `SupplierPayment`
+  - `PaymentReconciliation`
+  - `TaxReport`
+
+### Luồng Xử Lý Request (Request Flow)
+
+```
+1. Client gửi HTTP Request
+        ↓
+2. Controller nhận request
+   - Validate input
+   - Parse parameters
+        ↓
+3. Controller gọi Service Interface
+        ↓
+4. Service Implementation xử lý logic
+   - Business rules
+   - Calculations
+   - Validations
+        ↓
+5. Service gọi Repository
+        ↓
+6. Repository truy xuất Database
+   - JPA queries
+   - CRUD operations
+        ↓
+7. Entity mapping với Database
+   - ORM (Object-Relational Mapping)
+        ↓
+8. Trả kết quả ngược lại
+   Repository → Service → Controller → Client
+```
+
+### Dependency Injection Flow
+
+```
+@RestController
+    ↓ @Autowired
+Service Interface
+    ↓ @Autowired (implementation)
+Service Implementation
+    ↓ @Autowired
+Repository Interface
+    ↓ Spring Data JPA auto-implements
+JpaRepository
+```
+
+### Design Patterns Được Sử Dụng
+
+1. **Layered Architecture**: Phân tầng rõ ràng (5 tầng)
+2. **Dependency Injection**: Spring IoC Container
+3. **Repository Pattern**: Tách biệt data access
+4. **Service Layer Pattern**: Tách biệt business logic
+5. **DTO Pattern**: Transfer data giữa layers
+6. **Interface Segregation**: Service interfaces
+7. **Singleton Pattern**: Spring beans mặc định là singleton
+
+### Ưu Điểm Của Kiến Trúc Này
+
+✅ **Separation of Concerns**: Mỗi tầng có trách nhiệm riêng biệt
+✅ **Testability**: Dễ dàng unit test từng tầng
+✅ **Maintainability**: Dễ bảo trì và mở rộng
+✅ **Reusability**: Service có thể tái sử dụng
+✅ **Loose Coupling**: Các tầng độc lập với nhau
+✅ **Scalability**: Dễ dàng scale từng tầng
+
+---
+
+**Tài liệu này mô tả kiến trúc phân tầng của Module Kế Toán**  
+**Ngày cập nhật:** 2024-12-28  
+**Version:** 2.0
