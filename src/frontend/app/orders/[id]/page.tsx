@@ -55,7 +55,7 @@ export default function OrderDetailPage() {
         setOrder(orderData)
         
         // Log GHN information
-        console.log('🚚 ===== GHN SHIPPING INFO =====')
+        console.log('===== GHN SHIPPING INFO =====')
         console.log('GHN Order Code:', orderData.ghnOrderCode)
         console.log('GHN Shipping Status:', orderData.ghnShippingStatus)
         console.log('GHN Created At:', orderData.ghnCreatedAt)
@@ -63,7 +63,7 @@ export default function OrderDetailPage() {
         console.log('================================')
         
         // Log all order data
-        console.log('📋 ===== FULL ORDER DATA =====')
+        console.log('===== FULL ORDER DATA =====')
         console.log('Order Code:', orderData.orderCode)
         console.log('Status:', orderData.status)
         console.log('Payment Status:', orderData.paymentStatus)
@@ -99,7 +99,7 @@ export default function OrderDetailPage() {
         router.push('/orders')
       }
     } catch (error) {
-      console.error('❌ Error loading order:', error)
+      console.error('Error loading order:', error)
       toast.error('Lỗi khi tải thông tin đơn hàng')
       router.push('/orders')
     } finally {
@@ -139,7 +139,7 @@ export default function OrderDetailPage() {
       case 'CONFIRMED':
         return 'Đã xác nhận - Đang chuẩn bị hàng'
       case 'READY_TO_SHIP':
-        return '🚚 Đã chuẩn bị hàng - Đợi tài xế lấy'
+        return 'Đã chuẩn bị hàng - Đợi tài xế lấy'
       case 'SHIPPING':
         return 'Đang giao hàng'
       case 'DELIVERED':
