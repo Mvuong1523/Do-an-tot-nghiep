@@ -256,21 +256,12 @@ export default function CheckoutPage() {
           const mappedItems = response.data.items.map((item: any) => {
             console.log('Processing item:', item)
             
-            // Backend có thể trả về product ở nhiều cấu trúc khác nhau
-            const product = item.product || item
-            
-            // Kiểm tra xem có thông tin sản phẩm không
-            if (!product.id && !product.productId) {
-              console.error('Item missing product ID:', item)
-              return null
-            }
-            
             return {
-              productId: product.id || product.productId || item.productId,
-              productName: product.name || product.productName || item.productName || 'Sản phẩm',
-              price: item.price || product.price || 0,
+              productId: item.productId,
+              productName: item.productName || 'Sản phẩm',
+              price: item.price || 0,
               quantity: item.quantity || 1,
-              imageUrl: (product.images && product.images.length > 0 ? product.images[0].imageUrl : '') || product.image || item.imageUrl || ''
+              imageUrl: item.productImage || ''
             }
           }).filter(Boolean) // Loại bỏ null items
           
@@ -281,9 +272,8 @@ export default function CheckoutPage() {
           
           if (mappedItems.length === 0) {
             console.warn('No items after mapping!')
-            toast.error('Giỏ hàng trống - Kiểm tra console để debug')
-            // Tạm thời comment để xem log
-            // router.push('/cart')
+            toast.error('Giỏ hàng trống')
+            router.push('/cart')
           }
         } else {
           toast.error('Không thể tải giỏ hàng')

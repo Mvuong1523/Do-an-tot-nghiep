@@ -30,9 +30,7 @@ public class WebTMDTApplication {
 						.status(Status.ACTIVE)
 						.build();
 				userRepository.save(admin);
-				System.out.println("Admin mặc định đã được tạo: admin@webtmdt.com / admin123");
 			} else {
-				System.out.println("Admin đã tồn tại, bỏ qua tạo mới.");
 			}
 		};
 	}

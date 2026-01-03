@@ -269,8 +269,8 @@ export default function OrderDetailPage() {
                 </button>
               )}
               
-              {/* Continue Payment Button - Show if order is PENDING_PAYMENT */}
-              {(order.status === 'PENDING_PAYMENT' && (order.paymentStatus === 'UNPAID' || order.paymentStatus === 'PENDING')) && (
+              {/* Continue Payment Button - Show if order is PENDING_PAYMENT and NOT cancelled */}
+              {(order.status?.toUpperCase() === 'PENDING_PAYMENT' && order.status?.toUpperCase() !== 'CANCELLED' && (order.paymentStatus === 'UNPAID' || order.paymentStatus === 'PENDING')) && (
                 <Link
                   href={`/payment/${order.orderCode}`}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold text-center hover:bg-blue-700 transition-colors"
@@ -294,8 +294,8 @@ export default function OrderDetailPage() {
             )}
           </div>
           
-          {/* Payment Warning */}
-          {(order.status === 'PENDING_PAYMENT' && (order.paymentStatus === 'UNPAID' || order.paymentStatus === 'PENDING')) && (
+          {/* Payment Warning - Only show if order is actually PENDING_PAYMENT (not cancelled) */}
+          {(order.status?.toUpperCase() === 'PENDING_PAYMENT' && (order.paymentStatus === 'UNPAID' || order.paymentStatus === 'PENDING')) && (
             <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <div className="flex items-start">
                 <span className="text-yellow-600 font-bold mr-2">⚠️</span>

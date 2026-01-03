@@ -144,14 +144,14 @@ export default function CartPage() {
             {/* Cart Items */}
             <div className="lg:col-span-2 space-y-4">
               {cart.items.map((item: any) => (
-                <div key={item.id} className="bg-white rounded-lg shadow-sm p-6">
+                <div key={item.itemId} className="bg-white rounded-lg shadow-sm p-6">
                   <div className="flex items-center space-x-4">
                     {/* Image */}
                     <div className="w-24 h-24 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
-                      {item.product?.images && item.product.images.length > 0 ? (
+                      {item.productImage ? (
                         <img 
-                          src={item.product.images[0].imageUrl} 
-                          alt={item.product.name}
+                          src={item.productImage} 
+                          alt={item.productName}
                           className="w-full h-full object-contain"
                         />
                       ) : (
@@ -164,11 +164,14 @@ export default function CartPage() {
                     {/* Info */}
                     <div className="flex-1">
                       <Link 
-                        href={`/products/${item.product?.id}`}
+                        href={`/products/${item.productId}`}
                         className="text-lg font-semibold text-gray-900 hover:text-blue-600"
                       >
-                        {item.product?.name || 'Sản phẩm'}
+                        {item.productName || 'Sản phẩm'}
                       </Link>
+                      {item.productSku && (
+                        <p className="text-sm text-gray-500">SKU: {item.productSku}</p>
+                      )}
                       <p className="text-red-600 font-bold mt-1">
                         {formatPrice(item.price)}
                       </p>
@@ -245,15 +248,11 @@ export default function CartPage() {
                 <div className="mt-4 space-y-2 text-sm text-gray-600">
                   <p className="flex items-center">
                     <span className="mr-2">✓</span>
-                    Miễn phí vận chuyển toàn quốc
+                    Miễn phí vận chuyển nội thành Hà Nội
                   </p>
                   <p className="flex items-center">
                     <span className="mr-2">✓</span>
                     Thanh toán khi nhận hàng
-                  </p>
-                  <p className="flex items-center">
-                    <span className="mr-2">✓</span>
-                    Đổi trả trong 7 ngày
                   </p>
                 </div>
               </div>

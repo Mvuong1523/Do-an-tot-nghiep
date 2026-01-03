@@ -15,7 +15,7 @@ import com.doan.WEB_TMDT.module.order.entity.OrderStatus;
 import com.doan.WEB_TMDT.module.order.entity.PaymentStatus;
 import com.doan.WEB_TMDT.module.order.repository.OrderRepository;
 import com.doan.WEB_TMDT.module.order.service.OrderService;
-import com.doan.WEB_TMDT.module.payment.service.PaymentService;
+import com.doan.WEB_TMDT.module.payment.repository.PaymentRepository;
 import com.doan.WEB_TMDT.module.product.entity.Product;
 import com.doan.WEB_TMDT.module.accounting.listener.OrderStatusChangedEvent;
 import com.doan.WEB_TMDT.module.product.repository.ProductImageRepository;
@@ -45,7 +45,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final CartRepository cartRepository;
     private final CustomerRepository customerRepository;
-    private final PaymentService paymentService;
+    private final PaymentRepository paymentRepository;
     private final ShippingService shippingService;
     private final ProductImageRepository productImageRepository;
     private final com.doan.WEB_TMDT.module.inventory.service.InventoryService inventoryService;
@@ -188,12 +188,7 @@ public class OrderServiceImpl implements OrderService {
         // 7. Save order
         Order savedOrder = orderRepository.save(order);
 
-        // 8. GHN order will be created later when warehouse exports the order
-        // Store shipping info for later GHN creation
-        log.info("Order created: {}", orderCode);
-        log.info("   - Shipping method: {}", shippingFee > 0 && !shippingService.isHanoiInnerCity(request.getProvince(), request.getDistrict()) ? "GHN" : "Internal");
-        log.info("   - Ward code: {}", request.getWard());
-        log.info("   - GHN order will be created when warehouse exports this order");
+
         
         // Note: GHN order creation moved to warehouse export process
         // When warehouse staff:
@@ -242,31 +237,22 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public ApiResponse getMyOrders(Long customerId) {
-        log.info("========== GET MY ORDERS ==========");
-        log.info("Getting orders for customerId: {}", customerId);
-        
+
         List<Order> orders = orderRepository.findByCustomerId(customerId);
-        log.info("Found {} orders for customerId: {}", orders.size(), customerId);
-        
+
         // Log order details
         orders.forEach(order -> {
-            log.info("Order: id={}, code={}, customerId={}", 
-                order.getId(), order.getOrderCode(), order.getCustomer().getId());
         });
         
         List<OrderResponse> responses = orders.stream()
                 .map(this::toOrderResponse)
                 .collect(Collectors.toList());
-        
-        log.info("Returning {} order responses", responses.size());
-        log.info("========== END GET MY ORDERS ==========");
-        
         return ApiResponse.success("Danh sách đơn hàng", responses);
     }
 
     @Override
     @Transactional
-    public ApiResponse cancelOrderByCustomer(Long orderId, Long customerId, String reason) {
+    public ApiResponse  cancelOrderByCustomer(Long orderId, Long customerId, String reason) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
 
@@ -304,8 +290,10 @@ public class OrderServiceImpl implements OrderService {
             // Xóa payment trước (nếu có) để tránh foreign key constraint
             if (order.getPaymentId() != null) {
                 try {
-                    paymentService.deletePaymentByOrderId(order.getId());
-                    log.info("Deleted payment for order {}", order.getOrderCode());
+                    paymentRepository.findByOrderId(order.getId()).ifPresent(payment -> {
+                        paymentRepository.delete(payment);
+                        log.info("Deleted payment for order {}", order.getOrderCode());
+                    });
                 } catch (Exception e) {
                     log.warn("Could not delete payment for order {}: {}", order.getOrderCode(), e.getMessage());
                 }
@@ -753,7 +741,7 @@ public class OrderServiceImpl implements OrderService {
                 Long newReserved = Math.max(0, currentReserved - item.getQuantity());
                 product.setReservedQuantity(newReserved);
                 
-                // Đồng bộ reserved với InventoryStock
+                // Đồng bộ reserved với InventoryStockz
                 if (product.getWarehouseProduct() != null) {
                     inventoryService.syncReservedQuantity(product.getWarehouseProduct().getId(), newReserved);
                 }

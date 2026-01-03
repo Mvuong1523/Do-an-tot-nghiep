@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { FiPackage, FiTruck, FiCheck, FiX, FiClock, FiEye } from 'react-icons/fi'
 import { useTranslation } from '@/hooks/useTranslation'
@@ -17,6 +17,12 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
   const [mounted, setMounted] = useState(false)
+  const pollingInterval = useRef<NodeJS.Timeout | null>(null)
+
+  // Check if there are pending payment orders
+  const hasPendingPayment = orders.some(
+    order => order.status?.toLowerCase() === 'pending_payment'
+  )
 
   // Wait for hydration
   useEffect(() => {
@@ -149,6 +155,7 @@ export default function OrdersPage() {
     ? (filter === 'all' 
         ? orders 
         : orders.filter(order => order.status?.toUpperCase() === filter.toUpperCase()))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     : []
 
   if (loading) {
