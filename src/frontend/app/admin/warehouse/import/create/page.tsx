@@ -6,6 +6,7 @@ import { FiPlus, FiTrash2, FiSave, FiArrowLeft, FiUpload, FiDownload } from 'rea
 import toast from 'react-hot-toast'
 import { inventoryApi } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
+import * as XLSX from 'xlsx'
 
 interface POItem {
   sku: string
@@ -75,24 +76,45 @@ export default function CreatePurchaseOrderPage() {
   }
 
   const downloadTemplate = () => {
-    const csvContent = `Nhà cung cấp,Công ty TNHH ABC
-Mã số thuế,0123456789
-Người liên hệ,Nguyễn Văn A
-Số điện thoại,0901234567
-Email,contact@abc.vn
-Địa chỉ,123 Đường ABC - Quận 1 - TP.HCM
-Tài khoản ngân hàng,1234567890 - Vietcombank
-Điều khoản thanh toán,Thanh toán trong 30 ngày
-
-SKU,Tên sản phẩm,Số lượng,Giá nhập,Bảo hành (tháng),Ghi chú
-PROD-001,Sản phẩm mẫu 1,10,100000,12,Ghi chú mẫu
-PROD-002,Sản phẩm mẫu 2,20,200000,24,Ghi chú mẫu`
-
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
-    link.download = 'template-import-warehouse.csv'
-    link.click()
+    // Create workbook with supplier info and products
+    const wb = XLSX.utils.book_new()
+    
+    // Sheet 1: Supplier Info
+    const supplierData = [
+      ['Thông tin nhà cung cấp', ''],
+      ['Nhà cung cấp', 'Công ty TNHH ABC'],
+      ['Mã số thuế', '0123456789'],
+      ['Người liên hệ', 'Nguyễn Văn A'],
+      ['Số điện thoại', '0901234567'],
+      ['Email', 'contact@abc.vn'],
+      ['Địa chỉ', '123 Đường ABC - Quận 1 - TP.HCM'],
+      ['Tài khoản ngân hàng', '1234567890 - Vietcombank'],
+      ['Điều khoản thanh toán', 'Thanh toán trong 30 ngày'],
+      [],
+      ['Danh sách sản phẩm', ''],
+      ['SKU', 'Tên sản phẩm', 'Số lượng', 'Giá nhập', 'Bảo hành (tháng)', 'Thông số kỹ thuật (JSON)', 'Ghi chú'],
+      ['PROD-001', 'iPhone 15 Pro Max 256GB', 10, 28000000, 12, '{"Màn hình":"6.7 inch","Chip":"A17 Pro","RAM":"8GB","Bộ nhớ":"256GB"}', 'Hàng chính hãng VN/A'],
+      ['PROD-002', 'Samsung Galaxy S24 Ultra 512GB', 15, 30000000, 24, '{"Màn hình":"6.8 inch","Chip":"Snapdragon 8 Gen 3","RAM":"12GB","Bộ nhớ":"512GB"}', 'Hàng chính hãng SSVN'],
+      ['PROD-003', 'MacBook Pro 14 M3 Pro', 5, 52000000, 12, '{"Màn hình":"14.2 inch","Chip":"Apple M3 Pro","RAM":"18GB","SSD":"512GB"}', 'Hàng chính hãng Apple VN']
+    ]
+    
+    const ws = XLSX.utils.aoa_to_sheet(supplierData)
+    
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 25 },
+      { wch: 50 },
+      { wch: 12 },
+      { wch: 15 },
+      { wch: 18 },
+      { wch: 60 },
+      { wch: 30 }
+    ]
+    
+    XLSX.utils.book_append_sheet(wb, ws, 'Phiếu nhập kho')
+    
+    // Generate Excel file
+    XLSX.writeFile(wb, 'template-nhap-kho.xlsx')
     toast.success('Đã tải template Excel')
   }
 
@@ -100,131 +122,49 @@ PROD-002,Sản phẩm mẫu 2,20,200000,24,Ghi chú mẫu`
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (!file.name.endsWith('.csv')) {
-      toast.error('Vui lòng chọn file CSV')
+    const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls')
+    const isCSV = file.name.endsWith('.csv')
+
+    if (!isExcel && !isCSV) {
+      toast.error('Vui lòng chọn file Excel (.xlsx, .xls) hoặc CSV')
       return
     }
 
     try {
-      const text = await file.text()
-      const lines = text.split('\n').map(line => line.trim()).filter(line => line)
-      
-      // Detect CSV format
-      const firstLine = lines[0]
-      const isProductListFormat = firstLine.includes('SKU,Tên sản phẩm') || firstLine.includes('SKU,') && firstLine.includes('Thông số kỹ thuật')
-      
-      if (isProductListFormat) {
-        // Format 1: Pure product list with header
-        // SKU,Tên sản phẩm,Loại sản phẩm,Giá bán,Số lượng,Mô tả,Thông số kỹ thuật (JSON)
-        const parsedItems: POItem[] = []
-        
-        for (let i = 1; i < lines.length; i++) {
-          const line = lines[i]
-          if (!line) continue
-          
-          // Parse CSV with proper handling of quoted fields (for JSON)
-          const parts: string[] = []
-          let current = ''
-          let inQuotes = false
-          
-          for (let j = 0; j < line.length; j++) {
-            const char = line[j]
-            const nextChar = line[j + 1]
-            
-            if (char === '"') {
-              if (inQuotes && nextChar === '"') {
-                // Double quote inside quoted field - keep one quote
-                current += '"'
-                j++ // Skip next quote
-              } else {
-                // Toggle quote state but don't add the quote to output
-                inQuotes = !inQuotes
-              }
-            } else if (char === ',' && !inQuotes) {
-              parts.push(current)
-              current = ''
-            } else {
-              current += char
-            }
-          }
-          parts.push(current)
-          
-          // Trim parts
-          const cleanParts = parts.map(p => p.trim())
-          
-          console.log(`Row ${i}: Found ${cleanParts.length} columns`)
-          
-          if (cleanParts.length >= 5) {
-            // Column mapping for sample-import-products.csv:
-            // 0: SKU
-            // 1: Tên sản phẩm
-            // 2: Loại sản phẩm
-            // 3: Giá bán
-            // 4: Số lượng
-            // 5: Mô tả
-            // 6: Thông số kỹ thuật (JSON)
-            
-            let techSpecs: Array<{ key: string; value: string }> = [{ key: '', value: '' }]
-            if (cleanParts.length >= 7 && cleanParts[6]) {
-              console.log('Tech specs string:', cleanParts[6])
-              try {
-                const parsed = JSON.parse(cleanParts[6])
-                console.log('Parsed tech specs:', parsed)
-                techSpecs = Object.entries(parsed).map(([key, value]) => ({
-                  key,
-                  value: String(value)
-                }))
-                if (techSpecs.length === 0) {
-                  techSpecs = [{ key: '', value: '' }]
-                }
-                console.log('Final tech specs array:', techSpecs)
-              } catch (e) {
-                console.error('Error parsing tech specs:', e)
-                console.error('Raw string:', cleanParts[6])
-                techSpecs = [{ key: '', value: '' }]
-              }
-            }
-            
-            parsedItems.push({
-              sku: cleanParts[0],
-              internalName: cleanParts[1],
-              quantity: parseInt(cleanParts[4]) || 0,
-              unitCost: parseFloat(cleanParts[3]) || 0,
-              warrantyMonths: 12, // Default warranty
-              techSpecs: techSpecs,
-              note: cleanParts[5] || ''
-            })
-          }
-        }
-        
-        if (parsedItems.length === 0) {
-          toast.error('Không có sản phẩm nào trong file')
-          return
-        }
-        
-        console.log('Parsed items:', parsedItems)
-        setItems(parsedItems)
-        toast.success(`Đã import ${parsedItems.length} sản phẩm từ file`)
-        
-      } else {
-        // Format 2: Supplier info + products
+      if (isExcel) {
+        // Handle Excel file
+        const data = await file.arrayBuffer()
+        const workbook = XLSX.read(data, { type: 'array' })
+        const sheetName = workbook.SheetNames[0]
+        const worksheet = workbook.Sheets[sheetName]
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' }) as any[][]
+
+        console.log('Excel data:', jsonData)
+
+        // Parse supplier info (first 9 rows)
         const supplierData: any = {}
-        for (let i = 0; i < Math.min(8, lines.length); i++) {
-          const [key, value] = lines[i].split(',').map(s => s.trim())
-          if (key === 'Nhà cung cấp') supplierData.name = value
-          if (key === 'Mã số thuế') supplierData.taxCode = value
-          if (key === 'Người liên hệ') supplierData.contactName = value
-          if (key === 'Số điện thoại') supplierData.phone = value
-          if (key === 'Email') supplierData.email = value
-          if (key === 'Địa chỉ') supplierData.address = value
-          if (key === 'Tài khoản ngân hàng') supplierData.bankAccount = value
-          if (key === 'Điều khoản thanh toán') supplierData.paymentTerm = value
+        for (let i = 1; i < Math.min(9, jsonData.length); i++) {
+          const row = jsonData[i]
+          if (row.length >= 2) {
+            const key = String(row[0]).trim()
+            const value = String(row[1]).trim()
+            
+            if (key === 'Nhà cung cấp') supplierData.name = value
+            if (key === 'Mã số thuế') supplierData.taxCode = value
+            if (key === 'Người liên hệ') supplierData.contactName = value
+            if (key === 'Số điện thoại') supplierData.phone = value
+            if (key === 'Email') supplierData.email = value
+            if (key === 'Địa chỉ') supplierData.address = value
+            if (key === 'Tài khoản ngân hàng') supplierData.bankAccount = value
+            if (key === 'Điều khoản thanh toán') supplierData.paymentTerm = value
+          }
         }
 
-        // Find product header line
+        // Find product header row
         let productStartIndex = -1
-        for (let i = 0; i < lines.length; i++) {
-          if (lines[i].startsWith('SKU,')) {
+        for (let i = 0; i < jsonData.length; i++) {
+          const row = jsonData[i]
+          if (row[0] === 'SKU' || String(row[0]).includes('SKU')) {
             productStartIndex = i + 1
             break
           }
@@ -237,17 +177,46 @@ PROD-002,Sản phẩm mẫu 2,20,200000,24,Ghi chú mẫu`
 
         // Parse products
         const parsedItems: POItem[] = []
-        for (let i = productStartIndex; i < lines.length; i++) {
-          const parts = lines[i].split(',').map(s => s.trim())
-          if (parts.length >= 4) {
+        for (let i = productStartIndex; i < jsonData.length; i++) {
+          const row = jsonData[i]
+          if (row.length >= 4 && row[0]) {
+            // Column mapping:
+            // 0: SKU
+            // 1: Tên sản phẩm
+            // 2: Số lượng
+            // 3: Giá nhập
+            // 4: Bảo hành (tháng)
+            // 5: Thông số kỹ thuật (JSON)
+            // 6: Ghi chú
+
+            let techSpecs: Array<{ key: string; value: string }> = [{ key: '', value: '' }]
+            if (row.length >= 6 && row[5]) {
+              try {
+                const techSpecStr = String(row[5]).trim()
+                if (techSpecStr) {
+                  const parsed = JSON.parse(techSpecStr)
+                  techSpecs = Object.entries(parsed).map(([key, value]) => ({
+                    key,
+                    value: String(value)
+                  }))
+                  if (techSpecs.length === 0) {
+                    techSpecs = [{ key: '', value: '' }]
+                  }
+                }
+              } catch (e) {
+                console.error('Error parsing tech specs:', e)
+                techSpecs = [{ key: '', value: '' }]
+              }
+            }
+
             parsedItems.push({
-              sku: parts[0],
-              internalName: parts[1],
-              quantity: parseInt(parts[2]) || 0,
-              unitCost: parseFloat(parts[3]) || 0,
-              warrantyMonths: parseInt(parts[4]) || 0,
-              techSpecs: [{ key: '', value: '' }],
-              note: parts[5] || ''
+              sku: String(row[0]).trim(),
+              internalName: String(row[1]).trim(),
+              quantity: parseInt(String(row[2])) || 0,
+              unitCost: parseFloat(String(row[3])) || 0,
+              warrantyMonths: parseInt(String(row[4])) || 0,
+              techSpecs: techSpecs,
+              note: row.length >= 7 ? String(row[6]).trim() : ''
             })
           }
         }
@@ -266,14 +235,164 @@ PROD-002,Sản phẩm mẫu 2,20,200000,24,Ghi chú mẫu`
           })
           setShowNewSupplierForm(true)
         }
-        
+
         setItems(parsedItems)
-        toast.success(`Đã import ${parsedItems.length} sản phẩm từ file`)
+        toast.success(`Đã import ${parsedItems.length} sản phẩm từ file Excel`)
+
+      } else {
+        // Handle CSV file (existing logic)
+        const text = await file.text()
+        const lines = text.split('\n').map(line => line.trim()).filter(line => line)
+        
+        // Detect CSV format
+        const firstLine = lines[0]
+        const isProductListFormat = firstLine.includes('SKU,Tên sản phẩm') || firstLine.includes('SKU,') && firstLine.includes('Thông số kỹ thuật')
+        
+        if (isProductListFormat) {
+          // Format 1: Pure product list with header
+          const parsedItems: POItem[] = []
+          
+          for (let i = 1; i < lines.length; i++) {
+            const line = lines[i]
+            if (!line) continue
+            
+            // Parse CSV with proper handling of quoted fields (for JSON)
+            const parts: string[] = []
+            let current = ''
+            let inQuotes = false
+            
+            for (let j = 0; j < line.length; j++) {
+              const char = line[j]
+              const nextChar = line[j + 1]
+              
+              if (char === '"') {
+                if (inQuotes && nextChar === '"') {
+                  current += '"'
+                  j++
+                } else {
+                  inQuotes = !inQuotes
+                }
+              } else if (char === ',' && !inQuotes) {
+                parts.push(current)
+                current = ''
+              } else {
+                current += char
+              }
+            }
+            parts.push(current)
+            
+            const cleanParts = parts.map(p => p.trim())
+            
+            if (cleanParts.length >= 5) {
+              let techSpecs: Array<{ key: string; value: string }> = [{ key: '', value: '' }]
+              if (cleanParts.length >= 7 && cleanParts[6]) {
+                try {
+                  const parsed = JSON.parse(cleanParts[6])
+                  techSpecs = Object.entries(parsed).map(([key, value]) => ({
+                    key,
+                    value: String(value)
+                  }))
+                  if (techSpecs.length === 0) {
+                    techSpecs = [{ key: '', value: '' }]
+                  }
+                } catch (e) {
+                  console.error('Error parsing tech specs:', e)
+                  techSpecs = [{ key: '', value: '' }]
+                }
+              }
+              
+              parsedItems.push({
+                sku: cleanParts[0],
+                internalName: cleanParts[1],
+                quantity: parseInt(cleanParts[4]) || 0,
+                unitCost: parseFloat(cleanParts[3]) || 0,
+                warrantyMonths: 12,
+                techSpecs: techSpecs,
+                note: cleanParts[5] || ''
+              })
+            }
+          }
+          
+          if (parsedItems.length === 0) {
+            toast.error('Không có sản phẩm nào trong file')
+            return
+          }
+          
+          setItems(parsedItems)
+          toast.success(`Đã import ${parsedItems.length} sản phẩm từ file CSV`)
+          
+        } else {
+          // Format 2: Supplier info + products
+          const supplierData: any = {}
+          for (let i = 0; i < Math.min(8, lines.length); i++) {
+            const [key, value] = lines[i].split(',').map(s => s.trim())
+            if (key === 'Nhà cung cấp') supplierData.name = value
+            if (key === 'Mã số thuế') supplierData.taxCode = value
+            if (key === 'Người liên hệ') supplierData.contactName = value
+            if (key === 'Số điện thoại') supplierData.phone = value
+            if (key === 'Email') supplierData.email = value
+            if (key === 'Địa chỉ') supplierData.address = value
+            if (key === 'Tài khoản ngân hàng') supplierData.bankAccount = value
+            if (key === 'Điều khoản thanh toán') supplierData.paymentTerm = value
+          }
+
+          // Find product header line
+          let productStartIndex = -1
+          for (let i = 0; i < lines.length; i++) {
+            if (lines[i].startsWith('SKU,')) {
+              productStartIndex = i + 1
+              break
+            }
+          }
+
+          if (productStartIndex === -1) {
+            toast.error('Không tìm thấy dữ liệu sản phẩm trong file')
+            return
+          }
+
+          // Parse products
+          const parsedItems: POItem[] = []
+          for (let i = productStartIndex; i < lines.length; i++) {
+            const parts = lines[i].split(',').map(s => s.trim())
+            if (parts.length >= 4) {
+              parsedItems.push({
+                sku: parts[0],
+                internalName: parts[1],
+                quantity: parseInt(parts[2]) || 0,
+                unitCost: parseFloat(parts[3]) || 0,
+                warrantyMonths: parseInt(parts[4]) || 0,
+                techSpecs: [{ key: '', value: '' }],
+                note: parts[5] || ''
+              })
+            }
+          }
+
+          if (parsedItems.length === 0) {
+            toast.error('Không có sản phẩm nào trong file')
+            return
+          }
+
+          // Update form
+          if (supplierData.name && supplierData.taxCode) {
+            setNewSupplier({
+              ...newSupplier,
+              ...supplierData,
+              paymentTermDays: 30
+            })
+            setShowNewSupplierForm(true)
+          }
+          
+          setItems(parsedItems)
+          toast.success(`Đã import ${parsedItems.length} sản phẩm từ file CSV`)
+        }
       }
     } catch (error) {
-      console.error('Error parsing CSV:', error)
-      toast.error('Lỗi khi đọc file CSV')
+      console.error('Error parsing file:', error)
+      toast.error('Lỗi khi đọc file')
     }
+
+    // Reset input
+    e.target.value = ''
   }
 
   const addItem = () => {
@@ -442,15 +561,15 @@ PROD-002,Sản phẩm mẫu 2,20,200000,24,Ghi chú mẫu`
               <div className="border-2 border-dashed border-blue-300 rounded-lg p-6 text-center hover:border-blue-500 hover:bg-blue-50 transition-colors">
                 <FiUpload className="mx-auto text-blue-500 mb-2" size={32} />
                 <p className="text-sm text-gray-700 font-medium">
-                  Click để chọn file CSV
+                  Click để chọn file Excel hoặc CSV
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  Hỗ trợ file .csv (UTF-8)
+                  Hỗ trợ file .xlsx, .xls, .csv (UTF-8)
                 </p>
               </div>
               <input
                 type="file"
-                accept=".csv"
+                accept=".xlsx,.xls,.csv"
                 onChange={handleFileUpload}
                 className="hidden"
               />
