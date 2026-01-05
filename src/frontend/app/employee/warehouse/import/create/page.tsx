@@ -94,12 +94,71 @@ export default function EmployeeCreatePurchaseOrderPage() {
     setPoCode(code)
   }
 
+  // Helper function to parse tech specs from various formats
+  const parseTechSpecs = (input: string): Array<{ key: string; value: string }> => {
+    if (!input || !input.trim()) {
+      return [{ key: '', value: '' }]
+    }
+
+    const trimmed = input.trim()
+    
+    // Try JSON format first: {"key":"value","key2":"value2"}
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(trimmed)
+        const specs = Object.entries(parsed).map(([key, value]) => ({
+          key,
+          value: String(value)
+        }))
+        return specs.length > 0 ? specs : [{ key: '', value: '' }]
+      } catch (e) {
+        console.log('Not valid JSON, trying other formats...')
+      }
+    }
+
+    // Try key-value pairs with various separators
+    // Format: "Key: Value, Key2: Value2" or "Key=Value; Key2=Value2" or "Key - Value | Key2 - Value2"
+    const separatorPatterns = [
+      { pair: ',', keyValue: ':' },   // Key: Value, Key2: Value2
+      { pair: ';', keyValue: ':' },   // Key: Value; Key2: Value2
+      { pair: ',', keyValue: '=' },   // Key=Value, Key2=Value2
+      { pair: ';', keyValue: '=' },   // Key=Value; Key2=Value2
+      { pair: '|', keyValue: ':' },   // Key: Value | Key2: Value2
+      { pair: '|', keyValue: '-' },   // Key - Value | Key2 - Value2
+      { pair: ',', keyValue: '-' },   // Key - Value, Key2 - Value2
+    ]
+
+    for (const pattern of separatorPatterns) {
+      if (trimmed.includes(pattern.keyValue)) {
+        const pairs = trimmed.split(pattern.pair).map(p => p.trim()).filter(p => p)
+        const specs: Array<{ key: string; value: string }> = []
+        
+        for (const pair of pairs) {
+          const parts = pair.split(pattern.keyValue).map(p => p.trim())
+          if (parts.length >= 2) {
+            specs.push({
+              key: parts[0],
+              value: parts.slice(1).join(pattern.keyValue).trim()
+            })
+          }
+        }
+        
+        if (specs.length > 0) {
+          return specs
+        }
+      }
+    }
+
+    // If no pattern matched, treat as single value
+    return [{ key: 'Thông số', value: trimmed }]
+  }
+
   const downloadTemplate = () => {
-    // Create workbook with supplier info and products
+    // Create workbook with merged cells format
     const wb = XLSX.utils.book_new()
     
-    // Sheet 1: Supplier Info
-    const supplierData = [
+    // Build sheet data with sub-rows for tech specs
+    const sheetData = [
       ['Thông tin nhà cung cấp', ''],
       ['Nhà cung cấp', 'Công ty TNHH ABC'],
       ['Mã số thuế', '0123456789'],
@@ -111,30 +170,84 @@ export default function EmployeeCreatePurchaseOrderPage() {
       ['Điều khoản thanh toán', 'Thanh toán trong 30 ngày'],
       [],
       ['Danh sách sản phẩm', ''],
-      ['SKU', 'Tên sản phẩm', 'Số lượng', 'Giá nhập', 'Bảo hành (tháng)', 'Thông số kỹ thuật (JSON)', 'Ghi chú'],
-      ['PROD-001', 'iPhone 15 Pro Max 256GB', 10, 28000000, 12, '{"Màn hình":"6.7 inch","Chip":"A17 Pro","RAM":"8GB","Bộ nhớ":"256GB"}', 'Hàng chính hãng VN/A'],
-      ['PROD-002', 'Samsung Galaxy S24 Ultra 512GB', 15, 30000000, 24, '{"Màn hình":"6.8 inch","Chip":"Snapdragon 8 Gen 3","RAM":"12GB","Bộ nhớ":"512GB"}', 'Hàng chính hãng SSVN'],
-      ['PROD-003', 'MacBook Pro 14 M3 Pro', 5, 52000000, 12, '{"Màn hình":"14.2 inch","Chip":"Apple M3 Pro","RAM":"18GB","SSD":"512GB"}', 'Hàng chính hãng Apple VN']
+      ['SKU', 'Tên sản phẩm', 'Số lượng', 'Giá nhập', 'Bảo hành (tháng)', 'Thông số kỹ thuật', '', 'Ghi chú'],
+      ['', '', '', '', '', 'Tên thông số', 'Giá trị', ''],
+      // Product 1 with merged cells
+      ['PROD-001', 'iPhone 15 Pro Max 256GB', 10, 28000000, 12, 'Màn hình', '6.7 inch', 'Hàng chính hãng VN/A'],
+      ['', '', '', '', '', 'Chip', 'A17 Pro', ''],
+      ['', '', '', '', '', 'RAM', '8GB', ''],
+      ['', '', '', '', '', 'Bộ nhớ', '256GB', ''],
+      // Product 2 with merged cells
+      ['PROD-002', 'Samsung Galaxy S24 Ultra 512GB', 15, 30000000, 24, 'Màn hình', '6.8 inch', 'Hàng chính hãng SSVN'],
+      ['', '', '', '', '', 'Chip', 'Snapdragon 8 Gen 3', ''],
+      ['', '', '', '', '', 'RAM', '12GB', ''],
+      ['', '', '', '', '', 'Bộ nhớ', '512GB', ''],
+      // Product 3 with merged cells
+      ['PROD-003', 'MacBook Pro 14 M3 Pro', 5, 52000000, 12, 'Màn hình', '14.2 inch', 'Hàng chính hãng Apple VN'],
+      ['', '', '', '', '', 'Chip', 'Apple M3 Pro', ''],
+      ['', '', '', '', '', 'RAM', '18GB', ''],
+      ['', '', '', '', '', 'SSD', '512GB', '']
     ]
     
-    const ws = XLSX.utils.aoa_to_sheet(supplierData)
+    const headerRowIndex = 11 // Main header row
+    const subHeaderRowIndex = 12 // Sub-header row
+    const merges = []
+    
+    // Merge header cells for tech specs (main header spans 2 columns)
+    merges.push({ s: { r: headerRowIndex, c: 5 }, e: { r: headerRowIndex, c: 6 } })
+    
+    // Merge other header cells vertically (span 2 rows for main headers)
+    merges.push({ s: { r: headerRowIndex, c: 0 }, e: { r: subHeaderRowIndex, c: 0 } }) // SKU
+    merges.push({ s: { r: headerRowIndex, c: 1 }, e: { r: subHeaderRowIndex, c: 1 } }) // Tên sản phẩm
+    merges.push({ s: { r: headerRowIndex, c: 2 }, e: { r: subHeaderRowIndex, c: 2 } }) // Số lượng
+    merges.push({ s: { r: headerRowIndex, c: 3 }, e: { r: subHeaderRowIndex, c: 3 } }) // Giá nhập
+    merges.push({ s: { r: headerRowIndex, c: 4 }, e: { r: subHeaderRowIndex, c: 4 } }) // Bảo hành
+    merges.push({ s: { r: headerRowIndex, c: 7 }, e: { r: subHeaderRowIndex, c: 7 } }) // Ghi chú
+    
+    // Merge cells for Product 1 (rows 13-16, 4 rows)
+    merges.push({ s: { r: 13, c: 0 }, e: { r: 16, c: 0 } }) // SKU
+    merges.push({ s: { r: 13, c: 1 }, e: { r: 16, c: 1 } }) // Name
+    merges.push({ s: { r: 13, c: 2 }, e: { r: 16, c: 2 } }) // Quantity
+    merges.push({ s: { r: 13, c: 3 }, e: { r: 16, c: 3 } }) // Price
+    merges.push({ s: { r: 13, c: 4 }, e: { r: 16, c: 4 } }) // Warranty
+    merges.push({ s: { r: 13, c: 7 }, e: { r: 16, c: 7 } }) // Note
+    
+    // Merge cells for Product 2 (rows 17-20, 4 rows)
+    merges.push({ s: { r: 17, c: 0 }, e: { r: 20, c: 0 } }) // SKU
+    merges.push({ s: { r: 17, c: 1 }, e: { r: 20, c: 1 } }) // Name
+    merges.push({ s: { r: 17, c: 2 }, e: { r: 20, c: 2 } }) // Quantity
+    merges.push({ s: { r: 17, c: 3 }, e: { r: 20, c: 3 } }) // Price
+    merges.push({ s: { r: 17, c: 4 }, e: { r: 20, c: 4 } }) // Warranty
+    merges.push({ s: { r: 17, c: 7 }, e: { r: 20, c: 7 } }) // Note
+    
+    // Merge cells for Product 3 (rows 21-24, 4 rows)
+    merges.push({ s: { r: 21, c: 0 }, e: { r: 24, c: 0 } }) // SKU
+    merges.push({ s: { r: 21, c: 1 }, e: { r: 24, c: 1 } }) // Name
+    merges.push({ s: { r: 21, c: 2 }, e: { r: 24, c: 2 } }) // Quantity
+    merges.push({ s: { r: 21, c: 3 }, e: { r: 24, c: 3 } }) // Price
+    merges.push({ s: { r: 21, c: 4 }, e: { r: 24, c: 4 } }) // Warranty
+    merges.push({ s: { r: 21, c: 7 }, e: { r: 24, c: 7 } }) // Note
+    
+    const ws = XLSX.utils.aoa_to_sheet(sheetData)
+    ws['!merges'] = merges
     
     // Set column widths
     ws['!cols'] = [
-      { wch: 25 },
-      { wch: 50 },
-      { wch: 12 },
-      { wch: 15 },
-      { wch: 18 },
-      { wch: 60 },
-      { wch: 30 }
+      { wch: 20 },  // SKU
+      { wch: 45 },  // Tên sản phẩm
+      { wch: 10 },  // Số lượng
+      { wch: 12 },  // Giá nhập
+      { wch: 15 },  // Bảo hành
+      { wch: 20 },  // Thông số - Tên
+      { wch: 25 },  // Thông số - Giá trị
+      { wch: 30 }   // Ghi chú
     ]
     
     XLSX.utils.book_append_sheet(wb, ws, 'Phiếu nhập kho')
     
     // Generate Excel file
     XLSX.writeFile(wb, 'template-nhap-kho.xlsx')
-    toast.success('Đã tải template Excel')
+    toast.success('Đã tải template Excel với định dạng merged cells')
   }
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -185,6 +298,19 @@ export default function EmployeeCreatePurchaseOrderPage() {
           const row = jsonData[i]
           if (row[0] === 'SKU' || String(row[0]).includes('SKU')) {
             productStartIndex = i + 1
+            
+            // Check if next row is sub-header (has "Tên thông số" or "Giá trị")
+            if (i + 1 < jsonData.length) {
+              const nextRow = jsonData[i + 1]
+              const col5 = String(nextRow[5] || '').trim()
+              const col6 = String(nextRow[6] || '').trim()
+              
+              if (col5.includes('Tên thông số') || col5.includes('tên thông số') || 
+                  col6.includes('Giá trị') || col6.includes('giá trị')) {
+                // Skip sub-header row
+                productStartIndex = i + 2
+              }
+            }
             break
           }
         }
@@ -196,39 +322,92 @@ export default function EmployeeCreatePurchaseOrderPage() {
 
         // Parse products
         const parsedItems: POItem[] = []
+        let currentProduct: POItem | null = null
+        
         for (let i = productStartIndex; i < jsonData.length; i++) {
           const row = jsonData[i]
-          if (row.length >= 4 && row[0]) {
-            let techSpecs: Array<{ key: string; value: string }> = [{ key: '', value: '' }]
-            if (row.length >= 6 && row[5]) {
-              try {
+          
+          // Check if this is a main product row (has SKU) or sub-row (no SKU, tech spec continuation)
+          const sku = String(row[0] || '').trim()
+          
+          if (sku) {
+            // Main product row - save previous product if exists
+            if (currentProduct) {
+              parsedItems.push(currentProduct)
+            }
+            
+            // Start new product
+            if (row.length >= 4) {
+              let techSpecs: Array<{ key: string; value: string }> = [{ key: '', value: '' }]
+              let noteIndex = 6
+              
+              if (row.length >= 7) {
+                const col5 = String(row[5]).trim()
+                const col6 = String(row[6]).trim()
+                
+                if (col5 && col5.length < 30 && col6 && !col5.includes(':') && !col5.includes('{')) {
+                  const col7 = String(row[7] || '').trim()
+                  
+                  if (row.length === 8 || (col7 && col7.length > 30) || col7.includes('Hàng') || col7.includes('chính hãng')) {
+                    // Format 3: Merged cells format
+                    noteIndex = 7
+                    techSpecs = [{ key: col5, value: col6 }]
+                  } else {
+                    // Format 2: Multi-column tech specs
+                    noteIndex = row.length - 1
+                    for (let j = 5; j < noteIndex; j += 2) {
+                      const specName = String(row[j] || '').trim()
+                      const specValue = String(row[j + 1] || '').trim()
+                      
+                      if (specName && specValue) {
+                        if (techSpecs.length === 1 && !techSpecs[0].key) {
+                          techSpecs[0] = { key: specName, value: specValue }
+                        } else {
+                          techSpecs.push({ key: specName, value: specValue })
+                        }
+                      }
+                    }
+                  }
+                } else if (col5) {
+                  // Format 1: Single column with all tech specs
+                  techSpecs = parseTechSpecs(col5)
+                  noteIndex = 6
+                }
+              } else if (row.length >= 6 && row[5]) {
                 const techSpecStr = String(row[5]).trim()
                 if (techSpecStr) {
-                  const parsed = JSON.parse(techSpecStr)
-                  techSpecs = Object.entries(parsed).map(([key, value]) => ({
-                    key,
-                    value: String(value)
-                  }))
-                  if (techSpecs.length === 0) {
-                    techSpecs = [{ key: '', value: '' }]
-                  }
+                  techSpecs = parseTechSpecs(techSpecStr)
                 }
-              } catch (e) {
-                console.error('Error parsing tech specs:', e)
-                techSpecs = [{ key: '', value: '' }]
+              }
+
+              currentProduct = {
+                sku: sku,
+                internalName: String(row[1]).trim(),
+                quantity: parseInt(String(row[2])) || 0,
+                unitCost: parseFloat(String(row[3])) || 0,
+                warrantyMonths: parseInt(String(row[4])) || 0,
+                techSpecs: techSpecs,
+                note: row.length > noteIndex ? String(row[noteIndex]).trim() : ''
               }
             }
-
-            parsedItems.push({
-              sku: String(row[0]).trim(),
-              internalName: String(row[1]).trim(),
-              quantity: parseInt(String(row[2])) || 0,
-              unitCost: parseFloat(String(row[3])) || 0,
-              warrantyMonths: parseInt(String(row[4])) || 0,
-              techSpecs: techSpecs,
-              note: row.length >= 7 ? String(row[6]).trim() : ''
-            })
+          } else if (currentProduct && row.length >= 7) {
+            // Sub-row: continuation of tech specs for current product
+            const specName = String(row[5] || '').trim()
+            const specValue = String(row[6] || '').trim()
+            
+            if (specName && specValue) {
+              if (currentProduct.techSpecs.length === 1 && !currentProduct.techSpecs[0].key) {
+                currentProduct.techSpecs[0] = { key: specName, value: specValue }
+              } else {
+                currentProduct.techSpecs.push({ key: specName, value: specValue })
+              }
+            }
           }
+        }
+        
+        // Don't forget to add the last product
+        if (currentProduct) {
+          parsedItems.push(currentProduct)
         }
 
         if (parsedItems.length === 0) {
@@ -293,19 +472,7 @@ export default function EmployeeCreatePurchaseOrderPage() {
             if (cleanParts.length >= 5) {
               let techSpecs: Array<{ key: string; value: string }> = [{ key: '', value: '' }]
               if (cleanParts.length >= 7 && cleanParts[6]) {
-                try {
-                  const parsed = JSON.parse(cleanParts[6])
-                  techSpecs = Object.entries(parsed).map(([key, value]) => ({
-                    key,
-                    value: String(value)
-                  }))
-                  if (techSpecs.length === 0) {
-                    techSpecs = [{ key: '', value: '' }]
-                  }
-                } catch (e) {
-                  console.error('Error parsing tech specs:', e)
-                  techSpecs = [{ key: '', value: '' }]
-                }
+                techSpecs = parseTechSpecs(cleanParts[6])
               }
               
               parsedItems.push({
