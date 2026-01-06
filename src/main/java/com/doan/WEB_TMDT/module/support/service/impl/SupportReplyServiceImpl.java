@@ -1,5 +1,7 @@
 package com.doan.WEB_TMDT.module.support.service.impl;
 
+import com.doan.WEB_TMDT.module.auth.entity.Employee;
+import com.doan.WEB_TMDT.module.auth.repository.EmployeeRepository;
 import com.doan.WEB_TMDT.module.support.core.SupportTicketConstants;
 import com.doan.WEB_TMDT.module.support.dto.request.CreateReplyRequest;
 import com.doan.WEB_TMDT.module.support.dto.response.SupportReplyResponse;
@@ -26,6 +28,7 @@ public class SupportReplyServiceImpl implements SupportReplyService {
 
     private final SupportReplyRepository replyRepository;
     private final SupportTicketRepository ticketRepository;
+    private final EmployeeRepository employeeRepository;
 
     @Override
     public SupportReplyResponse addReplyByCustomer(
@@ -105,6 +108,63 @@ public class SupportReplyServiceImpl implements SupportReplyService {
         // 5. Map to response
         return mapToResponse(reply);
     }
+
+    @Override
+    public SupportReplyResponse saveMessageFromWebSocket(Long ticketId, String content, String senderEmail) {
+        log.info("Saving message from WebSocket - ticketId: {}, senderEmail: {}", ticketId, senderEmail);
+
+        // 1. Tìm ticket
+        SupportTicket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new NotFoundException("Ticket not found"));
+
+        // 2. Xác định người gửi
+        String senderType;
+        String senderName;
+
+        // Nếu là customer của ticket
+        if (ticket.getCustomer().getUser().getEmail().equals(senderEmail)) {
+            senderType = "customer";
+            senderName = ticket.getCustomer().getFullName();
+        }
+        // Nếu là employee
+        else {
+            Employee employee = employeeRepository.findByUserEmail(senderEmail)
+                    .orElseThrow(() -> new NotFoundException("Employee not found"));
+            senderType = "employee";
+            senderName = employee.getFullName();
+        }
+
+        // 3. Kiểm tra trạng thái ticket
+        if ("DA_XU_LY".equals(ticket.getStatus()) || "DA_HUY".equals(ticket.getStatus())) {
+            throw new ValidationException("Cannot send message to closed or cancelled ticket");
+        }
+
+        // 4. Tạo entity reply
+        SupportReply reply = SupportReply.builder()
+                .supportTicket(ticket)
+                .senderType(senderType)
+                .content(content)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        // 5. Lưu vào DB
+        reply = replyRepository.save(reply);
+
+        // 6. Cập nhật updatedAt của ticket
+        ticket.setUpdatedAt(LocalDateTime.now());
+        ticketRepository.save(ticket);
+
+        // 7. Map sang response
+        return SupportReplyResponse.builder()
+                .id(reply.getId())
+                .senderType(senderType)
+                .senderName(senderName)
+                .senderEmail(senderEmail)
+                .content(reply.getContent())
+                .createdAt(reply.getCreatedAt())
+                .build();
+    }
+
 
     private SupportReplyResponse mapToResponse(SupportReply reply) {
         String senderName = SupportTicketConstants.SENDER_CUSTOMER.equals(reply.getSenderType())

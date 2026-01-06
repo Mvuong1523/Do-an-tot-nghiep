@@ -3,6 +3,7 @@ package com.doan.WEB_TMDT.module.support.dto.response;
 import com.doan.WEB_TMDT.module.auth.entity.Customer;
 import com.doan.WEB_TMDT.module.auth.entity.Employee;
 import com.doan.WEB_TMDT.module.order.dto.OrderResponse;
+import com.doan.WEB_TMDT.module.order.entity.Order;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -31,7 +32,7 @@ public class SupportTicketDetailResponse {
     private String customerEmail;
     private Long employeeId;
     private String employeeName;
-    private List<OrderResponse> relatedOrders;
+    private List<Order> relatedOrders;
     private List<SupportReplyResponse> replies;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

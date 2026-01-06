@@ -32,4 +32,5 @@ public class SupportCategory {
 
     @OneToMany(mappedBy = "supportCategory", cascade = CascadeType.ALL)
     private Set<SupportTicket> supportTickets;
+
 }

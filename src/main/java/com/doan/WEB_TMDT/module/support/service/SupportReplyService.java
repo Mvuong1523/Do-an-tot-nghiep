@@ -33,4 +33,18 @@ public interface SupportReplyService {
             CreateReplyRequest request,
             String employeeEmail
     );
+
+
+    /**
+     * Lưu tin nhắn từ Socket.IO / WebSocket
+     * @param ticketId ID của phiếu hỗ trợ
+     * @param content  Nội dung tin nhắn
+     * @param senderEmail Email của người gửi
+     * @return Tin nhắn/Reply đã lưu
+     */
+    SupportReplyResponse saveMessageFromWebSocket(
+            Long ticketId,
+            String content,
+            String senderEmail
+    );
 }

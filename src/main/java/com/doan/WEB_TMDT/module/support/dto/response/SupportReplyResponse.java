@@ -19,6 +19,7 @@ public class SupportReplyResponse {
     private Long id;
     private String senderType; // "customer" or "employee"
     private String senderName;
+    private String senderEmail;
     private String content;
     private LocalDateTime createdAt;
 }

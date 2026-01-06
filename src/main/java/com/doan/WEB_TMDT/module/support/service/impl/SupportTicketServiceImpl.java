@@ -21,6 +21,7 @@ import com.doan.WEB_TMDT.module.support.repository.SupportCategoryRepository;
 import com.doan.WEB_TMDT.module.support.repository.SupportStatusHistoryRepository;
 import com.doan.WEB_TMDT.module.support.repository.SupportTicketOrderRepository;
 import com.doan.WEB_TMDT.module.support.repository.SupportTicketRepository;
+import com.doan.WEB_TMDT.module.support.service.SupportChatSocketIOHandler;
 import com.doan.WEB_TMDT.module.support.service.SupportTicketService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +34,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -48,6 +51,7 @@ public class SupportTicketServiceImpl implements SupportTicketService {
     private final EmployeeRepository employeeRepository;
     private final SupportCategoryRepository categoryRepository;
     private final OrderRepository orderRepository;
+    private final SupportChatSocketIOHandler supportChatSocketIOHandler;
 
     @Override
     public SupportTicketDetailResponse createTicketByCustomer(
@@ -107,6 +111,9 @@ public class SupportTicketServiceImpl implements SupportTicketService {
 
         // 6. Tạo history
         createStatusHistory(ticket, null, SupportTicketConstants.STATUS_PENDING);
+
+        // 🔥 Trigger tạo room chat
+        supportChatSocketIOHandler.ticketRooms(ticket.getId());
 
         // 7. Map to response
         return mapToDetailResponse(ticket);
@@ -393,18 +400,23 @@ public class SupportTicketServiceImpl implements SupportTicketService {
     }
 
     private SupportTicketDetailResponse mapToDetailResponse(SupportTicket ticket) {
-        // Map related orders
-        List<Order> relatedOrders = ticket.getSupportTicketOrders()
+        // Map related orders (tránh null)
+        List<Order> relatedOrders = (ticket.getSupportTicketOrders() == null ? Set.<SupportTicketOrder>of() : ticket.getSupportTicketOrders())
                 .stream()
-                .map(sto -> Order.builder()
-                        .id(sto.getOrder().getId())
-                        .orderCode(sto.getOrder().getOrderCode())
-                        .status(sto.getOrder().getStatus())
-                        .build())
+                .filter(Objects::nonNull)
+                .map(sto -> {
+                    Order order = sto.getOrder();
+                    return Order.builder()
+                            .id(order != null ? order.getId() : null)
+                            .orderCode(order != null ? order.getOrderCode() : null)
+                            .status(order != null ? order.getStatus() : null)
+                            .build();
+                })
                 .collect(Collectors.toList());
 
-        // Map replies
-        List<SupportReplyResponse> replies = ticket.getSupportReplies()
+
+        // Map replies (tránh null)
+        List<SupportReplyResponse> replies = (ticket.getSupportReplies() == null ? Set.<SupportReply>of() : ticket.getSupportReplies())
                 .stream()
                 .sorted(Comparator.comparing(SupportReply::getCreatedAt))
                 .map(this::mapReplyToResponse)
@@ -416,23 +428,22 @@ public class SupportTicketServiceImpl implements SupportTicketService {
                 .content(ticket.getContent())
                 .status(ticket.getStatus())
                 .priority(ticket.getPriority())
-                .categoryId(ticket.getSupportCategory().getId())
-                .categoryName(ticket.getSupportCategory().getName())
-                .customerId(ticket.getCustomer().getId())
-                .customerName(ticket.getCustomer().getFullName())
-                .customerEmail(ticket.getCustomer().getUser().getEmail())
-                .employeeId(ticket.getEmployee() != null
-                        ? ticket.getEmployee().getId()
+                .categoryId(ticket.getSupportCategory() != null ? ticket.getSupportCategory().getId() : null)
+                .categoryName(ticket.getSupportCategory() != null ? ticket.getSupportCategory().getName() : null)
+                .customerId(ticket.getCustomer() != null ? ticket.getCustomer().getId() : null)
+                .customerName(ticket.getCustomer() != null ? ticket.getCustomer().getFullName() : null)
+                .customerEmail(ticket.getCustomer() != null && ticket.getCustomer().getUser() != null
+                        ? ticket.getCustomer().getUser().getEmail()
                         : null)
-                .employeeName(ticket.getEmployee() != null
-                        ? ticket.getEmployee().getFullName()
-                        : null)
-//                .relatedOrders(relatedOrders)
+                .employeeId(ticket.getEmployee() != null ? ticket.getEmployee().getId() : null)
+                .employeeName(ticket.getEmployee() != null ? ticket.getEmployee().getFullName() : null)
+                .relatedOrders(relatedOrders)
                 .replies(replies)
                 .createdAt(ticket.getCreatedAt())
                 .updatedAt(ticket.getUpdatedAt())
                 .build();
     }
+
 
     private SupportReplyResponse mapReplyToResponse(SupportReply reply) {
         String senderName = "customer".equals(reply.getSenderType())
