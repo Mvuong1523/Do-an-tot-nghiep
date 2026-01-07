@@ -14,5 +14,5 @@ public class ChatMessageDTO {
     private String senderType;
     private String senderName;
     private String senderEmail;
-    private LocalDateTime timestamp;
+    private String timestamp;
 }

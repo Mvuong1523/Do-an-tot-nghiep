@@ -60,6 +60,12 @@ export type Permission =
   | 'bank_accounts.create'
   | 'bank_accounts.edit'
   | 'bank_accounts.delete'
+  
+  // Support/Ticket permissions
+  | 'tickets.view_all'
+  | 'tickets.reply'
+  | 'tickets.close'
+  | 'tickets.assign'
 
 // Permission mapping for each position
 // NOTE: All employees can VIEW all pages, these permissions are for ACTIONS only
@@ -73,10 +79,14 @@ export const POSITION_PERMISSIONS: Record<Position, Permission[]> = {
     'customers.edit',
   ],
   
-  // Customer service - Chăm sóc khách hàng, xử lý đơn hàng
+  // Customer service - Chăm sóc khách hàng, xử lý đơn hàng, quản lý tickets
   CSKH: [
     'orders.edit',
     'customers.edit',
+    'tickets.view_all',
+    'tickets.reply',
+    'tickets.close',
+    'tickets.assign',
   ],
   
   // Product manager - Quản lý sản phẩm, danh mục, CHỈ XEM báo cáo kho (không nhập/xuất)

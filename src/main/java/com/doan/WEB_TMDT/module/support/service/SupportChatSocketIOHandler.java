@@ -20,6 +20,7 @@ import java.util.concurrent.ConcurrentMap;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+// xét sự kiện
 public class SupportChatSocketIOHandler {
 
     private final SocketIOServer server;
@@ -123,7 +124,7 @@ public class SupportChatSocketIOHandler {
                     .senderType(saved.getSenderType())
                     .senderName(saved.getSenderName())
                     .senderEmail(user.getEmail())
-                    .timestamp(saved.getCreatedAt())
+                    .timestamp(saved.getCreatedAt().toString())
                     .build();
 
             broadcastToRoom(data.getTicketId(), "new_message", msg);

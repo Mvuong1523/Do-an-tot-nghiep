@@ -1,7 +1,9 @@
 package com.doan.WEB_TMDT.module.support.service.impl;
 
 import com.doan.WEB_TMDT.module.auth.entity.Employee;
+import com.doan.WEB_TMDT.module.auth.entity.User;
 import com.doan.WEB_TMDT.module.auth.repository.EmployeeRepository;
+import com.doan.WEB_TMDT.module.auth.repository.UserRepository;
 import com.doan.WEB_TMDT.module.support.core.SupportTicketConstants;
 import com.doan.WEB_TMDT.module.support.dto.request.CreateReplyRequest;
 import com.doan.WEB_TMDT.module.support.dto.response.SupportReplyResponse;
@@ -28,7 +30,7 @@ public class SupportReplyServiceImpl implements SupportReplyService {
 
     private final SupportReplyRepository replyRepository;
     private final SupportTicketRepository ticketRepository;
-    private final EmployeeRepository employeeRepository;
+    private final UserRepository employeeRepository;
 
     @Override
     public SupportReplyResponse addReplyByCustomer(
@@ -120,7 +122,7 @@ public class SupportReplyServiceImpl implements SupportReplyService {
         // 2. Xác định người gửi
         String senderType;
         String senderName;
-
+        System.out.println(senderEmail);
         // Nếu là customer của ticket
         if (ticket.getCustomer().getUser().getEmail().equals(senderEmail)) {
             senderType = "customer";
@@ -128,10 +130,10 @@ public class SupportReplyServiceImpl implements SupportReplyService {
         }
         // Nếu là employee
         else {
-            Employee employee = employeeRepository.findByUserEmail(senderEmail)
+            User employee = employeeRepository.findByEmail(senderEmail)
                     .orElseThrow(() -> new NotFoundException("Employee not found"));
             senderType = "employee";
-            senderName = employee.getFullName();
+            senderName = employee.getEmail();
         }
 
         // 3. Kiểm tra trạng thái ticket

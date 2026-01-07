@@ -22,6 +22,7 @@ export default function Footer() {
   ]
 
   const supportLinks = [
+    { name: 'Trung tâm hỗ trợ', href: '/support' },
     { name: 'Chính sách đổi mới và bảo hành', href: '/support/warranty' },
     { name: 'Dịch vụ bảo hành mở rộng', href: '/support/extended-warranty' },
     { name: 'Quy chế hoạt động', href: '/support/rules' },

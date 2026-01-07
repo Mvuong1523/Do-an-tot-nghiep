@@ -583,6 +583,61 @@ export const contactApi = {
   },
 }
 
+// Support API
+export const supportApi = {
+  listTickets: async (params?: any): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await apiClient.get('/support/tickets', { params })
+      return {
+        success: true,
+        data: response.data?.data || response.data || [],
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: [],
+        error: error.message,
+      }
+    }
+  },
+
+  getById: async (id: string | number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get(`/support/tickets/${id}`)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi lấy ticket')
+    }
+  },
+
+  createTicket: async (data: any): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.post('/support/tickets', data)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi tạo ticket')
+    }
+  },
+
+  replyTicket: async (ticketId: string | number, data: any): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.post(`/support/tickets/${ticketId}/replies`, data)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi gửi trả lời')
+    }
+  },
+
+  closeTicket: async (ticketId: string | number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.put(`/support/tickets/${ticketId}/close`)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi đóng ticket')
+    }
+  },
+}
+
 // Customer API
 export const customerApi = {
   getProfile: async (): Promise<ApiResponse<any>> => {
