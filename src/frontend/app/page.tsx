@@ -154,9 +154,9 @@ export default function HomePage() {
                     className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden group"
                   >
                     <div className="relative aspect-square bg-gray-100">
-                      {product.images && product.images.length > 0 ? (
+                      {(product.imageUrl || (product.images && product.images.length > 0)) ? (
                         <img
-                          src={product.images[0].imageUrl}
+                          src={product.imageUrl || product.images?.[0]?.imageUrl}
                           alt={product.name}
                           className="w-full h-full object-cover"
                         />
