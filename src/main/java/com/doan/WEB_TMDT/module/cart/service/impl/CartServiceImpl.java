@@ -72,7 +72,7 @@ public class CartServiceImpl implements CartService {
         // 3. Check stock
         if (product.getStockQuantity() == null || product.getStockQuantity() < request.getQuantity()) {
             return ApiResponse.error("Sản phẩm không đủ số lượng trong kho");
-        }
+        }   
 
         // 4. Check if product already in cart
         Optional<CartItem> existingItem = cartItemRepository
@@ -140,39 +140,23 @@ public class CartServiceImpl implements CartService {
     @Override
     @Transactional
     public ApiResponse removeCartItem(Long customerId, Long itemId) {
-        log.info("🗑️ Removing cart item - customerId: {}, itemId: {}", customerId, itemId);
-        
         // 1. Get cart
         Cart cart = getOrCreateCart(customerId);
-        log.info("📦 Found cart: id={}, items count={}", cart.getId(), cart.getItems().size());
-
         // 2. Find item
         CartItem item = cartItemRepository.findById(itemId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm trong giỏ hàng"));
-        log.info("📦 Found item to delete: id={}, product={}", item.getId(), item.getProduct().getName());
-
         // 3. Verify ownership
         if (!item.getCart().getId().equals(cart.getId())) {
-            log.error("❌ Ownership verification failed - item.cartId={}, user.cartId={}", 
-                     item.getCart().getId(), cart.getId());
             return ApiResponse.error("Bạn không có quyền xóa sản phẩm này");
         }
-
         // 4. Remove item using Cart's removeItem method (important for JPA relationship)
-        log.info("🗑️ Removing item from cart...");
         cart.removeItem(item);
         cartRepository.save(cart);  // Save to trigger orphanRemoval
-        log.info("✅ Item removed successfully");
-
         // 5. Flush to ensure database is updated
         cartRepository.flush();
-
         // 6. Return updated cart
         Cart updatedCart = cartRepository.findById(cart.getId()).orElseThrow();
-        log.info("📦 Updated cart: items count={}", updatedCart.getItems().size());
-        
         CartResponse response = toCartResponse(updatedCart);
-        log.info("✅ Returning response with {} items", response.getItems().size());
         return ApiResponse.success("Đã xóa sản phẩm khỏi giỏ hàng", response);
     }
 

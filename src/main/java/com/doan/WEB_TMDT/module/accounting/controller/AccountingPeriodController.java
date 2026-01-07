@@ -28,13 +28,18 @@ public class AccountingPeriodController {
         return ResponseEntity.ok(periodService.getPeriodById(id));
     }
 
+    @GetMapping("/{id}/details")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
+    public ResponseEntity<ApiResponse> getPeriodDetails(@PathVariable Long id) {
+        return ResponseEntity.ok(periodService.getPeriodDetails(id));
+    }
+
     @PostMapping
     @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse> createPeriod(
             @RequestParam String name,
             @RequestParam String startDate,
-            @RequestParam String endDate
-    ) {
+            @RequestParam String endDate) {
         return ResponseEntity.ok(periodService.createPeriod(name, startDate, endDate));
     }
 
@@ -42,8 +47,7 @@ public class AccountingPeriodController {
     @PreAuthorize("hasAnyAuthority('ADMIN', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse> closePeriod(
             @PathVariable Long id,
-            Authentication authentication
-    ) {
+            Authentication authentication) {
         String closedBy = authentication.getName();
         return ResponseEntity.ok(periodService.closePeriod(id, closedBy));
     }

@@ -117,8 +117,62 @@ public class AccountingPeriodServiceImpl implements AccountingPeriodService {
 
         calculateStats(period);
         AccountingPeriod updated = periodRepository.save(period);
-        
+
         return ApiResponse.success("Tính toán thống kê kỳ thành công", toResponse(updated));
+    }
+
+    @Override
+    public ApiResponse getPeriodDetails(Long id) {
+        AccountingPeriod period = periodRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy kỳ kế toán"));
+
+        LocalDateTime startDateTime = period.getStartDate().atStartOfDay();
+        LocalDateTime endDateTime = period.getEndDate().atTime(LocalTime.MAX);
+
+        // Lấy tất cả giao dịch trong kỳ
+        List<com.doan.WEB_TMDT.module.accounting.entity.FinancialTransaction> allTransactions = transactionRepository
+                .findByTransactionDateBetween(startDateTime, endDateTime);
+
+        // Phân loại giao dịch
+        List<com.doan.WEB_TMDT.module.accounting.entity.FinancialTransaction> revenueTransactions = allTransactions
+                .stream()
+                .filter(t -> t.getType() == TransactionType.REVENUE)
+                .collect(Collectors.toList());
+
+        List<com.doan.WEB_TMDT.module.accounting.entity.FinancialTransaction> expenseTransactions = allTransactions
+                .stream()
+                .filter(t -> t.getType() == TransactionType.EXPENSE)
+                .collect(Collectors.toList());
+
+        // Tính doanh thu theo chuẩn kế toán
+        Double salesRevenue = allTransactions.stream()
+                .filter(t -> t.getType() == TransactionType.REVENUE &&
+                        t.getCategory() == com.doan.WEB_TMDT.module.accounting.entity.TransactionCategory.SALES)
+                .mapToDouble(com.doan.WEB_TMDT.module.accounting.entity.FinancialTransaction::getAmount)
+                .sum();
+
+        Double refundAmount = allTransactions.stream()
+                .filter(t -> t.getType() == TransactionType.REFUND)
+                .mapToDouble(com.doan.WEB_TMDT.module.accounting.entity.FinancialTransaction::getAmount)
+                .sum();
+
+        Double netRevenue = salesRevenue - refundAmount; // Doanh thu thuần
+        Double profitMargin = netRevenue > 0 ? (period.getNetProfit() / netRevenue) * 100 : 0.0; // Biên lợi nhuận (%)
+
+        // Tạo response
+        java.util.Map<String, Object> details = new java.util.HashMap<>();
+        details.put("period", toResponse(period));
+        details.put("revenueTransactions", revenueTransactions);
+        details.put("expenseTransactions", expenseTransactions);
+        details.put("totalTransactions", allTransactions.size());
+
+        // Thêm chỉ số kế toán
+        details.put("salesRevenue", salesRevenue); // Doanh thu gộp (bán hàng)
+        details.put("refundAmount", refundAmount); // Hàng bán bị trả lại
+        details.put("netRevenue", netRevenue); // Doanh thu thuần
+        details.put("profitMargin", profitMargin); // Biên lợi nhuận (%)
+
+        return ApiResponse.success("Lấy chi tiết kỳ kế toán thành công", details);
     }
 
     private void calculateStats(AccountingPeriod period) {
@@ -142,7 +196,7 @@ public class AccountingPeriodServiceImpl implements AccountingPeriodService {
         // In real system, this would compare with bank statements
         double expectedRevenue = period.getTotalRevenue();
         double actualRevenue = period.getTotalRevenue(); // Would come from bank reconciliation
-        
+
         if (expectedRevenue > 0) {
             double discrepancy = Math.abs(expectedRevenue - actualRevenue);
             period.setDiscrepancyRate((discrepancy / expectedRevenue) * 100);

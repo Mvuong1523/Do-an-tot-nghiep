@@ -636,43 +636,48 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     public ApiResponse getStocks() {
-        List<InventoryStock> stocks = inventoryStockRepository.findAll();
-        
-        // Map to DTO to include warehouse product info
-        List<Map<String, Object>> stockData = stocks.stream().map(stock -> {
-            Map<String, Object> data = new HashMap<>();
-            data.put("id", stock.getId());
-            data.put("onHand", stock.getOnHand());
-            data.put("reserved", stock.getReserved());
-            data.put("damaged", stock.getDamaged());
-            data.put("sellable", stock.getSellable());
-            data.put("available", stock.getAvailable());
+        try {
+            List<InventoryStock> stocks = inventoryStockRepository.findAll();
             
-            if (stock.getWarehouseProduct() != null) {
-                WarehouseProduct wp = stock.getWarehouseProduct();
-                Map<String, Object> productInfo = new HashMap<>();
-                productInfo.put("id", wp.getId());
-                productInfo.put("sku", wp.getSku());
-                productInfo.put("internalName", wp.getInternalName());
-                productInfo.put("description", wp.getDescription());
-                productInfo.put("techSpecsJson", wp.getTechSpecsJson());
-                productInfo.put("lastImportDate", wp.getLastImportDate());
+            // Map to DTO to include warehouse product info
+            List<Map<String, Object>> stockData = stocks.stream().map(stock -> {
+                Map<String, Object> data = new HashMap<>();
+                data.put("id", stock.getId());
+                data.put("onHand", stock.getOnHand() != null ? stock.getOnHand() : 0L);
+                data.put("reserved", stock.getReserved() != null ? stock.getReserved() : 0L);
+                data.put("damaged", stock.getDamaged() != null ? stock.getDamaged() : 0L);
+                data.put("sellable", stock.getSellable());
+                data.put("available", stock.getAvailable());
                 
-                if (wp.getSupplier() != null) {
-                    Map<String, Object> supplierInfo = new HashMap<>();
-                    supplierInfo.put("id", wp.getSupplier().getId());
-                    supplierInfo.put("name", wp.getSupplier().getName());
-                    supplierInfo.put("taxCode", wp.getSupplier().getTaxCode());
-                    productInfo.put("supplier", supplierInfo);
+                if (stock.getWarehouseProduct() != null) {
+                    WarehouseProduct wp = stock.getWarehouseProduct();
+                    Map<String, Object> productInfo = new HashMap<>();
+                    productInfo.put("id", wp.getId());
+                    productInfo.put("sku", wp.getSku());
+                    productInfo.put("internalName", wp.getInternalName());
+                    productInfo.put("description", wp.getDescription());
+                    productInfo.put("techSpecsJson", wp.getTechSpecsJson());
+                    productInfo.put("lastImportDate", wp.getLastImportDate());
+                    
+                    if (wp.getSupplier() != null) {
+                        Map<String, Object> supplierInfo = new HashMap<>();
+                        supplierInfo.put("id", wp.getSupplier().getId());
+                        supplierInfo.put("name", wp.getSupplier().getName());
+                        supplierInfo.put("taxCode", wp.getSupplier().getTaxCode());
+                        productInfo.put("supplier", supplierInfo);
+                    }
+                    
+                    data.put("warehouseProduct", productInfo);
                 }
                 
-                data.put("warehouseProduct", productInfo);
-            }
+                return data;
+            }).toList();
             
-            return data;
-        }).toList();
-        
-        return ApiResponse.success("Danh sách tồn kho", stockData);
+            return ApiResponse.success("Danh sách tồn kho", stockData);
+        } catch (Exception e) {
+            log.error("Error getting stocks: ", e);
+            return ApiResponse.error("Lỗi khi lấy danh sách tồn kho: " + e.getMessage());
+        }
     }
     @Override
     @Transactional
@@ -956,7 +961,6 @@ public class InventoryServiceImpl implements InventoryService {
             Product product = wp.getProduct();
             product.setReservedQuantity(newReserved);
             productRepository.save(product);
-            log.info("✅ Đồng bộ reserved: {} -> {}", product.getName(), newReserved);
         }
     }
 
