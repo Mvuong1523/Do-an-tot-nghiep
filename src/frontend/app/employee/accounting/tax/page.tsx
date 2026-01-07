@@ -15,6 +15,8 @@ export default function TaxPage() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString())
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingReport, setEditingReport] = useState<any>(null)
+  const [showDetailModal, setShowDetailModal] = useState(false)
+  const [taxDetail, setTaxDetail] = useState<any>(null)
 
   useEffect(() => {
     const authStorage = localStorage.getItem('auth-storage')
@@ -25,7 +27,7 @@ export default function TaxPage() {
 
     const authData = JSON.parse(authStorage)
     const userData = authData.state?.user
-    
+
     if (!userData) {
       router.push('/login')
       return
@@ -33,7 +35,7 @@ export default function TaxPage() {
 
     const isAdmin = userData.role === 'ADMIN'
     const isAccountant = userData.position === 'ACCOUNTANT'
-    
+
     if (!isAdmin && !isAccountant) {
       toast.error('Bạn không có quyền truy cập')
       router.push('/')
@@ -48,10 +50,10 @@ export default function TaxPage() {
     try {
       setLoading(true)
       const token = localStorage.getItem('auth_token')
-      const url = selectedType === 'ALL' 
+      const url = selectedType === 'ALL'
         ? 'http://localhost:8080/api/accounting/tax/reports'
         : `http://localhost:8080/api/accounting/tax/reports/${selectedType}`
-      
+
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -61,7 +63,7 @@ export default function TaxPage() {
       const result = await response.json()
       if (result.success) {
         let filteredReports = result.data || []
-        
+
         // Filter by period (month, quarter, year)
         if (selectedPeriod !== 'ALL') {
           filteredReports = filteredReports.filter((report: any) => {
@@ -69,9 +71,9 @@ export default function TaxPage() {
             const year = startDate.getFullYear()
             const month = startDate.getMonth() + 1
             const quarter = Math.ceil(month / 3)
-            
+
             if (year.toString() !== selectedYear) return false
-            
+
             if (selectedPeriod.startsWith('Q')) {
               const selectedQuarter = parseInt(selectedPeriod.substring(1))
               return quarter === selectedQuarter
@@ -84,7 +86,7 @@ export default function TaxPage() {
             return true
           })
         }
-        
+
         setTaxReports(filteredReports)
       } else {
         toast.error(result.message || 'Lỗi khi tải báo cáo thuế')
@@ -203,6 +205,28 @@ export default function TaxPage() {
     } catch (error) {
       console.error('Error:', error)
       toast.error('Lỗi khi cập nhật dữ liệu')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const viewTaxDetail = async (id: number) => {
+    try {
+      setLoading(true)
+      const token = localStorage.getItem('auth_token')
+      const response = await fetch(`http://localhost:8080/api/accounting/tax/reports/detail/${id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const result = await response.json()
+      if (result.success) {
+        setTaxDetail(result.data)
+        setShowDetailModal(true)
+      } else {
+        toast.error(result.message || 'Lỗi khi tải chi tiết')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Lỗi khi tải chi tiết')
     } finally {
       setLoading(false)
     }
@@ -358,7 +382,7 @@ export default function TaxPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {taxReports.map((report) => (
-                  <tr key={report.id}>
+                  <tr key={report.id} onClick={() => viewTaxDetail(report.id)} className="cursor-pointer hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {report.reportCode}
                     </td>
@@ -381,13 +405,12 @@ export default function TaxPage() {
                       {report.remainingTax?.toLocaleString('vi-VN')} ₫
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        report.status === 'PAID' ? 'bg-green-100 text-green-800' :
+                      <span className={`px-2 py-1 text-xs rounded-full ${report.status === 'PAID' ? 'bg-green-100 text-green-800' :
                         report.status === 'SUBMITTED' ? 'bg-blue-100 text-blue-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
+                          'bg-yellow-100 text-yellow-800'
+                        }`}>
                         {report.status === 'PAID' ? 'Đã nộp' :
-                         report.status === 'SUBMITTED' ? 'Đã gửi' : 'Nháp'}
+                          report.status === 'SUBMITTED' ? 'Đã gửi' : 'Nháp'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -395,7 +418,7 @@ export default function TaxPage() {
                         {report.status === 'DRAFT' && (
                           <>
                             <button
-                              onClick={() => recalculateTaxReport(report.id)}
+                              onClick={(e) => { e.stopPropagation(); recalculateTaxReport(report.id); }}
                               disabled={loading}
                               className="text-purple-600 hover:text-purple-800 disabled:opacity-50"
                               title="Cập nhật dữ liệu"
@@ -403,14 +426,14 @@ export default function TaxPage() {
                               <FiRefreshCw size={16} />
                             </button>
                             <button
-                              onClick={() => setEditingReport(report)}
+                              onClick={(e) => { e.stopPropagation(); setEditingReport(report); }}
                               className="text-blue-600 hover:text-blue-800"
                               title="Sửa"
                             >
                               <FiEdit size={16} />
                             </button>
                             <button
-                              onClick={() => submitTaxReport(report.id)}
+                              onClick={(e) => { e.stopPropagation(); submitTaxReport(report.id); }}
                               disabled={loading}
                               className="text-green-600 hover:text-green-800 disabled:opacity-50"
                               title="Nộp báo cáo"
@@ -421,7 +444,7 @@ export default function TaxPage() {
                         )}
                         {report.status === 'SUBMITTED' && (
                           <button
-                            onClick={() => markAsPaid(report.id)}
+                            onClick={(e) => { e.stopPropagation(); markAsPaid(report.id); }}
                             disabled={loading}
                             className="text-green-600 hover:text-green-800 disabled:opacity-50"
                             title="Đánh dấu đã thanh toán"
@@ -454,6 +477,182 @@ export default function TaxPage() {
             }}
           />
         )}
+
+        {/* Tax Detail Modal */}
+        {showDetailModal && taxDetail && (
+          <TaxDetailModal
+            report={taxDetail.report}
+            taxableTransactions={taxDetail.taxableTransactions || []}
+            onClose={() => { setShowDetailModal(false); setTaxDetail(null); }}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Tax Detail Modal Component - Giống Admin
+function TaxDetailModal({ report, taxableTransactions, onClose }: { report: any; taxableTransactions: any[]; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">{report.reportCode}</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                {report.taxType === 'VAT' ? 'Thuế VAT' : 'Thuế Thu Nhập Doanh Nghiệp'}
+              </p>
+              <span className={`inline-block mt-2 px-3 py-1 text-xs rounded-full ${report.status === 'PAID' ? 'bg-green-100 text-green-800' :
+                report.status === 'SUBMITTED' ? 'bg-blue-100 text-blue-800' :
+                  'bg-yellow-100 text-yellow-800'
+                }`}>
+                {report.status === 'PAID' ? 'Đã nộp' : report.status === 'SUBMITTED' ? 'Đã gửi' : 'Nháp'}
+              </span>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Thông tin kỳ */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <p className="text-xs text-gray-600 mb-1">Kỳ báo cáo</p>
+              <p className="text-sm font-semibold text-gray-900">
+                {new Date(report.periodStart).toLocaleDateString('vi-VN')} - {new Date(report.periodEnd).toLocaleDateString('vi-VN')}
+              </p>
+            </div>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <p className="text-xs text-gray-600 mb-1">Người tạo</p>
+              <p className="text-sm font-semibold text-gray-900">{report.createdBy || '-'}</p>
+            </div>
+          </div>
+
+          {/* Thông tin thuế */}
+          <div className="space-y-3 mb-6">
+            <div className="border-b pb-3">
+              <label className="block text-sm font-medium text-gray-500 mb-1">Doanh thu chịu thuế</label>
+              <p className="text-xl font-bold text-blue-700">
+                {report.taxableRevenue?.toLocaleString('vi-VN')} ₫
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-500 mb-1">Thuế suất</label>
+                <p className="text-lg font-semibold text-gray-900">{report.taxRate}%</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-500 mb-1">Số thuế phải nộp</label>
+                <p className="text-lg font-semibold text-red-600">
+                  {report.taxAmount?.toLocaleString('vi-VN')} ₫
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-500 mb-1">Đã thanh toán</label>
+                <p className="text-lg font-semibold text-green-600">
+                  {report.paidAmount?.toLocaleString('vi-VN')} ₫
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-500 mb-1">Còn nợ</label>
+                <p className="text-lg font-semibold text-red-600">
+                  {report.remainingTax?.toLocaleString('vi-VN')} ₫
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Bảng giao dịch chịu thuế */}
+          {taxableTransactions.length > 0 ? (
+            <div className="mb-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-3">
+                📊 Chi tiết doanh thu chịu thuế ({taxableTransactions.length} giao dịch)
+              </h3>
+              <div className="border rounded-lg overflow-hidden">
+                <div className="max-h-64 overflow-y-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mã GD</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ngày</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mô tả</th>
+                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Số tiền</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {taxableTransactions.map((transaction: any) => (
+                        <tr key={transaction.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-2 text-sm font-medium text-gray-900">
+                            {transaction.transactionCode}
+                          </td>
+                          <td className="px-4 py-2 text-sm text-gray-600">
+                            {new Date(transaction.transactionDate).toLocaleDateString('vi-VN')}
+                          </td>
+                          <td className="px-4 py-2 text-sm text-gray-600">
+                            {transaction.description || '-'}
+                          </td>
+                          <td className="px-4 py-2 text-sm text-right font-semibold text-green-600">
+                            {transaction.amount?.toLocaleString('vi-VN')} ₫
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-gray-50">
+                      <tr>
+                        <td colSpan={3} className="px-4 py-2 text-sm font-bold text-gray-900 text-right">
+                          Tổng cộng:
+                        </td>
+                        <td className="px-4 py-2 text-sm font-bold text-right text-blue-700">
+                          {taxableTransactions.reduce((sum: number, t: any) => sum + (t.amount || 0), 0).toLocaleString('vi-VN')} ₫
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500 border border-dashed rounded-lg mb-6">
+              Không có giao dịch chịu thuế nào trong kỳ này
+            </div>
+          )}
+
+          {/* Thời gian */}
+          {(report.submittedAt || report.paidAt) && (
+            <div className="bg-blue-50 p-4 rounded-lg mb-6">
+              <h4 className="text-sm font-medium text-blue-900 mb-2">Lịch sử</h4>
+              <div className="space-y-1 text-sm text-blue-800">
+                {report.submittedAt && (
+                  <p>• Nộp báo cáo: {new Date(report.submittedAt).toLocaleString('vi-VN')}</p>
+                )}
+                {report.paidAt && (
+                  <p>• Thanh toán: {new Date(report.paidAt).toLocaleString('vi-VN')}</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Close Button */}
+          <div className="flex justify-end pt-4 border-t">
+            <button
+              onClick={onClose}
+              className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+            >
+              Đóng
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -493,7 +692,7 @@ function TaxReportModal({ report, onClose, onSuccess }: any) {
       const result = await response.json()
       if (result.success) {
         const data = result.data
-        
+
         // Tự động điền doanh thu chịu thuế
         if (form.taxType === 'VAT') {
           setForm({
@@ -586,7 +785,7 @@ function TaxReportModal({ report, onClose, onSuccess }: any) {
                   onChange={(e) => {
                     const newTaxType = e.target.value
                     setForm({
-                      ...form, 
+                      ...form,
                       taxType: newTaxType,
                       taxRate: newTaxType === 'VAT' ? '10' : '20'
                     })
@@ -605,7 +804,7 @@ function TaxReportModal({ report, onClose, onSuccess }: any) {
                 <input
                   type="number"
                   value={form.taxRate}
-                  onChange={(e) => setForm({...form, taxRate: e.target.value})}
+                  onChange={(e) => setForm({ ...form, taxRate: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg px-4 py-2"
                   required
                   min="0"
@@ -619,7 +818,7 @@ function TaxReportModal({ report, onClose, onSuccess }: any) {
                 <input
                   type="date"
                   value={form.periodStart}
-                  onChange={(e) => setForm({...form, periodStart: e.target.value})}
+                  onChange={(e) => setForm({ ...form, periodStart: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg px-4 py-2"
                   required
                 />
@@ -630,7 +829,7 @@ function TaxReportModal({ report, onClose, onSuccess }: any) {
                 <input
                   type="date"
                   value={form.periodEnd}
-                  onChange={(e) => setForm({...form, periodEnd: e.target.value})}
+                  onChange={(e) => setForm({ ...form, periodEnd: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg px-4 py-2"
                   required
                 />
@@ -651,7 +850,7 @@ function TaxReportModal({ report, onClose, onSuccess }: any) {
                 <input
                   type="number"
                   value={form.taxableRevenue}
-                  onChange={(e) => setForm({...form, taxableRevenue: e.target.value})}
+                  onChange={(e) => setForm({ ...form, taxableRevenue: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg px-4 py-2"
                   placeholder="0"
                   required
@@ -668,7 +867,7 @@ function TaxReportModal({ report, onClose, onSuccess }: any) {
               <label className="block text-sm font-medium text-gray-700 mb-2">Ghi chú</label>
               <textarea
                 value={form.notes}
-                onChange={(e) => setForm({...form, notes: e.target.value})}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 className="w-full border border-gray-300 rounded-lg px-4 py-2"
                 rows={3}
                 placeholder="Nhập ghi chú về báo cáo thuế..."

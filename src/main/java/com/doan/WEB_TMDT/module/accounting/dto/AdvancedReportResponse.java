@@ -14,20 +14,22 @@ import java.util.List;
 public class AdvancedReportResponse {
     private String period;
     private String reportType;
-    
+
     // Profit & Loss Report
     private Double salesRevenue;
     private Double otherRevenue;
     private Double totalRevenue;
     private Double shippingCosts;
-    private Double paymentFees;
+    private Double taxExpense;
+    private Double supplierPayments;
+    private Double otherExpense;
     private Double totalExpense;
     private Double grossProfit;
     private Double grossProfitMargin;
     private Double netProfit;
     private Double netProfitMargin;
     private Double vatAmount;
-    
+
     // Cash Flow Report
     private Double operatingCashIn;
     private Double operatingCashOut;
@@ -35,10 +37,10 @@ public class AdvancedReportResponse {
     private Double investingCashFlow;
     private Double financingCashFlow;
     private Double netCashFlow;
-    
+
     // Expense Analysis
     private List<ExpenseBreakdown> breakdown;
-    
+
     @Data
     @Builder
     @NoArgsConstructor

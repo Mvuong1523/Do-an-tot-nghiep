@@ -11,6 +11,8 @@ export default function PeriodsPage() {
   const [periods, setPeriods] = useState<any[]>([])
   const [isAdmin, setIsAdmin] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showDetailModal, setShowDetailModal] = useState(false)
+  const [periodDetails, setPeriodDetails] = useState<any>(null)
 
   useEffect(() => {
     const authStorage = localStorage.getItem('auth-storage')
@@ -21,7 +23,7 @@ export default function PeriodsPage() {
 
     const authData = JSON.parse(authStorage)
     const userData = authData.state?.user
-    
+
     if (!userData) {
       router.push('/login')
       return
@@ -29,7 +31,7 @@ export default function PeriodsPage() {
 
     const isAdminRole = userData.role === 'ADMIN'
     const isAccountant = userData.position === 'ACCOUNTANT'
-    
+
     if (!isAdminRole && !isAccountant) {
       toast.error('Bạn không có quyền truy cập')
       router.push('/')
@@ -159,6 +161,31 @@ export default function PeriodsPage() {
     }
   }
 
+  const viewPeriodDetails = async (id: number) => {
+    try {
+      setLoading(true)
+      const token = localStorage.getItem('auth_token')
+      const response = await fetch(`http://localhost:8080/api/accounting/periods/${id}/details`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        setPeriodDetails(result.data)
+        setShowDetailModal(true)
+      } else {
+        toast.error(result.message || 'Lỗi khi tải chi tiết kỳ')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Lỗi khi tải chi tiết kỳ')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -193,7 +220,11 @@ export default function PeriodsPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {periods.map((period) => (
-                  <tr key={period.id}>
+                  <tr
+                    key={period.id}
+                    onClick={() => viewPeriodDetails(period.id)}
+                    className="cursor-pointer hover:bg-gray-50 transition-colors"
+                  >
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {period.name}
                     </td>
@@ -212,11 +243,10 @@ export default function PeriodsPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        period.status === 'CLOSED' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}>
+                      <span className={`px-2 py-1 text-xs rounded-full ${period.status === 'CLOSED'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-yellow-100 text-yellow-800'
+                        }`}>
                         {period.status === 'CLOSED' ? 'Đã chốt' : 'Đang mở'}
                       </span>
                     </td>
@@ -228,7 +258,10 @@ export default function PeriodsPage() {
                         {period.status === 'OPEN' && (
                           <>
                             <button
-                              onClick={() => recalculatePeriod(period.id)}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                recalculatePeriod(period.id)
+                              }}
                               disabled={loading}
                               className="inline-flex items-center px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 disabled:opacity-50"
                               title="Cập nhật dữ liệu"
@@ -237,7 +270,10 @@ export default function PeriodsPage() {
                               Cập nhật
                             </button>
                             <button
-                              onClick={() => closePeriod(period.id)}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                closePeriod(period.id)
+                              }}
                               disabled={loading}
                               className="inline-flex items-center px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50"
                             >
@@ -248,7 +284,10 @@ export default function PeriodsPage() {
                         )}
                         {period.status === 'CLOSED' && isAdmin && (
                           <button
-                            onClick={() => reopenPeriod(period.id)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              reopenPeriod(period.id)
+                            }}
                             disabled={loading}
                             className="inline-flex items-center px-3 py-1 bg-orange-600 text-white text-sm rounded hover:bg-orange-700 disabled:opacity-50"
                           >
@@ -283,6 +322,17 @@ export default function PeriodsPage() {
             onSuccess={() => {
               setShowCreateModal(false)
               loadPeriods()
+            }}
+          />
+        )}
+
+        {/* Period Detail Modal */}
+        {showDetailModal && periodDetails && (
+          <PeriodDetailModal
+            periodDetails={periodDetails}
+            onClose={() => {
+              setShowDetailModal(false)
+              setPeriodDetails(null)
             }}
           />
         )}
@@ -414,3 +464,202 @@ function CreatePeriodModal({ onClose, onSuccess }: {
     </div>
   )
 }
+
+// Period Detail Modal Component
+function PeriodDetailModal({ periodDetails, onClose }: {
+  periodDetails: any
+  onClose: () => void
+}) {
+  const [activeTab, setActiveTab] = useState<'revenue' | 'expense'>('revenue')
+  const period = periodDetails.period
+  const revenueTransactions = periodDetails.revenueTransactions || []
+  const expenseTransactions = periodDetails.expenseTransactions || []
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">{period.name}</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                {new Date(period.startDate).toLocaleDateString('vi-VN')} - {new Date(period.endDate).toLocaleDateString('vi-VN')}
+              </p>
+              <span className={`inline-block mt-2 px-3 py-1 text-xs rounded-full ${period.status === 'CLOSED'
+                ? 'bg-green-100 text-green-800'
+                : 'bg-yellow-100 text-yellow-800'
+                }`}>
+                {period.status === 'CLOSED' ? 'Đã chốt' : 'Đang mở'}
+              </span>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Tổng quan tài chính */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+              <p className="text-xs font-medium text-green-600 mb-1">Doanh thu gộp (SALES)</p>
+              <p className="text-xl font-bold text-green-700">
+                {periodDetails.salesRevenue?.toLocaleString('vi-VN')} ₫
+              </p>
+              <p className="text-xs text-green-600 mt-1">Bán hàng</p>
+            </div>
+
+            <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+              <p className="text-xs font-medium text-orange-600 mb-1">Hàng trả lại</p>
+              <p className="text-xl font-bold text-orange-700">
+                {periodDetails.refundAmount?.toLocaleString('vi-VN')} ₫
+              </p>
+              <p className="text-xs text-orange-600 mt-1">REFUND</p>
+            </div>
+
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <p className="text-xs font-medium text-blue-600 mb-1">Doanh thu thuần</p>
+              <p className="text-xl font-bold text-blue-700">
+                {periodDetails.netRevenue?.toLocaleString('vi-VN')} ₫
+              </p>
+              <p className="text-xs text-blue-600 mt-1">DT gộp - Trả hàng</p>
+            </div>
+
+            <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+              <p className="text-xs font-medium text-purple-600 mb-1">Biên lợi nhuận</p>
+              <p className="text-xl font-bold text-purple-700">
+                {periodDetails.profitMargin?.toFixed(2)}%
+              </p>
+              <p className="text-xs text-purple-600 mt-1">Lợi nhuận / DT thuần</p>
+            </div>
+          </div>
+
+          {/* Chi tiết thu chi */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 pb-6 border-b">
+            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+              <p className="text-xs font-medium text-green-600 mb-1">Tổng Thu</p>
+              <p className="text-2xl font-bold text-green-700">
+                {period.totalRevenue?.toLocaleString('vi-VN')} ₫
+              </p>
+              <p className="text-xs text-green-600 mt-1">{revenueTransactions.length} giao dịch</p>
+            </div>
+
+            <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+              <p className="text-xs font-medium text-red-600 mb-1">Tổng Chi</p>
+              <p className="text-2xl font-bold text-red-700">
+                {period.totalExpense?.toLocaleString('vi-VN')} ₫
+              </p>
+              <p className="text-xs text-red-600 mt-1">{expenseTransactions.length} giao dịch</p>
+            </div>
+
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <p className="text-xs font-medium text-blue-600 mb-1">Lợi nhuận ròng</p>
+              <p className={`text-2xl font-bold ${period.netProfit >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                {period.netProfit?.toLocaleString('vi-VN')} ₫
+              </p>
+              <p className="text-xs text-blue-600 mt-1">Thu - Chi</p>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="border-b border-gray-200 mb-4">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab('revenue')}
+                className={`pb-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'revenue'
+                  ? 'border-green-500 text-green-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+              >
+                💰 Thu ({revenueTransactions.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('expense')}
+                className={`pb-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'expense'
+                  ? 'border-red-500 text-red-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+              >
+                💸 Chi ({expenseTransactions.length})
+              </button>
+            </nav>
+          </div>
+
+          {/* Transaction List */}
+          <div className="max-h-96 overflow-y-auto">
+            {activeTab === 'revenue' && (
+              <div className="space-y-2">
+                {revenueTransactions.length === 0 ? (
+                  <p className="text-center text-gray-500 py-8">Chưa có giao dịch thu nào</p>
+                ) : (
+                  revenueTransactions.map((transaction: any) => (
+                    <div key={transaction.id} className="bg-green-50 p-3 rounded-lg border border-green-100">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-900">{transaction.transactionCode}</p>
+                          <p className="text-sm text-gray-600">{transaction.category}</p>
+                          <p className="text-xs text-gray-500 mt-1">{transaction.description || '-'}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-lg font-bold text-green-600">
+                            +{transaction.amount?.toLocaleString('vi-VN')} ₫
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(transaction.transactionDate).toLocaleDateString('vi-VN')}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {activeTab === 'expense' && (
+              <div className="space-y-2">
+                {expenseTransactions.length === 0 ? (
+                  <p className="text-center text-gray-500 py-8">Chưa có giao dịch chi nào</p>
+                ) : (
+                  expenseTransactions.map((transaction: any) => (
+                    <div key={transaction.id} className="bg-red-50 p-3 rounded-lg border border-red-100">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-900">{transaction.transactionCode}</p>
+                          <p className="text-sm text-gray-600">{transaction.category}</p>
+                          <p className="text-xs text-gray-500 mt-1">{transaction.description || '-'}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-lg font-bold text-red-600">
+                            -{transaction.amount?.toLocaleString('vi-VN')} ₫
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(transaction.transactionDate).toLocaleDateString('vi-VN')}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Close Button */}
+          <div className="flex justify-end mt-6 pt-4 border-t">
+            <button
+              onClick={onClose}
+              className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+            >
+              Đóng
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+

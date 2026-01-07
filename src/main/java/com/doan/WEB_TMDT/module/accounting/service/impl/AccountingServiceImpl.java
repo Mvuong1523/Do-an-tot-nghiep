@@ -72,25 +72,25 @@ public class AccountingServiceImpl implements AccountingService {
 
         // Lấy doanh thu từ financial_transactions (REVENUE)
         Double todayRevenue = financialTransactionRepo.sumAmountByTypeAndDateRange(
-            TransactionType.REVENUE, startOfToday, endOfToday
-        );
-        if (todayRevenue == null) todayRevenue = 0.0;
+                TransactionType.REVENUE, startOfToday, endOfToday);
+        if (todayRevenue == null)
+            todayRevenue = 0.0;
 
         Double yesterdayRevenue = financialTransactionRepo.sumAmountByTypeAndDateRange(
-            TransactionType.REVENUE, startOfYesterday, endOfYesterday
-        );
-        if (yesterdayRevenue == null) yesterdayRevenue = 0.0;
+                TransactionType.REVENUE, startOfYesterday, endOfYesterday);
+        if (yesterdayRevenue == null)
+            yesterdayRevenue = 0.0;
 
         // Lấy chi phí từ financial_transactions (EXPENSE)
         Double todayExpense = financialTransactionRepo.sumAmountByTypeAndDateRange(
-            TransactionType.EXPENSE, startOfToday, endOfToday
-        );
-        if (todayExpense == null) todayExpense = 0.0;
+                TransactionType.EXPENSE, startOfToday, endOfToday);
+        if (todayExpense == null)
+            todayExpense = 0.0;
 
         Double yesterdayExpense = financialTransactionRepo.sumAmountByTypeAndDateRange(
-            TransactionType.EXPENSE, startOfYesterday, endOfYesterday
-        );
-        if (yesterdayExpense == null) yesterdayExpense = 0.0;
+                TransactionType.EXPENSE, startOfYesterday, endOfYesterday);
+        if (yesterdayExpense == null)
+            yesterdayExpense = 0.0;
 
         // Tính lợi nhuận
         Double todayProfit = todayRevenue - todayExpense;
@@ -142,7 +142,7 @@ public class AccountingServiceImpl implements AccountingService {
         List<OrderDTO> orders = orderRepo.findAll(pageRequest).getContent().stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
-        
+
         return ApiResponse.success("Recent orders", orders);
     }
 
@@ -151,7 +151,7 @@ public class AccountingServiceImpl implements AccountingService {
         if (order.getCustomer() != null && order.getCustomer().getUser() != null) {
             customerEmail = order.getCustomer().getUser().getEmail();
         }
-        
+
         return OrderDTO.builder()
                 .id(order.getId())
                 .orderCode(order.getOrderCode())
@@ -179,7 +179,7 @@ public class AccountingServiceImpl implements AccountingService {
 
         // Lấy TẤT CẢ đơn hàng trong khoảng thời gian (kể cả chưa thanh toán)
         List<Order> allOrders = orderRepo.findByCreatedAtBetween(startDateTime, endDateTime);
-        
+
         // Lấy dữ liệu đối soát đã import từ cổng thanh toán
         List<PaymentReconciliation> existingReconciliations;
         if ("ALL".equals(request.getGateway())) {
@@ -188,28 +188,28 @@ public class AccountingServiceImpl implements AccountingService {
             existingReconciliations = reconciliationRepo.findByGatewayAndTransactionDateBetween(
                     request.getGateway(), startDateTime, endDateTime);
         }
-        
+
         // Tạo map để tra cứu nhanh
         Map<String, PaymentReconciliation> reconciliationMap = new HashMap<>();
         for (PaymentReconciliation rec : existingReconciliations) {
             reconciliationMap.put(rec.getOrderId(), rec);
         }
-        
+
         // Tạo danh sách kết quả bao gồm TẤT CẢ đơn hàng
         List<Map<String, Object>> results = new ArrayList<>();
-        
+
         for (Order order : allOrders) {
             Map<String, Object> item = new HashMap<>();
-            
+
             item.put("orderId", order.getOrderCode());
             item.put("orderStatus", order.getStatus().name());
             item.put("paymentStatus", order.getPaymentStatus().name());
             item.put("systemAmount", BigDecimal.valueOf(order.getTotal()));
             item.put("transactionDate", order.getCreatedAt());
-            
+
             // Kiểm tra xem có dữ liệu đối soát từ gateway không
             PaymentReconciliation reconciliation = reconciliationMap.get(order.getOrderCode());
-            
+
             if (reconciliation != null) {
                 // Có dữ liệu từ gateway
                 item.put("transactionId", reconciliation.getTransactionId());
@@ -217,20 +217,20 @@ public class AccountingServiceImpl implements AccountingService {
                 item.put("gatewayAmount", reconciliation.getGatewayAmount());
                 item.put("discrepancy", reconciliation.getDiscrepancy());
                 item.put("status", reconciliation.getStatus().name());
-                
+
                 // Cập nhật system amount nếu cần
                 BigDecimal systemAmount = BigDecimal.valueOf(order.getTotal());
                 if (!systemAmount.equals(reconciliation.getSystemAmount())) {
                     reconciliation.setSystemAmount(systemAmount);
                     reconciliation.setDiscrepancy(systemAmount.subtract(reconciliation.getGatewayAmount()).abs());
-                    
+
                     if (reconciliation.getDiscrepancy().compareTo(BigDecimal.ZERO) == 0) {
                         reconciliation.setStatus(ReconciliationStatus.MATCHED);
                     } else {
                         reconciliation.setStatus(ReconciliationStatus.MISMATCHED);
                     }
                     reconciliationRepo.save(reconciliation);
-                    
+
                     item.put("discrepancy", reconciliation.getDiscrepancy());
                     item.put("status", reconciliation.getStatus().name());
                 }
@@ -240,7 +240,7 @@ public class AccountingServiceImpl implements AccountingService {
                 item.put("gateway", "-");
                 item.put("gatewayAmount", BigDecimal.ZERO);
                 item.put("discrepancy", BigDecimal.ZERO);
-                
+
                 // Xác định trạng thái dựa vào payment status
                 if (order.getPaymentStatus().name().equals("PAID")) {
                     item.put("status", "MISSING_IN_GATEWAY"); // Đã thanh toán nhưng chưa có trong gateway
@@ -248,40 +248,38 @@ public class AccountingServiceImpl implements AccountingService {
                     item.put("status", "PENDING_PAYMENT"); // Chưa thanh toán
                 }
             }
-            
+
             results.add(item);
         }
-        
+
         // Tính summary
         Map<String, Object> summary = calculateSummaryFromResults(results);
-        
+
         Map<String, Object> result = new HashMap<>();
         result.put("data", results);
         result.put("summary", summary);
 
         return ApiResponse.success("Dữ liệu đối soát", result);
     }
-    
+
     private Map<String, Object> calculateSummaryFromResults(List<Map<String, Object>> results) {
         Map<String, Object> summary = new HashMap<>();
-        
+
         long total = results.size();
         long matched = results.stream().filter(r -> "MATCHED".equals(r.get("status"))).count();
         long mismatched = results.stream().filter(r -> "MISMATCHED".equals(r.get("status"))).count();
-        long missing = results.stream().filter(r -> 
-            "MISSING_IN_SYSTEM".equals(r.get("status")) || 
-            "MISSING_IN_GATEWAY".equals(r.get("status"))
-        ).count();
+        long missing = results.stream().filter(r -> "MISSING_IN_SYSTEM".equals(r.get("status")) ||
+                "MISSING_IN_GATEWAY".equals(r.get("status"))).count();
         long pending = results.stream().filter(r -> "PENDING_PAYMENT".equals(r.get("status"))).count();
-        
+
         BigDecimal totalAmount = results.stream()
                 .map(r -> (BigDecimal) r.get("systemAmount"))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        
+
         BigDecimal discrepancyAmount = results.stream()
                 .map(r -> (BigDecimal) r.get("discrepancy"))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        
+
         summary.put("total", total);
         summary.put("matched", matched);
         summary.put("mismatched", mismatched);
@@ -289,7 +287,7 @@ public class AccountingServiceImpl implements AccountingService {
         summary.put("pending", pending);
         summary.put("totalAmount", totalAmount);
         summary.put("discrepancyAmount", discrepancyAmount);
-        
+
         return summary;
     }
 
@@ -298,34 +296,35 @@ public class AccountingServiceImpl implements AccountingService {
     public ApiResponse importReconciliationFile(MultipartFile file, String gateway) {
         try {
             List<PaymentReconciliation> reconciliations = new ArrayList<>();
-            
+
             BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()));
             String line;
             boolean isFirstLine = true;
-            
+
             while ((line = reader.readLine()) != null) {
                 if (isFirstLine) {
                     isFirstLine = false;
                     continue; // Skip header
                 }
-                
+
                 String[] values = line.split(",");
-                if (values.length < 4) continue;
-                
+                if (values.length < 4)
+                    continue;
+
                 String orderCode = values[0].trim();
                 String transactionId = values[1].trim();
                 BigDecimal gatewayAmount = new BigDecimal(values[2].trim());
                 LocalDateTime transactionDate = LocalDateTime.parse(values[3].trim());
-                
+
                 // Query system amount from orders
                 BigDecimal systemAmount = BigDecimal.ZERO;
                 Optional<Order> orderOpt = orderRepo.findByOrderCode(orderCode);
                 if (orderOpt.isPresent()) {
                     systemAmount = BigDecimal.valueOf(orderOpt.get().getTotal());
                 }
-                
+
                 BigDecimal discrepancy = systemAmount.subtract(gatewayAmount).abs();
-                
+
                 ReconciliationStatus status;
                 if (systemAmount.compareTo(BigDecimal.ZERO) == 0) {
                     status = ReconciliationStatus.MISSING_IN_SYSTEM;
@@ -334,7 +333,7 @@ public class AccountingServiceImpl implements AccountingService {
                 } else {
                     status = ReconciliationStatus.MISMATCHED;
                 }
-                
+
                 PaymentReconciliation reconciliation = PaymentReconciliation.builder()
                         .orderId(orderCode)
                         .transactionId(transactionId)
@@ -346,12 +345,12 @@ public class AccountingServiceImpl implements AccountingService {
                         .transactionDate(transactionDate)
                         .createdAt(LocalDateTime.now())
                         .build();
-                
+
                 reconciliations.add(reconciliation);
             }
-            
+
             reconciliationRepo.saveAll(reconciliations);
-            
+
             return ApiResponse.success("Import thành công " + reconciliations.size() + " giao dịch", reconciliations);
         } catch (Exception e) {
             return ApiResponse.error("Lỗi khi import file: " + e.getMessage());
@@ -362,24 +361,24 @@ public class AccountingServiceImpl implements AccountingService {
     public ApiResponse getShippingReconciliation(LocalDate startDate, LocalDate endDate) {
         LocalDateTime startDateTime = startDate.atStartOfDay();
         LocalDateTime endDateTime = endDate.atTime(23, 59, 59);
-        
+
         // Lấy tất cả đơn hàng trong khoảng thời gian
         List<Order> orders = orderRepo.findPaidOrdersBetween(startDateTime, endDateTime);
-        
+
         BigDecimal totalShippingFeeCollected = BigDecimal.ZERO; // Phí vận chuyển thu từ khách
-        BigDecimal totalShippingCostPaid = BigDecimal.ZERO;     // Chi phí trả cho đối tác vận chuyển
+        BigDecimal totalShippingCostPaid = BigDecimal.ZERO; // Chi phí trả cho đối tác vận chuyển
         int totalOrders = orders.size();
-        
+
         List<Map<String, Object>> shippingDetails = new ArrayList<>();
-        
+
         for (Order order : orders) {
             BigDecimal shippingFeeCollected = BigDecimal.valueOf(order.getShippingFee());
             // Giả định chi phí thực tế trả cho đối tác = 80% phí thu từ khách
             BigDecimal actualShippingCost = shippingFeeCollected.multiply(BigDecimal.valueOf(0.8));
-            
+
             totalShippingFeeCollected = totalShippingFeeCollected.add(shippingFeeCollected);
             totalShippingCostPaid = totalShippingCostPaid.add(actualShippingCost);
-            
+
             Map<String, Object> detail = new HashMap<>();
             detail.put("orderId", order.getOrderCode());
             detail.put("shippingFeeCollected", shippingFeeCollected);
@@ -387,15 +386,16 @@ public class AccountingServiceImpl implements AccountingService {
             detail.put("profit", shippingFeeCollected.subtract(actualShippingCost));
             detail.put("orderDate", order.getCreatedAt().toLocalDate());
             detail.put("shippingAddress", order.getShippingAddress());
-            
+
             shippingDetails.add(detail);
         }
-        
+
         BigDecimal shippingProfit = totalShippingFeeCollected.subtract(totalShippingCostPaid);
-        BigDecimal profitMargin = totalShippingFeeCollected.compareTo(BigDecimal.ZERO) > 0 
-            ? shippingProfit.divide(totalShippingFeeCollected, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100))
-            : BigDecimal.ZERO;
-        
+        BigDecimal profitMargin = totalShippingFeeCollected.compareTo(BigDecimal.ZERO) > 0
+                ? shippingProfit.divide(totalShippingFeeCollected, 4, RoundingMode.HALF_UP)
+                        .multiply(BigDecimal.valueOf(100))
+                : BigDecimal.ZERO;
+
         Map<String, Object> result = new HashMap<>();
         result.put("period", startDate + " - " + endDate);
         result.put("totalOrders", totalOrders);
@@ -404,7 +404,7 @@ public class AccountingServiceImpl implements AccountingService {
         result.put("shippingProfit", shippingProfit);
         result.put("profitMargin", profitMargin);
         result.put("details", shippingDetails);
-        
+
         return ApiResponse.success("Đối soát vận chuyển", result);
     }
 
@@ -412,10 +412,10 @@ public class AccountingServiceImpl implements AccountingService {
     public ApiResponse getFinancialReports(LocalDate startDate, LocalDate endDate, String viewMode) {
         LocalDateTime startDateTime = startDate.atStartOfDay();
         LocalDateTime endDateTime = endDate.atTime(23, 59, 59);
-        
+
         List<Order> orders = orderRepo.findPaidOrdersBetween(startDateTime, endDateTime);
         List<Map<String, Object>> reports = new ArrayList<>();
-        
+
         if ("ORDERS".equals(viewMode)) {
             // Chi tiết từng đơn hàng
             for (Order order : orders) {
@@ -430,90 +430,85 @@ public class AccountingServiceImpl implements AccountingService {
                 reports.add(report);
             }
         }
-        
+
         return ApiResponse.success("Báo cáo tài chính", reports);
     }
-    
+
     private Map<String, Object> calculateOrderFinancials(Order order) {
         Map<String, Object> report = new HashMap<>();
-        
+
         double revenue = order.getTotal();
         double shippingCost = order.getShippingFee();
-        double paymentGatewayCost = revenue * 0.02; // Phí cổng thanh toán 2%
-        
-        double totalCosts = shippingCost + paymentGatewayCost;
+
+        double totalCosts = shippingCost;
         double grossProfit = revenue - totalCosts;
-        
+
         double vat = grossProfit * 0.1; // VAT 10%
         double profitAfterVAT = grossProfit - vat;
         double corporateTax = profitAfterVAT * 0.2; // Thuế TNDN 20%
         double netProfit = profitAfterVAT - corporateTax;
-        
+
         report.put("orderId", order.getOrderCode());
         report.put("date", order.getCreatedAt().toLocalDate().toString());
         report.put("revenue", Math.round(revenue));
         report.put("shippingCost", Math.round(shippingCost));
-        report.put("paymentGatewayCost", Math.round(paymentGatewayCost));
         report.put("totalCosts", Math.round(totalCosts));
         report.put("grossProfit", Math.round(grossProfit));
         report.put("vat", Math.round(vat));
         report.put("corporateTax", Math.round(corporateTax));
         report.put("netProfit", Math.round(netProfit));
-        
+
         return report;
     }
-    
+
     private Map<String, List<Order>> groupOrdersByPeriod(List<Order> orders, String viewMode) {
         Map<String, List<Order>> grouped = new LinkedHashMap<>();
-        
+
         for (Order order : orders) {
             String key;
             if ("DAILY".equals(viewMode)) {
                 key = order.getCreatedAt().toLocalDate().toString();
             } else {
-                key = order.getCreatedAt().getYear() + "-" + 
-                      String.format("%02d", order.getCreatedAt().getMonthValue());
+                key = order.getCreatedAt().getYear() + "-" +
+                        String.format("%02d", order.getCreatedAt().getMonthValue());
             }
-            
+
             grouped.computeIfAbsent(key, k -> new ArrayList<>()).add(order);
         }
-        
+
         return grouped;
     }
-    
+
     private Map<String, Object> calculatePeriodFinancials(String period, List<Order> orders) {
         Map<String, Object> report = new HashMap<>();
-        
+
         double totalRevenue = 0;
         double totalShippingCost = 0;
-        double totalPaymentGatewayCost = 0;
-        
+
         for (Order order : orders) {
             double revenue = order.getTotal();
             totalRevenue += revenue;
             totalShippingCost += order.getShippingFee();
-            totalPaymentGatewayCost += revenue * 0.02;
         }
-        
-        double totalCosts = totalShippingCost + totalPaymentGatewayCost;
+
+        double totalCosts = totalShippingCost;
         double grossProfit = totalRevenue - totalCosts;
-        
+
         double totalVat = grossProfit * 0.1;
         double profitAfterVAT = grossProfit - totalVat;
         double corporateTax = profitAfterVAT * 0.2;
         double netProfit = profitAfterVAT - corporateTax;
-        
+
         report.put("period", period);
         report.put("orderCount", orders.size());
         report.put("revenue", Math.round(totalRevenue));
         report.put("shippingCost", Math.round(totalShippingCost));
-        report.put("paymentGatewayCost", Math.round(totalPaymentGatewayCost));
         report.put("totalCosts", Math.round(totalCosts));
         report.put("grossProfit", Math.round(grossProfit));
         report.put("vat", Math.round(totalVat));
         report.put("corporateTax", Math.round(corporateTax));
         report.put("netProfit", Math.round(netProfit));
-        
+
         return report;
     }
 
@@ -522,23 +517,24 @@ public class AccountingServiceImpl implements AccountingService {
         try {
             LocalDateTime startDateTime = startDate.atStartOfDay();
             LocalDateTime endDateTime = endDate.atTime(23, 59, 59);
-            
+
             List<Order> orders = orderRepo.findPaidOrdersBetween(startDateTime, endDateTime);
             List<Map<String, Object>> reports = new ArrayList<>();
-            
+
             for (Order order : orders) {
                 Map<String, Object> report = calculateOrderFinancials(order);
                 reports.add(report);
             }
-            
+
             // TODO: Implement Excel export functionality
             return ApiResponse.error("Chức năng xuất Excel đang được phát triển");
-            
+
             // byte[] excelData = excelExportService.exportFinancialReport(reports);
             // String base64Excel = Base64.getEncoder().encodeToString(excelData);
             //
             // Map<String, Object> result = new HashMap<>();
-            // result.put("fileName", "BaoCaoTaiChinh_" + startDate + "_" + endDate + ".xlsx");
+            // result.put("fileName", "BaoCaoTaiChinh_" + startDate + "_" + endDate +
+            // ".xlsx");
             // result.put("data", base64Excel);
             //
             // return ApiResponse.success("Xuất báo cáo thành công!", result);
@@ -558,47 +554,49 @@ public class AccountingServiceImpl implements AccountingService {
     public ApiResponse closePeriod(Long id) {
         AccountingPeriod period = periodRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy kỳ báo cáo"));
-        
+
         if (period.getStatus() == PeriodStatus.CLOSED) {
             return ApiResponse.error("Kỳ này đã được chốt!");
         }
-        
+
         // Tính toán lại sai số trước khi chốt
         LocalDateTime startDateTime = period.getStartDate().atStartOfDay();
         LocalDateTime endDateTime = period.getEndDate().atTime(23, 59, 59);
-        
+
         // Tính doanh thu thực tế từ đơn hàng
         Double actualRevenue = orderRepo.sumTotalByDateRange(startDateTime, endDateTime);
-        if (actualRevenue == null) actualRevenue = 0.0;
-        
+        if (actualRevenue == null)
+            actualRevenue = 0.0;
+
         // Tính tổng sai lệch từ đối soát thanh toán
         Double totalDiscrepancy = reconciliationRepo.sumDiscrepancyByDateRange(startDateTime, endDateTime);
-        if (totalDiscrepancy == null) totalDiscrepancy = 0.0;
-        
+        if (totalDiscrepancy == null)
+            totalDiscrepancy = 0.0;
+
         // Cập nhật thông tin kỳ
         period.setTotalRevenue(actualRevenue);
-        
+
         // Tính tỷ lệ sai số
         double discrepancyRate = actualRevenue > 0 ? (totalDiscrepancy / actualRevenue) * 100 : 0;
         period.setDiscrepancyRate(discrepancyRate);
-        
+
         // Kiểm tra sai số > 15%
         if (discrepancyRate > 15) {
             periodRepo.save(period); // Lưu thông tin đã cập nhật
             return ApiResponse.error(String.format(
-                "Sai số %.2f%% vượt quá 15%%. Vui lòng kiểm tra và xử lý các sai lệch trước khi chốt kỳ. " +
-                "Tổng sai lệch: %,.0f ₫ / Tổng doanh thu: %,.0f ₫", 
-                discrepancyRate, totalDiscrepancy, actualRevenue));
+                    "Sai số %.2f%% vượt quá 15%%. Vui lòng kiểm tra và xử lý các sai lệch trước khi chốt kỳ. " +
+                            "Tổng sai lệch: %,.0f ₫ / Tổng doanh thu: %,.0f ₫",
+                    discrepancyRate, totalDiscrepancy, actualRevenue));
         }
-        
+
         String currentUser = SecurityUtils.getCurrentUserEmail();
-        
+
         period.setStatus(PeriodStatus.CLOSED);
         period.setClosedBy(currentUser != null ? currentUser : "System");
         period.setClosedAt(LocalDateTime.now());
-        
+
         periodRepo.save(period);
-        
+
         return ApiResponse.success("Đã chốt kỳ báo cáo thành công!", period);
     }
 
@@ -607,22 +605,22 @@ public class AccountingServiceImpl implements AccountingService {
     public ApiResponse reopenPeriod(Long id) {
         AccountingPeriod period = periodRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy kỳ báo cáo"));
-        
+
         if (period.getStatus() == PeriodStatus.OPEN) {
             return ApiResponse.error("Kỳ này đang mở!");
         }
-        
+
         // Check if user is ADMIN
         if (!SecurityUtils.isAdmin()) {
             return ApiResponse.error("Chỉ Admin mới có quyền mở khóa kỳ báo cáo!");
         }
-        
+
         period.setStatus(PeriodStatus.OPEN);
         period.setClosedBy(null);
         period.setClosedAt(null);
-        
+
         periodRepo.save(period);
-        
+
         return ApiResponse.success("Đã mở khóa kỳ báo cáo!", period);
     }
 
@@ -634,23 +632,25 @@ public class AccountingServiceImpl implements AccountingService {
             if (!reconciliationResponse.isSuccess()) {
                 return reconciliationResponse;
             }
-            
+
             @SuppressWarnings("unchecked")
             Map<String, Object> data = (Map<String, Object>) reconciliationResponse.getData();
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> details = (List<Map<String, Object>>) data.get("details");
-            
+
             // TODO: Implement Excel export functionality
             return ApiResponse.error("Chức năng xuất Excel đang được phát triển");
-            
+
             // byte[] excelData = excelExportService.exportShippingReconciliation(details);
             // String base64Excel = Base64.getEncoder().encodeToString(excelData);
             //
             // Map<String, Object> result = new HashMap<>();
-            // result.put("fileName", "DoiSoatVanChuyen_" + startDate + "_" + endDate + ".xlsx");
+            // result.put("fileName", "DoiSoatVanChuyen_" + startDate + "_" + endDate +
+            // ".xlsx");
             // result.put("data", base64Excel);
             //
-            // return ApiResponse.success("Xuất báo cáo đối soát vận chuyển thành công!", result);
+            // return ApiResponse.success("Xuất báo cáo đối soát vận chuyển thành công!",
+            // result);
         } catch (Exception e) {
             return ApiResponse.error("Lỗi khi xuất báo cáo: " + e.getMessage());
         }

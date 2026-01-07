@@ -51,7 +51,24 @@ public class TaxReportServiceImpl implements TaxReportService {
     public ApiResponse getTaxReportById(Long id) {
         TaxReport report = taxReportRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy báo cáo thuế"));
-        return ApiResponse.success("Lấy thông tin báo cáo thuế thành công", toResponse(report));
+
+        // Lấy danh sách giao dịch doanh thu chịu thuế trong kỳ
+        java.time.LocalDateTime startDateTime = report.getPeriodStart().atStartOfDay();
+        java.time.LocalDateTime endDateTime = report.getPeriodEnd().atTime(java.time.LocalTime.MAX);
+
+        java.util.List<com.doan.WEB_TMDT.module.accounting.entity.FinancialTransaction> taxableTransactions = financialTransactionRepo
+                .findByTransactionDateBetween(startDateTime, endDateTime)
+                .stream()
+                .filter(t -> t.getType() == com.doan.WEB_TMDT.module.accounting.entity.TransactionType.REVENUE &&
+                        t.getCategory() == com.doan.WEB_TMDT.module.accounting.entity.TransactionCategory.SALES)
+                .collect(java.util.stream.Collectors.toList());
+
+        // Tạo response với thông tin báo cáo và danh sách giao dịch
+        java.util.Map<String, Object> details = new java.util.HashMap<>();
+        details.put("report", toResponse(report));
+        details.put("taxableTransactions", taxableTransactions);
+
+        return ApiResponse.success("Lấy thông tin báo cáo thuế thành công", details);
     }
 
     @Override
@@ -186,35 +203,33 @@ public class TaxReportServiceImpl implements TaxReportService {
         try {
             LocalDate startDate = LocalDate.parse(periodStart);
             LocalDate endDate = LocalDate.parse(periodEnd);
-            
+
             LocalDateTime startDateTime = startDate.atStartOfDay();
             LocalDateTime endDateTime = endDate.atTime(23, 59, 59);
-            
+
             // Tính tổng doanh thu từ financial_transactions (REVENUE)
             Double totalRevenue = financialTransactionRepo.sumAmountByTypeAndDateRange(
-                TransactionType.REVENUE, 
-                startDateTime, 
-                endDateTime
-            );
-            
+                    TransactionType.REVENUE,
+                    startDateTime,
+                    endDateTime);
+
             if (totalRevenue == null) {
                 totalRevenue = 0.0;
             }
-            
+
             // Tính tổng chi phí
             Double totalExpense = financialTransactionRepo.sumAmountByTypeAndDateRange(
-                TransactionType.EXPENSE, 
-                startDateTime, 
-                endDateTime
-            );
-            
+                    TransactionType.EXPENSE,
+                    startDateTime,
+                    endDateTime);
+
             if (totalExpense == null) {
                 totalExpense = 0.0;
             }
-            
+
             // Tính lợi nhuận (cho thuế TNDN)
             Double profit = totalRevenue - totalExpense;
-            
+
             Map<String, Object> result = new HashMap<>();
             result.put("periodStart", periodStart);
             result.put("periodEnd", periodEnd);
@@ -225,70 +240,69 @@ public class TaxReportServiceImpl implements TaxReportService {
             result.put("corporateTaxableRevenue", profit); // Lợi nhuận chịu thuế TNDN
             result.put("estimatedVAT", totalRevenue * 0.10); // VAT 10%
             result.put("estimatedCorporateTax", profit > 0 ? profit * 0.20 : 0.0); // Thuế TNDN 20%
-            
+
             return ApiResponse.success("Tính toán doanh thu chịu thuế thành công", result);
         } catch (Exception e) {
             return ApiResponse.error("Lỗi khi tính toán: " + e.getMessage());
         }
     }
-    
+
     @Override
     @Transactional
     public ApiResponse autoCreateTaxReport(String periodStart, String periodEnd, TaxType taxType, String createdBy) {
         try {
             LocalDate startDate = LocalDate.parse(periodStart);
             LocalDate endDate = LocalDate.parse(periodEnd);
-            
+
             LocalDateTime startDateTime = startDate.atStartOfDay();
             LocalDateTime endDateTime = endDate.atTime(23, 59, 59);
-            
+
             Double taxableRevenue;
             Double taxRate;
-            
+
             if (taxType == TaxType.VAT) {
                 // VAT: Tính trên doanh thu
                 taxableRevenue = financialTransactionRepo.sumAmountByTypeAndDateRange(
-                    TransactionType.REVENUE, 
-                    startDateTime, 
-                    endDateTime
-                );
+                        TransactionType.REVENUE,
+                        startDateTime,
+                        endDateTime);
                 taxRate = 10.0; // VAT 10%
             } else {
                 // Corporate Tax: Tính trên lợi nhuận
                 Double revenue = financialTransactionRepo.sumAmountByTypeAndDateRange(
-                    TransactionType.REVENUE, 
-                    startDateTime, 
-                    endDateTime
-                );
+                        TransactionType.REVENUE,
+                        startDateTime,
+                        endDateTime);
                 Double expense = financialTransactionRepo.sumAmountByTypeAndDateRange(
-                    TransactionType.EXPENSE, 
-                    startDateTime, 
-                    endDateTime
-                );
-                
-                if (revenue == null) revenue = 0.0;
-                if (expense == null) expense = 0.0;
-                
+                        TransactionType.EXPENSE,
+                        startDateTime,
+                        endDateTime);
+
+                if (revenue == null)
+                    revenue = 0.0;
+                if (expense == null)
+                    expense = 0.0;
+
                 taxableRevenue = revenue - expense; // Lợi nhuận
                 taxRate = 20.0; // Thuế TNDN 20%
             }
-            
+
             if (taxableRevenue == null || taxableRevenue <= 0) {
                 return ApiResponse.error("Không có doanh thu/lợi nhuận trong kỳ này");
             }
-            
+
             // Tính số thuế
             Double taxAmount = taxableRevenue * (taxRate / 100);
-            
+
             // Tạo report code
-            String reportCode = taxType.name() + "-" + 
-                startDate.format(java.time.format.DateTimeFormatter.ofPattern("MMyyyy"));
-            
+            String reportCode = taxType.name() + "-" +
+                    startDate.format(java.time.format.DateTimeFormatter.ofPattern("MMyyyy"));
+
             // Kiểm tra xem đã có báo cáo này chưa
             if (taxReportRepository.findByReportCode(reportCode).isPresent()) {
                 return ApiResponse.error("Báo cáo thuế cho kỳ này đã tồn tại: " + reportCode);
             }
-            
+
             TaxReport report = TaxReport.builder()
                     .reportCode(reportCode)
                     .taxType(taxType)
@@ -302,14 +316,14 @@ public class TaxReportServiceImpl implements TaxReportService {
                     .status(TaxStatus.DRAFT)
                     .createdBy(createdBy)
                     .build();
-            
+
             TaxReport saved = taxReportRepository.save(report);
             return ApiResponse.success("Tạo báo cáo thuế tự động thành công", toResponse(saved));
         } catch (Exception e) {
             return ApiResponse.error("Lỗi khi tạo báo cáo tự động: " + e.getMessage());
         }
     }
-    
+
     @Override
     @Transactional
     public ApiResponse recalculateTaxReport(Long id) {
@@ -317,58 +331,57 @@ public class TaxReportServiceImpl implements TaxReportService {
             // Tìm báo cáo
             TaxReport report = taxReportRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy báo cáo thuế"));
-            
+
             // Chỉ cho phép cập nhật báo cáo DRAFT
             if (report.getStatus() != TaxStatus.DRAFT) {
                 return ApiResponse.error("Chỉ có thể cập nhật báo cáo ở trạng thái Nháp");
             }
-            
+
             // Tính lại doanh thu chịu thuế
             LocalDateTime startDateTime = report.getPeriodStart().atStartOfDay();
             LocalDateTime endDateTime = report.getPeriodEnd().atTime(23, 59, 59);
-            
+
             Double newTaxableRevenue;
-            
+
             if (report.getTaxType() == TaxType.VAT) {
                 // VAT: Tính trên doanh thu
                 newTaxableRevenue = financialTransactionRepo.sumAmountByTypeAndDateRange(
-                    TransactionType.REVENUE, 
-                    startDateTime, 
-                    endDateTime
-                );
+                        TransactionType.REVENUE,
+                        startDateTime,
+                        endDateTime);
             } else {
                 // Corporate Tax: Tính trên lợi nhuận
                 Double revenue = financialTransactionRepo.sumAmountByTypeAndDateRange(
-                    TransactionType.REVENUE, 
-                    startDateTime, 
-                    endDateTime
-                );
+                        TransactionType.REVENUE,
+                        startDateTime,
+                        endDateTime);
                 Double expense = financialTransactionRepo.sumAmountByTypeAndDateRange(
-                    TransactionType.EXPENSE, 
-                    startDateTime, 
-                    endDateTime
-                );
-                
-                if (revenue == null) revenue = 0.0;
-                if (expense == null) expense = 0.0;
-                
+                        TransactionType.EXPENSE,
+                        startDateTime,
+                        endDateTime);
+
+                if (revenue == null)
+                    revenue = 0.0;
+                if (expense == null)
+                    expense = 0.0;
+
                 newTaxableRevenue = revenue - expense; // Lợi nhuận
             }
-            
+
             if (newTaxableRevenue == null) {
                 newTaxableRevenue = 0.0;
             }
-            
+
             // Cập nhật doanh thu chịu thuế
             report.setTaxableRevenue(newTaxableRevenue);
-            
+
             // Tính lại số thuế
             Double newTaxAmount = newTaxableRevenue * (report.getTaxRate() / 100);
             report.setTaxAmount(newTaxAmount);
-            
+
             // Cập nhật số thuế còn nợ (trừ đi số đã nộp)
             report.setRemainingTax(newTaxAmount - report.getPaidAmount());
-            
+
             TaxReport updated = taxReportRepository.save(report);
             return ApiResponse.success("Cập nhật dữ liệu báo cáo thuế thành công", toResponse(updated));
         } catch (Exception e) {

@@ -34,15 +34,15 @@ public class OrderEventListener {
         Order order = event.getOrder();
         OrderStatus oldStatus = event.getOldStatus();
         OrderStatus newStatus = event.getNewStatus();
-        
-        log.info("Handling order status change: {} -> {} for order {}", 
-            oldStatus, newStatus, order.getId());
-        
+
+        log.info("Handling order status change: {} -> {} for order {}",
+                oldStatus, newStatus, order.getId());
+
         // When order is CONFIRMED and PAID -> Create revenue transaction
         if (newStatus == OrderStatus.CONFIRMED && order.getPaymentStatus() == PaymentStatus.PAID) {
             onOrderPaid(order);
         }
-        
+
         // When order is DELIVERED or COMPLETED -> Create shipping expense
         if (newStatus == OrderStatus.DELIVERED || newStatus == OrderStatus.COMPLETED) {
             onOrderCompleted(order);
@@ -56,10 +56,9 @@ public class OrderEventListener {
         try {
             // Kiểm tra xem đã tạo giao dịch cho đơn hàng này chưa
             boolean exists = transactionRepository.existsByOrderIdAndType(
-                order.getId(), 
-                TransactionType.REVENUE
-            );
-            
+                    order.getId(),
+                    TransactionType.REVENUE);
+
             if (exists) {
                 log.info("Transaction already exists for order {}", order.getId());
                 return;
@@ -67,12 +66,7 @@ public class OrderEventListener {
 
             // 1. Tạo giao dịch DOANH THU
             createRevenueTransaction(order);
-            
-            // 2. Tạo giao dịch PHÍ CỔNG THANH TOÁN (nếu thanh toán online)
-            if (isOnlinePayment(order.getPaymentMethod())) {
-                createPaymentFeeTransaction(order);
-            }
-            
+
             log.info("✅ Created accounting transactions for order {}", order.getId());
         } catch (Exception e) {
             log.error("Error creating transactions for order {}: {}", order.getId(), e.getMessage());
@@ -86,10 +80,9 @@ public class OrderEventListener {
         try {
             // Kiểm tra xem đã tạo giao dịch vận chuyển chưa
             boolean exists = transactionRepository.existsByOrderIdAndCategory(
-                order.getId(), 
-                TransactionCategory.SHIPPING
-            );
-            
+                    order.getId(),
+                    TransactionCategory.SHIPPING);
+
             if (exists) {
                 log.info("Shipping transaction already exists for order {}", order.getId());
                 return;
@@ -97,7 +90,7 @@ public class OrderEventListener {
 
             // Tạo giao dịch CHI PHÍ VẬN CHUYỂN
             createShippingExpenseTransaction(order);
-            
+
             log.info("✅ Created shipping expense transaction for order {}", order.getId());
         } catch (Exception e) {
             log.error("Error creating shipping transaction for order {}: {}", order.getId(), e.getMessage());
@@ -109,15 +102,15 @@ public class OrderEventListener {
      */
     private void createRevenueTransaction(Order order) {
         FinancialTransaction transaction = FinancialTransaction.builder()
-            .type(TransactionType.REVENUE)
-            .category(TransactionCategory.SALES)
-            .amount(order.getTotal())
-            .orderId(order.getId())
-            .description("Doanh thu từ đơn hàng #" + order.getOrderCode())
-            .transactionDate(LocalDateTime.now())
-            .createdBy("SYSTEM")
-            .build();
-        
+                .type(TransactionType.REVENUE)
+                .category(TransactionCategory.SALES)
+                .amount(order.getTotal())
+                .orderId(order.getId())
+                .description("Doanh thu từ đơn hàng #" + order.getOrderCode())
+                .transactionDate(LocalDateTime.now())
+                .createdBy("SYSTEM")
+                .build();
+
         transactionRepository.save(transaction);
         log.info("Created REVENUE transaction: {} VND for order {}", order.getTotal(), order.getOrderCode());
     }
@@ -133,56 +126,19 @@ public class OrderEventListener {
 
         // Chi phí thực tế = 80% phí thu từ khách
         Double actualCost = order.getShippingFee() * 0.8;
-        
+
         FinancialTransaction transaction = FinancialTransaction.builder()
-            .type(TransactionType.EXPENSE)
-            .category(TransactionCategory.SHIPPING)
-            .amount(actualCost)
-            .orderId(order.getId())
-            .description("Chi phí vận chuyển đơn hàng #" + order.getOrderCode())
-            .transactionDate(LocalDateTime.now())
-            .createdBy("SYSTEM")
-            .build();
-        
+                .type(TransactionType.EXPENSE)
+                .category(TransactionCategory.SHIPPING)
+                .amount(actualCost)
+                .orderId(order.getId())
+                .description("Chi phí vận chuyển đơn hàng #" + order.getOrderCode())
+                .transactionDate(LocalDateTime.now())
+                .createdBy("SYSTEM")
+                .build();
+
         transactionRepository.save(transaction);
         log.info("Created SHIPPING EXPENSE transaction: {} VND for order {}", actualCost, order.getOrderCode());
     }
 
-    /**
-     * Tạo giao dịch phí cổng thanh toán
-     * Phí = 2% tổng giá trị đơn hàng
-     */
-    private void createPaymentFeeTransaction(Order order) {
-        // Phí cổng thanh toán = 2% tổng đơn hàng
-        Double fee = order.getTotal() * 0.02;
-        
-        FinancialTransaction transaction = FinancialTransaction.builder()
-            .type(TransactionType.EXPENSE)
-            .category(TransactionCategory.PAYMENT_FEE)
-            .amount(fee)
-            .orderId(order.getId())
-            .description("Phí cổng thanh toán đơn hàng #" + order.getOrderCode())
-            .transactionDate(LocalDateTime.now())
-            .createdBy("SYSTEM")
-            .build();
-        
-        transactionRepository.save(transaction);
-        log.info("Created PAYMENT FEE transaction: {} VND for order {}", fee, order.getOrderCode());
-    }
-
-    /**
-     * Kiểm tra xem có phải thanh toán online không
-     */
-    private boolean isOnlinePayment(String paymentMethod) {
-        if (paymentMethod == null) {
-            return false;
-        }
-        
-        String method = paymentMethod.toUpperCase();
-        return method.contains("ONLINE") || 
-               method.contains("VNPAY") || 
-               method.contains("MOMO") || 
-               method.contains("BANKING") ||
-               method.contains("SEPAY");
-    }
 }
