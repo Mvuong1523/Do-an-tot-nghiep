@@ -139,8 +139,20 @@ public class InventoryController {
     // ===== Stock View (PRODUCT_MANAGER có thể xem, nhưng chỉ đọc) =====
     @GetMapping("/stock")
     @PreAuthorize("isAuthenticated()")
-    public ApiResponse getStocks() {
-        return inventoryService.getStocks();
+    public ApiResponse getStocks(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String type
+    ) {
+        // Ưu tiên lấy 'status', nếu không có thì lấy 'type' (đề phòng frontend đặt tên khác)
+        String filterParam = (status != null && !status.isEmpty()) ? status : type;
+
+        return inventoryService.getStocks(filterParam);
+    }
+
+    @GetMapping("/stock/{id}/serials")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse getStockSerials(@PathVariable Long id) {
+        return inventoryService.getStockDetails(id);
     }
 
     // ===== Transaction History =====

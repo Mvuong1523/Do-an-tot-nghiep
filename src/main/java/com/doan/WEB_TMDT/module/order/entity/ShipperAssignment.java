@@ -19,6 +19,9 @@ public class ShipperAssignment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
+    @Version
+    private Long version; // Optimistic locking để tránh nhiều shipper nhận cùng 1 đơn
+    
     @OneToOne
     @JoinColumn(name = "order_id", nullable = false, unique = true)
     private Order order;

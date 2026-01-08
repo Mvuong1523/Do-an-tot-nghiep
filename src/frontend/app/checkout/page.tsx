@@ -252,11 +252,25 @@ export default function CheckoutPage() {
         const response = await cartApi.getCart()
         console.log('Cart response:', response)
         
+        // Lấy danh sách item đã chọn từ sessionStorage
+        const selectedItemsJson = sessionStorage.getItem('selectedCartItems')
+        const selectedItemIds: number[] = selectedItemsJson ? JSON.parse(selectedItemsJson) : []
+        console.log('Selected item IDs:', selectedItemIds)
+        
         if (response.success && response.data?.items) {
-          const mappedItems = response.data.items.map((item: any) => {
+          // Lọc chỉ lấy các item đã được chọn
+          let filteredItems = response.data.items
+          if (selectedItemIds.length > 0) {
+            filteredItems = response.data.items.filter((item: any) => 
+              selectedItemIds.includes(item.itemId)
+            )
+          }
+          
+          const mappedItems = filteredItems.map((item: any) => {
             console.log('Processing item:', item)
             
             return {
+              itemId: item.itemId, // Giữ lại itemId để xóa sau khi đặt hàng
               productId: item.productId,
               productName: item.productName || 'Sản phẩm',
               price: item.price || 0,
@@ -272,7 +286,7 @@ export default function CheckoutPage() {
           
           if (mappedItems.length === 0) {
             console.warn('No items after mapping!')
-            toast.error('Giỏ hàng trống')
+            toast.error('Vui lòng chọn sản phẩm để thanh toán')
             router.push('/cart')
           }
         } else {
@@ -368,6 +382,9 @@ export default function CheckoutPage() {
 
     setSubmitting(true)
     try {
+      // Lấy danh sách itemIds đã chọn
+      const selectedItemIds = items.map((item: any) => item.itemId).filter(Boolean)
+      
       const orderData = {
         province: form.province,
         district: form.district,
@@ -376,7 +393,8 @@ export default function CheckoutPage() {
         address: form.address,
         note: form.note,
         shippingFee: form.shippingFee,
-        paymentMethod: form.paymentMethod // COD hoặc SEPAY
+        paymentMethod: form.paymentMethod, // COD hoặc SEPAY
+        selectedItemIds: selectedItemIds // Danh sách item đã chọn
       }
 
       console.log('Submitting order:', orderData)
@@ -398,17 +416,12 @@ export default function CheckoutPage() {
           return
         }
         
-        // Xóa quickBuyOrder nếu có
+        // Xóa quickBuyOrder và selectedCartItems nếu có
         sessionStorage.removeItem('quickBuyOrder')
+        sessionStorage.removeItem('selectedCartItems')
         
-        // Xóa giỏ hàng trên backend
-        try {
-          await cartApi.clearCart()
-          // Dispatch event để cập nhật cart count
-          window.dispatchEvent(new Event('cartUpdated'))
-        } catch (error) {
-          console.error('Error clearing cart:', error)
-        }
+        // Dispatch event để cập nhật cart count (backend đã xóa các item đã mua)
+        window.dispatchEvent(new Event('cartUpdated'))
         
         // Nếu chọn thanh toán online → Tạo payment
         if (form.paymentMethod === 'SEPAY') {

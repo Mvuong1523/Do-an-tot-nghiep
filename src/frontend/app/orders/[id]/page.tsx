@@ -324,7 +324,6 @@ export default function OrderDetailPage() {
           {order.status?.toUpperCase() === 'COMPLETED' && (
             <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="flex items-start">
-                <span className="text-blue-600 font-bold mr-2">✅</span>
                 <div className="text-sm text-blue-800">
                   <p className="font-bold mb-1">Đơn hàng đã hoàn thành!</p>
                   <p>Cảm ơn bạn đã mua hàng. Đừng quên đánh giá sản phẩm để giúp người mua khác nhé!</p>
@@ -446,6 +445,26 @@ export default function OrderDetailPage() {
               <p className="text-sm text-gray-600">Địa chỉ giao hàng</p>
               <p className="font-medium text-gray-900">{order.shippingAddress}</p>
             </div>
+            
+            {/* Shipper Info - Show if shipper is assigned (internal delivery) */}
+            {order.shipperName && (
+              <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                <p className="text-sm text-purple-800 font-semibold mb-2 flex items-center">
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  Thông tin tài xế giao hàng
+                </p>
+                <div className="space-y-1">
+                  <p className="text-purple-900 font-medium">
+                    Tên: {order.shipperName}
+                  </p>
+                  <p className="text-purple-900">
+                    SĐT: <a href={`tel:${order.shipperPhone}`} className="font-medium hover:underline">{order.shipperPhone}</a>
+                  </p>
+                </div>
+              </div>
+            )}
             
             {/* GHN Expected Delivery Time */}
             {order.ghnExpectedDeliveryTime && (

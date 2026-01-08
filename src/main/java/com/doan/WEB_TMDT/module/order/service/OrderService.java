@@ -28,4 +28,5 @@ public interface OrderService {
     ApiResponse markAsDelivered(Long orderId);
     ApiResponse cancelOrder(Long orderId, String reason);
     ApiResponse getShippingStatusAdmin(Long orderId);
+    ApiResponse getOrdersByCustomerId(Long customerId); // Lấy đơn hàng theo customer (cho nhân viên)
 }

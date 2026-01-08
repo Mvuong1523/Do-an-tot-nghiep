@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { FiStar, FiUser, FiCalendar } from 'react-icons/fi'
+import { FiStar, FiUser, FiCalendar, FiTrash2, FiCheckCircle } from 'react-icons/fi'
 import { reviewApi } from '@/lib/api'
+import toast from 'react-hot-toast'
 
 interface Review {
   id: number
@@ -10,10 +11,11 @@ interface Review {
   productName: string
   customerId: number
   customerName: string
-  orderId: number
-  orderCode: string
-  rating: number
+  orderId: number | null
+  orderCode: string | null
+  rating: number | null
   comment: string
+  isVerifiedPurchase: boolean
   createdAt: string
 }
 
@@ -32,10 +34,22 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
   const [summary, setSummary] = useState<RatingSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [filterRating, setFilterRating] = useState<number | null>(null)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [comment, setComment] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     loadReviews()
+    checkAuth()
   }, [productId])
+
+  const checkAuth = () => {
+    const token = localStorage.getItem('auth_token')
+    const role = localStorage.getItem('user_role')
+    setIsLoggedIn(!!token)
+    setIsAdmin(role === 'ADMIN')
+  }
 
   const loadReviews = async () => {
     try {
@@ -57,6 +71,55 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
     }
   }
 
+  const handleSubmitComment = async () => {
+    if (!comment.trim()) {
+      toast.error('Vui lòng nhập nội dung bình luận')
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const response = await reviewApi.create({
+        productId,
+        comment: comment.trim(),
+        orderId: null, // Comment thường không có orderId
+        rating: null // Comment thường không có rating
+      })
+
+      if (response.success) {
+        toast.success('Bình luận thành công!')
+        setComment('')
+        loadReviews() // Reload reviews
+      } else {
+        toast.error(response.message || 'Không thể gửi bình luận')
+      }
+    } catch (error) {
+      console.error('Error submitting comment:', error)
+      toast.error('Lỗi khi gửi bình luận')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleDeleteReview = async (reviewId: number) => {
+    if (!confirm('Bạn có chắc muốn xóa bình luận này?')) {
+      return
+    }
+
+    try {
+      const response = await reviewApi.delete(reviewId)
+      if (response.success) {
+        toast.success('Đã xóa bình luận')
+        loadReviews()
+      } else {
+        toast.error(response.message || 'Không thể xóa bình luận')
+      }
+    } catch (error) {
+      console.error('Error deleting review:', error)
+      toast.error('Lỗi khi xóa bình luận')
+    }
+  }
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN', {
       year: 'numeric',
@@ -65,7 +128,9 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
     })
   }
 
-  const renderStars = (rating: number, size: number = 16) => {
+  const renderStars = (rating: number | null, size: number = 16) => {
+    if (!rating) return null
+    
     return (
       <div className="flex items-center">
         {[1, 2, 3, 4, 5].map((star) => (
@@ -95,8 +160,31 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
     <div>
       <h2 className="text-2xl font-bold mb-6">Đánh giá sản phẩm</h2>
 
-      {/* Rating Summary */}
-      {summary && summary.reviewCount > 0 ? (
+      {/* Comment Form - for logged in users */}
+      {isLoggedIn && (
+        <div className="bg-blue-50 rounded-lg p-4 mb-6">
+          <h3 className="font-semibold mb-3">Viết bình luận của bạn</h3>
+          <textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="Chia sẻ suy nghĩ của bạn về sản phẩm này..."
+            className="w-full border border-gray-300 rounded-lg p-3 min-h-[100px] focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            disabled={submitting}
+          />
+          <div className="flex justify-end mt-3">
+            <button
+              onClick={handleSubmitComment}
+              disabled={submitting || !comment.trim()}
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+            >
+              {submitting ? 'Đang gửi...' : 'Gửi bình luận'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Rating Summary - chỉ hiển thị nếu có đánh giá với rating */}
+      {summary && summary.reviewCount > 0 && (
         <div className="bg-gray-50 rounded-lg p-6 mb-6">
           <div className="flex flex-col md:flex-row md:items-center gap-6">
             {/* Average Rating */}
@@ -148,14 +236,6 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
             </div>
           )}
         </div>
-      ) : (
-        <div className="text-center py-12 bg-gray-50 rounded-lg">
-          <FiStar className="mx-auto text-gray-300 mb-4" size={48} />
-          <p className="text-gray-600">Chưa có đánh giá nào</p>
-          <p className="text-sm text-gray-500 mt-2">
-            Hãy là người đầu tiên đánh giá sản phẩm này
-          </p>
-        </div>
       )}
 
       {/* Reviews List */}
@@ -169,14 +249,33 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                     <FiUser className="text-blue-600" size={20} />
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900">{review.customerName}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-gray-900">{review.customerName}</p>
+                      {review.isVerifiedPurchase && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
+                          <FiCheckCircle size={12} />
+                          Đã mua hàng
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center space-x-2 text-sm text-gray-500">
                       <FiCalendar size={14} />
                       <span>{formatDate(review.createdAt)}</span>
                     </div>
                   </div>
                 </div>
-                {renderStars(review.rating, 18)}
+                <div className="flex items-center gap-3">
+                  {renderStars(review.rating, 18)}
+                  {isAdmin && (
+                    <button
+                      onClick={() => handleDeleteReview(review.id)}
+                      className="text-red-600 hover:text-red-700 p-1"
+                      title="Xóa bình luận"
+                    >
+                      <FiTrash2 size={18} />
+                    </button>
+                  )}
+                </div>
               </div>
 
               {review.comment && (

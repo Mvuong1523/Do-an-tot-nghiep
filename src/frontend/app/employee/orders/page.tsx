@@ -21,6 +21,7 @@ export default function EmployeeOrdersPage() {
   const canEdit = hasPermission(employee?.position as Position, 'orders.edit')
   const canConfirm = hasPermission(employee?.position as Position, 'orders.confirm')
   const canCancel = hasPermission(employee?.position as Position, 'orders.cancel')
+  const isSaleStaff = employee?.position === 'SALE' || user?.position === 'SALE' // Nhân viên bán hàng
 
   useEffect(() => {
     if (!isAuthenticated) {

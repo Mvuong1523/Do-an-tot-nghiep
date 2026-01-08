@@ -57,4 +57,9 @@ public class OrderResponse {
     private String ghnShippingStatus;
     private LocalDateTime ghnCreatedAt;
     private LocalDateTime ghnExpectedDeliveryTime;
+    
+    // Shipper info (for internal delivery)
+    private Long shipperId;
+    private String shipperName;
+    private String shipperPhone;
 }

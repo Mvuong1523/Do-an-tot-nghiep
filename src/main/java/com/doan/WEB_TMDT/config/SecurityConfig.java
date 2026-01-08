@@ -55,6 +55,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/products/filter-by-specs").permitAll()
                         .requestMatchers("/api/product/**").permitAll()
                         
+                        // Public review endpoints (anyone can view reviews)
+                        .requestMatchers("/api/reviews/product/**").permitAll()
+                        
                         // Public shipping endpoints (for calculating shipping fee and address selection)
                         .requestMatchers("/api/shipping/calculate-fee").permitAll()
                         .requestMatchers("/api/shipping/provinces").permitAll()
@@ -63,12 +66,15 @@ public class SecurityConfig {
                         
                         // Customer endpoints (Cart, Orders, Profile)
                         .requestMatchers("/api/cart/**").hasAnyAuthority("CUSTOMER", "ADMIN")
-                        .requestMatchers("/api/orders/**").hasAnyAuthority("CUSTOMER", "ADMIN", "EMPLOYEE", "SALE", "SALES", "SHIPPER")
+                        .requestMatchers("/api/customer/all").hasAnyAuthority("ADMIN", "EMPLOYEE", "SALE", "SALES", "SHIPPER", "WAREHOUSE", "PRODUCT_MANAGER", "ACCOUNTANT", "CSKH")
                         .requestMatchers("/api/customer/**").hasAnyAuthority("CUSTOMER", "ADMIN")
+                        .requestMatchers("/api/orders/customer/**").hasAnyAuthority("ADMIN", "EMPLOYEE", "SALE", "SALES", "SHIPPER", "WAREHOUSE", "PRODUCT_MANAGER", "ACCOUNTANT", "CSKH")
+                        .requestMatchers("/api/orders/**").hasAnyAuthority("CUSTOMER", "ADMIN", "EMPLOYEE", "SALE", "SALES", "SHIPPER", "WAREHOUSE", "PRODUCT_MANAGER", "ACCOUNTANT", "CSKH")
                         
                         // Warehouse endpoints (Inventory management)
                         // Note: /api/inventory/stock cho phép PRODUCT_MANAGER xem (read-only)
-                        .requestMatchers("/api/inventory/stock").hasAnyAuthority("WAREHOUSE", "PRODUCT_MANAGER", "ADMIN")
+                        .requestMatchers("/api/inventory/stock").hasAnyAuthority("WAREHOUSE", "PRODUCT_MANAGER", "ADMIN", "EMPLOYEE", "SALE", "ACCOUNTANT", "CSKH", "SHIPPER")
+                        .requestMatchers("/api/inventory/suppliers").hasAnyAuthority("WAREHOUSE", "PRODUCT_MANAGER", "ADMIN", "EMPLOYEE", "SALE", "ACCOUNTANT", "CSKH", "SHIPPER")
                         .requestMatchers("/api/inventory/**").hasAnyAuthority("WAREHOUSE", "ADMIN")
                         
                         // Product Manager endpoints (Product & Category management)

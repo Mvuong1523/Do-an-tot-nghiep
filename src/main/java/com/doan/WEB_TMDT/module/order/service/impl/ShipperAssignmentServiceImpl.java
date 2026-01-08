@@ -52,59 +52,70 @@ public class ShipperAssignmentServiceImpl implements ShipperAssignmentService {
     @Override
     @Transactional
     public ApiResponse claimOrder(Long orderId, Long shipperId) {
-        // Kiểm tra đơn hàng
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
-        
-        // Kiểm tra đơn hàng phải ở trạng thái READY_TO_SHIP
-        if (order.getStatus() != OrderStatus.READY_TO_SHIP) {
-            return ApiResponse.error("Chỉ có thể nhận đơn hàng ở trạng thái 'Đã chuẩn bị hàng'");
+        try {
+            // Kiểm tra đơn hàng
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
+            
+            // Kiểm tra đơn hàng phải ở trạng thái READY_TO_SHIP
+            if (order.getStatus() != OrderStatus.READY_TO_SHIP) {
+                return ApiResponse.error("Chỉ có thể nhận đơn hàng ở trạng thái 'Đã chuẩn bị hàng'");
+            }
+            
+            // Kiểm tra đơn hàng chưa có GHN order code
+            if (order.getGhnOrderCode() != null && !order.getGhnOrderCode().isEmpty()) {
+                return ApiResponse.error("Đơn hàng này đã sử dụng Giao Hàng Nhanh");
+            }
+            
+            // Kiểm tra đơn hàng phải trong nội thành Hà Nội
+            if (!isHanoiInnerCity(order)) {
+                return ApiResponse.error("Chỉ có thể nhận đơn hàng trong nội thành Hà Nội");
+            }
+            
+            // Kiểm tra đã có shipper nhận chưa (race condition check)
+            if (assignmentRepository.existsByOrderId(order.getId())) {
+                return ApiResponse.error("Đơn hàng này đã có shipper khác nhận rồi");
+            }
+            
+            // Kiểm tra shipper
+            Employee shipper = employeeRepository.findById(shipperId)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy nhân viên"));
+            
+            if (shipper.getPosition() != Position.SHIPPER) {
+                return ApiResponse.error("Bạn không phải là shipper");
+            }
+            
+            // Tạo assignment - nhận đơn = đang giao luôn
+            LocalDateTime now = LocalDateTime.now();
+            ShipperAssignment assignment = ShipperAssignment.builder()
+                    .order(order)
+                    .shipper(shipper)
+                    .status(ShipperAssignmentStatus.DELIVERING) // Đang giao luôn
+                    .assignedAt(now)
+                    .claimedAt(now)
+                    .deliveringAt(now) // Set thời gian bắt đầu giao
+                    .build();
+            
+            assignmentRepository.save(assignment);
+            
+            // Cập nhật trạng thái đơn hàng sang SHIPPING
+            order.setStatus(OrderStatus.SHIPPING);
+            order.setShippedAt(now);
+            orderRepository.save(order);
+            
+            log.info("Shipper {} claimed and started delivering order {}", shipper.getFullName(), order.getOrderCode());
+            
+            return ApiResponse.success("Đã nhận đơn và bắt đầu giao hàng", toResponse(assignment));
+            
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            // Xử lý trường hợp unique constraint violation (2 shipper nhận cùng lúc)
+            log.warn("Shipper {} tried to claim order {} but it was already claimed", shipperId, orderId);
+            return ApiResponse.error("Đơn hàng này đã có shipper khác nhận rồi. Vui lòng chọn đơn khác.");
+        } catch (jakarta.persistence.OptimisticLockException e) {
+            // Xử lý optimistic locking exception
+            log.warn("Optimistic lock exception when shipper {} tried to claim order {}", shipperId, orderId);
+            return ApiResponse.error("Đơn hàng này đã có shipper khác nhận rồi. Vui lòng chọn đơn khác.");
         }
-        
-        // Kiểm tra đơn hàng chưa có GHN order code
-        if (order.getGhnOrderCode() != null && !order.getGhnOrderCode().isEmpty()) {
-            return ApiResponse.error("Đơn hàng này đã sử dụng Giao Hàng Nhanh");
-        }
-        
-        // Kiểm tra đơn hàng phải trong nội thành Hà Nội
-        if (!isHanoiInnerCity(order)) {
-            return ApiResponse.error("Chỉ có thể nhận đơn hàng trong nội thành Hà Nội");
-        }
-        
-        // Kiểm tra đã có shipper nhận chưa
-        if (assignmentRepository.existsByOrderId(order.getId())) {
-            return ApiResponse.error("Đơn hàng này đã có shipper nhận");
-        }
-        
-        // Kiểm tra shipper
-        Employee shipper = employeeRepository.findById(shipperId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy nhân viên"));
-        
-        if (shipper.getPosition() != Position.SHIPPER) {
-            return ApiResponse.error("Bạn không phải là shipper");
-        }
-        
-        // Tạo assignment - nhận đơn = đang giao luôn
-        LocalDateTime now = LocalDateTime.now();
-        ShipperAssignment assignment = ShipperAssignment.builder()
-                .order(order)
-                .shipper(shipper)
-                .status(ShipperAssignmentStatus.DELIVERING) // Đang giao luôn
-                .assignedAt(now)
-                .claimedAt(now)
-                .deliveringAt(now) // Set thời gian bắt đầu giao
-                .build();
-        
-        assignmentRepository.save(assignment);
-        
-        // Cập nhật trạng thái đơn hàng sang SHIPPING
-        order.setStatus(OrderStatus.SHIPPING);
-        order.setShippedAt(now);
-        orderRepository.save(order);
-        
-        log.info("Shipper {} claimed and started delivering order {}", shipper.getFullName(), order.getOrderCode());
-        
-        return ApiResponse.success("Đã nhận đơn và bắt đầu giao hàng", toResponse(assignment));
     }
     
     @Override

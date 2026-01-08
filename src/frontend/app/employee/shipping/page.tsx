@@ -21,6 +21,7 @@ export default function EmployeeShippingPage() {
   const [processingId, setProcessingId] = useState<number | null>(null)
 
   const isShipper = employee?.position === 'SHIPPER' || user?.position === 'SHIPPER'
+  const isSaleStaff = employee?.position === 'SALE' || user?.position === 'SALE' // Nhân viên bán hàng
   // Lấy shipperId từ nhiều nguồn
   const shipperId = employee?.id || user?.employeeId || (user as any)?.employee?.id
   const canPickup = hasPermission(employee?.position as Position, 'shipping.pickup')
@@ -64,8 +65,9 @@ export default function EmployeeShippingPage() {
 
       if (response.ok) {
         const data = await response.json()
+        // Lấy tất cả đơn liên quan đến shipping (bao gồm cả COMPLETED để shipper xem lịch sử)
         const shippingOrders = data.data?.filter((order: any) => 
-          ['READY_TO_SHIP', 'SHIPPING', 'DELIVERED'].includes(order.status)
+          ['READY_TO_SHIP', 'SHIPPING', 'DELIVERED', 'COMPLETED'].includes(order.status)
         ) || []
         setOrders(shippingOrders)
       }
@@ -140,7 +142,12 @@ export default function EmployeeShippingPage() {
       const response = await shipperApi.claimOrder(orderId, shipperId)
       if (response.success) {
         toast.success('Đã nhận đơn và bắt đầu giao hàng!')
-        fetchOrders()
+        // Reload tất cả data để cập nhật UI
+        await Promise.all([
+          fetchOrders(),
+          fetchAllAssignments(),
+          fetchMyAssignments()
+        ])
       } else {
         toast.error(response.message || 'Không thể nhận đơn')
       }
@@ -170,7 +177,12 @@ export default function EmployeeShippingPage() {
       
       if (data.success) {
         toast.success('Đã giao hàng thành công!')
-        fetchOrders()
+        // Reload tất cả data
+        await Promise.all([
+          fetchOrders(),
+          fetchAllAssignments(),
+          fetchMyAssignments()
+        ])
       } else {
         toast.error(data.message || 'Không thể cập nhật')
       }
@@ -201,12 +213,57 @@ export default function EmployeeShippingPage() {
       
       if (data.success) {
         toast.success('Đã báo giao thất bại')
-        fetchOrders()
+        // Reload tất cả data
+        await Promise.all([
+          fetchOrders(),
+          fetchAllAssignments(),
+          fetchMyAssignments()
+        ])
       } else {
         toast.error(data.message || 'Không thể cập nhật')
       }
     } catch (error: any) {
       console.error('Error marking failed:', error)
+      toast.error(error.message || 'Lỗi khi cập nhật')
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  // Nhân viên cập nhật trạng thái đơn GHN thủ công
+  const handleUpdateGHNStatus = async (orderId: number, newStatus: 'SHIPPING' | 'DELIVERED') => {
+    const confirmMsg = newStatus === 'SHIPPING' 
+      ? 'Xác nhận chuyển sang trạng thái "Đang giao"?'
+      : 'Xác nhận chuyển sang trạng thái "Đã giao"?'
+    
+    if (!confirm(confirmMsg)) return
+
+    try {
+      setProcessingId(orderId)
+      const token = localStorage.getItem('auth_token') || localStorage.getItem('token')
+      
+      // Sử dụng endpoint chuyên dụng cho từng trạng thái
+      const endpoint = newStatus === 'DELIVERED'
+        ? `http://localhost:8080/api/admin/orders/${orderId}/delivered`
+        : `http://localhost:8080/api/admin/orders/${orderId}/mark-shipping-from-ready`
+      
+      const response = await fetch(endpoint, {
+        method: 'PUT',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      const data = await response.json()
+      
+      if (data.success) {
+        toast.success(`Đã cập nhật trạng thái: ${newStatus === 'SHIPPING' ? 'Đang giao' : 'Đã giao'}`)
+        await fetchOrders()
+      } else {
+        toast.error(data.message || 'Không thể cập nhật')
+      }
+    } catch (error: any) {
+      console.error('Error updating GHN status:', error)
       toast.error(error.message || 'Lỗi khi cập nhật')
     } finally {
       setProcessingId(null)
@@ -341,7 +398,9 @@ export default function EmployeeShippingPage() {
       case 'ghn':
         return orders.filter(o => !isInternalOrder(o))
       case 'my-orders':
-        return orders.filter(o => isOrderClaimed(o.orderId || o.id))
+        // Hiển thị TẤT CẢ đơn mà shipper đã từng nhận (kể cả đã giao xong)
+        const myOrderIds = myAssignments.map(a => a.orderId)
+        return orders.filter(o => myOrderIds.includes(o.orderId || o.id))
       default:
         return orders
     }
@@ -461,7 +520,7 @@ export default function EmployeeShippingPage() {
             { key: 'all', label: 'Tất cả', count: orders.length },
             { key: 'internal', label: 'Nội thành (Shipper)', count: internalOrders.length },
             { key: 'ghn', label: 'GHN (Ngoại thành)', count: ghnOrders.length },
-            ...(isShipper ? [{ key: 'my-orders', label: 'Đơn của tôi', count: myAssignments.filter(a => ['CLAIMED', 'DELIVERING'].includes(a.status)).length }] : [])
+            ...(isShipper ? [{ key: 'my-orders', label: 'Đơn của tôi', count: myAssignments.length }] : [])
           ].map((tab) => (
             <button
               key={tab.key}
@@ -585,18 +644,60 @@ export default function EmployeeShippingPage() {
                             </button>
                           </>
                         )}
+                        {/* Đơn đã giao xong */}
+                        {order.status === 'DELIVERED' && isMyOrder && (
+                          <div className="px-3 py-2 bg-green-100 text-green-800 rounded-lg text-sm text-center font-medium">
+                            ✓ Đã giao thành công
+                          </div>
+                        )}
                       </>
                     )}
 
-                    {/* Hiển thị trạng thái cho đơn GHN */}
+                    {/* Actions cho đơn GHN - Chỉ nhân viên bán hàng (SALE) có thể cập nhật thủ công */}
                     {!isInternal && (
-                      <div className="text-center">
+                      <div className="text-center space-y-2">
                         <span className="px-3 py-2 bg-orange-50 text-orange-700 rounded-lg text-sm block">
-                          Giao Hàng Nhanh xử lý
+                          Giao Hàng Nhanh
                         </span>
                         {order.ghnShippingStatus && (
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="text-xs text-gray-500">
                             Trạng thái: {order.ghnShippingStatus}
+                          </p>
+                        )}
+                        
+                        {/* Nút cập nhật thủ công - CHỈ cho nhân viên bán hàng (SALE) */}
+                        {isSaleStaff && (
+                          <>
+                            {order.status === 'READY_TO_SHIP' && (
+                              <button
+                                onClick={() => handleUpdateGHNStatus(orderId, 'SHIPPING')}
+                                disabled={isProcessing}
+                                className="w-full px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:bg-gray-400 transition-colors font-medium"
+                              >
+                                {isProcessing ? '...' : 'Đang giao'}
+                              </button>
+                            )}
+                            {order.status === 'SHIPPING' && (
+                              <button
+                                onClick={() => handleUpdateGHNStatus(orderId, 'DELIVERED')}
+                                disabled={isProcessing}
+                                className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-colors font-medium"
+                              >
+                                {isProcessing ? '...' : 'Đã giao thành công'}
+                              </button>
+                            )}
+                            {order.status === 'DELIVERED' && (
+                              <div className="px-3 py-2 bg-green-100 text-green-800 rounded-lg text-sm font-medium">
+                                ✓ Đã giao thành công
+                              </div>
+                            )}
+                          </>
+                        )}
+                        
+                        {/* Nhân viên khác chỉ xem */}
+                        {!isSaleStaff && (
+                          <p className="text-xs text-gray-500 italic">
+                            (Chỉ nhân viên bán hàng mới có thể cập nhật)
                           </p>
                         )}
                       </div>

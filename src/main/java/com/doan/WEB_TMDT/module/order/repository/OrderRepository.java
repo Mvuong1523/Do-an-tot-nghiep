@@ -48,4 +48,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Long countByStatus(OrderStatus status);
     Long countByCreatedAtAfter(LocalDateTime date);
     List<Order> findByCreatedAtAfter(LocalDateTime date);
+    
+    // Customer queries
+    Long countByCustomerId(Long customerId);
+    List<Order> findByCustomerIdOrderByCreatedAtDesc(Long customerId);
 }

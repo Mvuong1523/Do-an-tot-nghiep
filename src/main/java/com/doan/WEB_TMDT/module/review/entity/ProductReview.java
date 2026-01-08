@@ -30,23 +30,30 @@ public class ProductReview {
     private Customer customer;
     
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id", nullable = false)
-    private Order order;
+    @JoinColumn(name = "order_id")
+    private Order order; // Nullable - nếu null thì là comment thường
     
-    @Column(nullable = false)
-    private Integer rating; // 1-5 sao
+    @Column
+    private Integer rating; // 1-5 sao, nullable - chỉ có khi mua hàng
     
-    @Column(columnDefinition = "TEXT")
-    private String comment; // Nội dung đánh giá (không bắt buộc)
+    @Column(columnDefinition = "TEXT", nullable = false)
+    private String comment; // Nội dung comment/đánh giá
     
     @Column(nullable = false)
     private LocalDateTime createdAt;
     
     private LocalDateTime updatedAt;
     
+    @Column(name = "is_verified_purchase")
+    @Builder.Default
+    private Boolean isVerifiedPurchase = false; // true nếu đã mua hàng
+    
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
+        if (order != null) {
+            isVerifiedPurchase = true;
+        }
     }
     
     @PreUpdate

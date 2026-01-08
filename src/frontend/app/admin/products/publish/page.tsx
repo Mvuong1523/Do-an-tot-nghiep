@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { FiPackage, FiSearch, FiPlus, FiX, FiCheck, FiAlertCircle } from 'react-icons/fi'
+import { FiPackage, FiSearch, FiPlus, FiX, FiCheck, FiAlertCircle, FiPause, FiPlay, FiInfo } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/store/authStore'
 import { productApi, categoryApi } from '@/lib/api'
@@ -17,6 +17,7 @@ export default function AdminPublishProductPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [showPublishModal, setShowPublishModal] = useState(false)
+  const [showSpecsModal, setShowSpecsModal] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<any>(null)
   const [publishForm, setPublishForm] = useState({
     name: '',
@@ -76,6 +77,40 @@ export default function AdminPublishProductPage() {
     })
     setProductImages([])
     setShowPublishModal(true)
+  }
+
+  // Hiển thị modal thông số sản phẩm
+  const handleShowSpecs = (product: any) => {
+    setSelectedProduct(product)
+    setShowSpecsModal(true)
+  }
+
+  // Toggle trạng thái đăng bán (ngừng bán / tiếp tục bán)
+  const handleToggleActive = async (product: any) => {
+    const isCurrentlyActive = product.active !== false
+    const action = isCurrentlyActive ? 'ngừng bán' : 'tiếp tục bán'
+    
+    if (!confirm(`Bạn có chắc muốn ${action} sản phẩm "${product.internalName}"?`)) {
+      return
+    }
+
+    try {
+      const response = await productApi.toggleActive(product.publishedProductId)
+      if (response.success) {
+        // Cập nhật state local thay vì load lại
+        setWarehouseProducts(prev => prev.map(p => 
+          p.id === product.id 
+            ? { ...p, active: !isCurrentlyActive }
+            : p
+        ))
+        toast.success(`Đã ${action} sản phẩm`)
+      } else {
+        toast.error(response.message || 'Có lỗi xảy ra')
+      }
+    } catch (error: any) {
+      console.error('Error toggling active:', error)
+      toast.error(error.message || 'Lỗi khi thay đổi trạng thái')
+    }
   }
 
   const handleSubmitPublish = async (e: React.FormEvent) => {
@@ -261,10 +296,17 @@ export default function AdminPublishProductPage() {
                       {product.sku}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-gray-900">{product.internalName}</div>
-                      {product.description && (
-                        <div className="text-xs text-gray-500 truncate max-w-xs">{product.description}</div>
-                      )}
+                      <button
+                        onClick={() => handleShowSpecs(product)}
+                        className="text-left hover:text-blue-600 transition-colors"
+                      >
+                        <div className="text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline">
+                          {product.internalName}
+                        </div>
+                        {product.description && (
+                          <div className="text-xs text-gray-500 truncate max-w-xs">{product.description}</div>
+                        )}
+                      </button>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
                       {product.supplierName || 'N/A'}
@@ -278,9 +320,15 @@ export default function AdminPublishProductPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {product.isPublished ? (
-                        <span className="px-2 py-1 text-xs font-semibold rounded bg-green-100 text-green-800">
-                          Đã đăng bán
-                        </span>
+                        product.active === false ? (
+                          <span className="px-2 py-1 text-xs font-semibold rounded bg-gray-100 text-gray-800">
+                            Tạm ngừng
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 text-xs font-semibold rounded bg-green-100 text-green-800">
+                            Đang bán
+                          </span>
+                        )
                       ) : (
                         <span className="px-2 py-1 text-xs font-semibold rounded bg-yellow-100 text-yellow-800">
                           Chưa đăng bán
@@ -289,12 +337,23 @@ export default function AdminPublishProductPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       {product.isPublished ? (
-                        <Link
-                          href={`/admin/products`}
-                          className="text-blue-500 hover:text-blue-600"
-                        >
-                          Xem sản phẩm
-                        </Link>
+                        product.active === false ? (
+                          <button
+                            onClick={() => handleToggleActive(product)}
+                            className="bg-green-500 text-white px-3 py-1.5 rounded-lg hover:bg-green-600 transition-colors inline-flex items-center"
+                          >
+                            <FiPlay className="mr-1" size={14} />
+                            Tiếp tục bán
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleToggleActive(product)}
+                            className="bg-orange-500 text-white px-3 py-1.5 rounded-lg hover:bg-orange-600 transition-colors inline-flex items-center"
+                          >
+                            <FiPause className="mr-1" size={14} />
+                            Ngừng bán
+                          </button>
+                        )
                       ) : (
                         <button
                           onClick={() => handleSelectProduct(product)}
@@ -448,6 +507,132 @@ export default function AdminPublishProductPage() {
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Specs Modal - Hiển thị thông số sản phẩm */}
+        {showSpecsModal && selectedProduct && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">Thông tin sản phẩm</h2>
+                  <button
+                    onClick={() => setShowSpecsModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <FiX size={24} />
+                  </button>
+                </div>
+
+                {/* Basic Info */}
+                <div className="space-y-4">
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                      <FiInfo className="mr-2" />
+                      Thông tin cơ bản
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-500">SKU:</span>
+                        <span className="ml-2 font-mono">{selectedProduct.sku}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Tên:</span>
+                        <span className="ml-2">{selectedProduct.internalName}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Nhà cung cấp:</span>
+                        <span className="ml-2">{selectedProduct.supplierName || 'N/A'}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Tồn kho:</span>
+                        <span className={`ml-2 font-medium ${selectedProduct.sellableQuantity > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {selectedProduct.sellableQuantity || 0}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Trạng thái:</span>
+                        <span className="ml-2">
+                          {selectedProduct.isPublished ? (
+                            selectedProduct.active === false ? (
+                              <span className="px-2 py-0.5 text-xs font-semibold rounded bg-gray-100 text-gray-800">Tạm ngừng</span>
+                            ) : (
+                              <span className="px-2 py-0.5 text-xs font-semibold rounded bg-green-100 text-green-800">Đang bán</span>
+                            )
+                          ) : (
+                            <span className="px-2 py-0.5 text-xs font-semibold rounded bg-yellow-100 text-yellow-800">Chưa đăng bán</span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  {selectedProduct.description && (
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h3 className="font-semibold text-gray-900 mb-2">Mô tả</h3>
+                      <p className="text-sm text-gray-600 whitespace-pre-wrap">{selectedProduct.description}</p>
+                    </div>
+                  )}
+
+                  {/* Tech Specs */}
+                  {selectedProduct.techSpecsJson && (
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h3 className="font-semibold text-gray-900 mb-3">Thông số kỹ thuật</h3>
+                      <div className="space-y-2">
+                        {(() => {
+                          try {
+                            const specs = JSON.parse(selectedProduct.techSpecsJson)
+                            if (Array.isArray(specs)) {
+                              return specs.map((spec: any, index: number) => (
+                                <div key={index} className="flex justify-between text-sm border-b border-gray-200 pb-2">
+                                  <span className="text-gray-500">{spec.name || spec.key}</span>
+                                  <span className="text-gray-900">{spec.value}</span>
+                                </div>
+                              ))
+                            } else if (typeof specs === 'object') {
+                              return Object.entries(specs).map(([key, value], index) => (
+                                <div key={index} className="flex justify-between text-sm border-b border-gray-200 pb-2">
+                                  <span className="text-gray-500">{key}</span>
+                                  <span className="text-gray-900">{String(value)}</span>
+                                </div>
+                              ))
+                            }
+                          } catch (e) {
+                            return <p className="text-sm text-gray-500">Không thể hiển thị thông số</p>
+                          }
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Specifications from DB */}
+                  {selectedProduct.specifications && selectedProduct.specifications.length > 0 && (
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h3 className="font-semibold text-gray-900 mb-3">Thông số chi tiết</h3>
+                      <div className="space-y-2">
+                        {selectedProduct.specifications.map((spec: any, index: number) => (
+                          <div key={index} className="flex justify-between text-sm border-b border-gray-200 pb-2">
+                            <span className="text-gray-500">{spec.specName}</span>
+                            <span className="text-gray-900">{spec.specValue}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-6">
+                  <button
+                    onClick={() => setShowSpecsModal(false)}
+                    className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                  >
+                    Đóng
+                  </button>
+                </div>
               </div>
             </div>
           </div>

@@ -19,7 +19,8 @@ public interface InventoryService {
     ApiResponse getExportOrderDetail(Long id);
     ApiResponse cancelPurchaseOrder(Long id);
     ApiResponse cancelExportOrder(Long id);
-    ApiResponse getStocks();
+    ApiResponse getStocks(String status);
+    ApiResponse getStockDetails(Long warehouseProductId);
     ApiResponse exportForSale(SaleExportRequest req);
     ApiResponse exportForWarranty(WarrantyExportRequest req);
     void syncReservedQuantity(Long warehouseProductId, Long newReserved);

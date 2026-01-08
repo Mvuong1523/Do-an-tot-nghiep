@@ -8,7 +8,7 @@ public interface ProductReviewService {
     // Helper method để lấy customerId từ email
     Long getCustomerIdByEmail(String email);
     
-    // Khách hàng tạo đánh giá sau khi nhận hàng
+    // Khách hàng tạo đánh giá sau khi nhận hàng hoặc comment thường
     ApiResponse createReview(CreateReviewRequest request, Long customerId);
     
     // Lấy danh sách đánh giá của sản phẩm
@@ -22,4 +22,7 @@ public interface ProductReviewService {
     
     // Kiểm tra khách hàng đã đánh giá sản phẩm trong đơn hàng chưa
     ApiResponse checkCanReview(Long orderId, Long productId, Long customerId);
+    
+    // Admin xóa review/comment
+    ApiResponse deleteReview(Long reviewId);
 }

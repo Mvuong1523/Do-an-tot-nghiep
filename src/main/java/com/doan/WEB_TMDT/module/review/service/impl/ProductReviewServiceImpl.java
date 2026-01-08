@@ -43,54 +43,71 @@ public class ProductReviewServiceImpl implements ProductReviewService {
     @Override
     @Transactional
     public ApiResponse createReview(CreateReviewRequest request, Long customerId) {
-        // Kiểm tra đơn hàng
-        Order order = orderRepository.findById(request.getOrderId())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
-        
-        // Kiểm tra quyền sở hữu đơn hàng
-        if (!order.getCustomer().getId().equals(customerId)) {
-            return ApiResponse.error("Bạn không có quyền đánh giá đơn hàng này");
-        }
-        
-        // Kiểm tra đơn hàng đã giao thành công chưa
-        if (order.getStatus() != OrderStatus.DELIVERED && order.getStatus() != OrderStatus.COMPLETED) {
-            return ApiResponse.error("Chỉ có thể đánh giá sau khi đã nhận hàng");
-        }
-        
-        // Kiểm tra sản phẩm có trong đơn hàng không
-        boolean productInOrder = order.getItems().stream()
-                .anyMatch(item -> item.getProduct().getId().equals(request.getProductId()));
-        
-        if (!productInOrder) {
-            return ApiResponse.error("Sản phẩm không có trong đơn hàng này");
-        }
-        
-        // Kiểm tra đã đánh giá chưa
-        if (reviewRepository.existsByOrderIdAndProductId(request.getOrderId(), request.getProductId())) {
-            return ApiResponse.error("Bạn đã đánh giá sản phẩm này rồi");
-        }
-        
-        // Lấy thông tin
+        // Lấy thông tin sản phẩm và khách hàng
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
         
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy khách hàng"));
         
-        // Tạo đánh giá
+        Order order = null;
+        
+        // Nếu có orderId - đây là đánh giá sau khi mua hàng
+        if (request.getOrderId() != null) {
+            // Kiểm tra rating phải có
+            if (request.getRating() == null) {
+                return ApiResponse.error("Vui lòng chọn số sao đánh giá");
+            }
+            
+            // Kiểm tra đơn hàng
+            order = orderRepository.findById(request.getOrderId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
+            
+            // Kiểm tra quyền sở hữu đơn hàng
+            if (!order.getCustomer().getId().equals(customerId)) {
+                return ApiResponse.error("Bạn không có quyền đánh giá đơn hàng này");
+            }
+            
+            // Kiểm tra đơn hàng đã giao thành công chưa
+            if (order.getStatus() != OrderStatus.DELIVERED && order.getStatus() != OrderStatus.COMPLETED) {
+                return ApiResponse.error("Chỉ có thể đánh giá sau khi đã nhận hàng");
+            }
+            
+            // Kiểm tra sản phẩm có trong đơn hàng không
+            boolean productInOrder = order.getItems().stream()
+                    .anyMatch(item -> item.getProduct().getId().equals(request.getProductId()));
+            
+            if (!productInOrder) {
+                return ApiResponse.error("Sản phẩm không có trong đơn hàng này");
+            }
+            
+            // Kiểm tra đã đánh giá chưa
+            if (reviewRepository.existsByOrderIdAndProductId(request.getOrderId(), request.getProductId())) {
+                return ApiResponse.error("Bạn đã đánh giá sản phẩm này rồi");
+            }
+        } else {
+            // Đây là comment thường - không cần orderId, rating sẽ là null
+            // Không cần kiểm tra gì thêm
+        }
+        
+        // Tạo đánh giá/comment
         ProductReview review = ProductReview.builder()
                 .product(product)
                 .customer(customer)
                 .order(order)
-                .rating(request.getRating())
+                .rating(request.getRating()) // Có thể null nếu là comment thường
                 .comment(request.getComment())
                 .build();
         
         reviewRepository.save(review);
         
-        log.info("Customer {} reviewed product {} with {} stars", customerId, request.getProductId(), request.getRating());
+        if (order != null) {
+            log.info("Customer {} reviewed product {} with {} stars", customerId, request.getProductId(), request.getRating());
+        } else {
+            log.info("Customer {} commented on product {}", customerId, request.getProductId());
+        }
         
-        return ApiResponse.success("Đánh giá thành công", toResponse(review));
+        return ApiResponse.success(order != null ? "Đánh giá thành công" : "Bình luận thành công", toResponse(review));
     }
     
     @Override
@@ -161,6 +178,19 @@ public class ProductReviewServiceImpl implements ProductReviewService {
         return ApiResponse.success("Kiểm tra quyền đánh giá", result);
     }
     
+    @Override
+    @Transactional
+    public ApiResponse deleteReview(Long reviewId) {
+        ProductReview review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đánh giá"));
+        
+        reviewRepository.delete(review);
+        
+        log.info("Admin deleted review {}", reviewId);
+        
+        return ApiResponse.success("Xóa đánh giá thành công", null);
+    }
+    
     private ProductReviewResponse toResponse(ProductReview review) {
         return ProductReviewResponse.builder()
                 .id(review.getId())
@@ -168,10 +198,11 @@ public class ProductReviewServiceImpl implements ProductReviewService {
                 .productName(review.getProduct().getName())
                 .customerId(review.getCustomer().getId())
                 .customerName(review.getCustomer().getFullName())
-                .orderId(review.getOrder().getId())
-                .orderCode(review.getOrder().getOrderCode())
+                .orderId(review.getOrder() != null ? review.getOrder().getId() : null)
+                .orderCode(review.getOrder() != null ? review.getOrder().getOrderCode() : null)
                 .rating(review.getRating())
                 .comment(review.getComment())
+                .isVerifiedPurchase(review.getIsVerifiedPurchase())
                 .createdAt(review.getCreatedAt())
                 .updatedAt(review.getUpdatedAt())
                 .build();

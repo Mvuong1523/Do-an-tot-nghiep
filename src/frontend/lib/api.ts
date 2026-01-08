@@ -602,6 +602,34 @@ export const customerApi = {
       throw new Error(error.response?.data?.message || 'Lỗi khi cập nhật thông tin')
     }
   },
+
+  // Lấy danh sách tất cả khách hàng (cho nhân viên/admin)
+  getAll: async (): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await apiClient.get('/customer/all')
+      return response.data
+    } catch (error: any) {
+      return {
+        success: false,
+        data: [],
+        error: error.message,
+      }
+    }
+  },
+
+  // Lấy đơn hàng của 1 khách hàng (cho nhân viên/admin)
+  getOrdersByCustomerId: async (customerId: number): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await apiClient.get(`/orders/customer/${customerId}`)
+      return response.data
+    } catch (error: any) {
+      return {
+        success: false,
+        data: [],
+        error: error.message,
+      }
+    }
+  },
 }
 
 // Inventory API
@@ -797,7 +825,22 @@ export const cartApi = {
 
 // Review API
 export const reviewApi = {
-  // Tạo đánh giá mới
+  // Tạo đánh giá mới hoặc comment
+  create: async (data: {
+    productId: number
+    orderId?: number | null
+    rating?: number | null
+    comment: string
+  }): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.post('/reviews', data)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi tạo đánh giá')
+    }
+  },
+
+  // Tạo đánh giá mới (legacy - giữ để tương thích)
   createReview: async (data: {
     productId: number
     orderId: number
@@ -866,6 +909,20 @@ export const reviewApi = {
         success: false,
         data: { canReview: false },
         error: error.message,
+      }
+    }
+  },
+
+  // Admin xóa review/comment
+  delete: async (reviewId: number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.delete(`/reviews/${reviewId}`)
+      return response.data
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Lỗi khi xóa bình luận',
       }
     }
   },

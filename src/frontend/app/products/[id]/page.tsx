@@ -156,10 +156,10 @@ export default function ProductDetailPage() {
     console.error('Error parsing specifications:', e)
   }
 
-  // Lấy danh sách ảnh từ product.images hoặc product.imageUrl
+  // Lấy danh sách ảnh từ product.images, nếu không có thì dùng mảng rỗng
   const images = product.images && product.images.length > 0 
-    ? product.images.map((img: any) => img.imageUrl || img) 
-    : (product.imageUrl ? [product.imageUrl] : [])
+    ? product.images.map((img: any) => img.imageUrl) 
+    : []
 
   return (
     <div className="bg-gray-50 min-h-screen py-8">

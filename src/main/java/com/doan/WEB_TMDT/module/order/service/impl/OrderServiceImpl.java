@@ -19,6 +19,7 @@ import com.doan.WEB_TMDT.module.payment.repository.PaymentRepository;
 import com.doan.WEB_TMDT.module.product.entity.Product;
 import com.doan.WEB_TMDT.module.accounting.listener.OrderStatusChangedEvent;
 import com.doan.WEB_TMDT.module.product.repository.ProductImageRepository;
+import com.doan.WEB_TMDT.module.product.repository.ProductRepository;
 import com.doan.WEB_TMDT.module.shipping.dto.CalculateShippingFeeRequest;
 import com.doan.WEB_TMDT.module.shipping.dto.CreateGHNOrderRequest;
 import com.doan.WEB_TMDT.module.shipping.dto.GHNOrderDetailResponse;
@@ -48,8 +49,10 @@ public class OrderServiceImpl implements OrderService {
     private final PaymentRepository paymentRepository;
     private final ShippingService shippingService;
     private final ProductImageRepository productImageRepository;
+    private final ProductRepository productRepository;
     private final com.doan.WEB_TMDT.module.inventory.service.InventoryService inventoryService;
     private final ApplicationEventPublisher eventPublisher;
+    private final com.doan.WEB_TMDT.module.order.repository.ShipperAssignmentRepository shipperAssignmentRepository;
 
     @Override
     public Long getCustomerIdByEmail(String email) {
@@ -90,17 +93,46 @@ public class OrderServiceImpl implements OrderService {
             return ApiResponse.error("Giỏ hàng trống");
         }
 
-        // 3. Validate stock for all items
-        for (CartItem cartItem : cart.getItems()) {
-            Product product = cartItem.getProduct();
-            if (product.getStockQuantity() == null || 
-                product.getStockQuantity() < cartItem.getQuantity()) {
-                return ApiResponse.error("Sản phẩm " + product.getName() + " không đủ số lượng");
+        // 2.1 Lọc các item đã chọn (nếu có selectedItemIds)
+        List<CartItem> selectedCartItems;
+        if (request.getSelectedItemIds() != null && !request.getSelectedItemIds().isEmpty()) {
+            selectedCartItems = cart.getItems().stream()
+                    .filter(item -> request.getSelectedItemIds().contains(item.getId()))
+                    .collect(java.util.stream.Collectors.toList());
+            
+            if (selectedCartItems.isEmpty()) {
+                return ApiResponse.error("Không tìm thấy sản phẩm đã chọn trong giỏ hàng");
             }
+        } else {
+            // Nếu không có selectedItemIds thì lấy tất cả
+            selectedCartItems = new ArrayList<>(cart.getItems());
         }
 
-        // 4. Calculate totals
-        Double subtotal = cart.getItems().stream()
+        // 3. Validate stock for selected items WITH LOCK để tránh race condition
+        // Khi 100 người đặt cùng lúc, chỉ 1 người được xử lý tại 1 thời điểm
+        for (CartItem cartItem : selectedCartItems) {
+            // Lấy product với lock - các request khác phải đợi
+            Product product = productRepository.findByIdWithLock(cartItem.getProduct().getId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
+            
+            // Tính số lượng có thể bán = tồn kho - đã giữ
+            Long availableQty = (product.getStockQuantity() != null ? product.getStockQuantity() : 0L)
+                    - (product.getReservedQuantity() != null ? product.getReservedQuantity() : 0L);
+            
+            if (availableQty < cartItem.getQuantity()) {
+                if (availableQty <= 0) {
+                    return ApiResponse.error("Rất tiếc, sản phẩm " + product.getName() + " đã hết hàng");
+                } else {
+                    return ApiResponse.error("Sản phẩm " + product.getName() + " chỉ còn " + availableQty + " sản phẩm, vui lòng giảm số lượng");
+                }
+            }
+            
+            // Cập nhật lại cartItem với product đã lock
+            cartItem.setProduct(product);
+        }
+
+        // 4. Calculate totals (chỉ tính các item đã chọn)
+        Double subtotal = selectedCartItems.stream()
                 .mapToDouble(item -> item.getPrice() * item.getQuantity())
                 .sum();
         Double shippingFee = request.getShippingFee();
@@ -154,7 +186,7 @@ public class OrderServiceImpl implements OrderService {
         // Note: stockQuantity không thay đổi ở đây
         // Chỉ khi xuất kho (warehouse export) thì mới trừ stockQuantity
         List<OrderItem> orderItems = new ArrayList<>();
-        for (CartItem cartItem : cart.getItems()) {
+        for (CartItem cartItem : selectedCartItems) {
             Product product = cartItem.getProduct();
             
             // Reserve stock (giữ hàng để không bán cho người khác)
@@ -196,11 +228,14 @@ public class OrderServiceImpl implements OrderService {
         // 2. Assigns serial numbers
         // 3. Confirms export → Then call GHN API
 
-        // 9. Clear cart
-        cart.clearItems();
+        // 9. Chỉ xóa các item đã mua, giữ lại các item khác trong giỏ hàng
+        for (CartItem cartItem : selectedCartItems) {
+            cart.getItems().remove(cartItem);
+        }
         cartRepository.save(cart);
 
-        log.info("Created order {} for customer {}", orderCode, customerId);
+        log.info("Created order {} for customer {} with {} items (removed from cart)", 
+                orderCode, customerId, selectedCartItems.size());
 
         // 10. Return response
         OrderResponse response = toOrderResponse(savedOrder);
@@ -442,6 +477,26 @@ public class OrderServiceImpl implements OrderService {
 
         Customer customer = order.getCustomer();
         
+        // Lấy thông tin shipper nếu có
+        Long shipperId = null;
+        String shipperName = null;
+        String shipperPhone = null;
+        
+        try {
+            var assignmentOpt = shipperAssignmentRepository.findByOrderId(order.getId());
+            if (assignmentOpt.isPresent()) {
+                var assignment = assignmentOpt.get();
+                var shipper = assignment.getShipper();
+                if (shipper != null) {
+                    shipperId = shipper.getId();
+                    shipperName = shipper.getFullName();
+                    shipperPhone = shipper.getPhone();
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not fetch shipper info for order {}: {}", order.getId(), e.getMessage());
+        }
+        
         return OrderResponse.builder()
                 .orderId(order.getId())
                 .orderCode(order.getOrderCode())
@@ -475,6 +530,9 @@ public class OrderServiceImpl implements OrderService {
                 .ghnShippingStatus(order.getGhnShippingStatus())
                 .ghnCreatedAt(order.getGhnCreatedAt())
                 .ghnExpectedDeliveryTime(order.getGhnExpectedDeliveryTime())
+                .shipperId(shipperId)
+                .shipperName(shipperName)
+                .shipperPhone(shipperPhone)
                 .build();
     }
 
@@ -844,5 +902,16 @@ public class OrderServiceImpl implements OrderService {
         
         log.info("Found {} orders pending export (CONFIRMED and not exported yet)", orders.size());
         return ApiResponse.success("Danh sách đơn hàng chờ xuất kho", responses);
+    }
+
+    @Override
+    public ApiResponse getOrdersByCustomerId(Long customerId) {
+        List<Order> orders = orderRepository.findByCustomerIdOrderByCreatedAtDesc(customerId);
+        
+        List<OrderResponse> responses = orders.stream()
+                .map(this::toOrderResponse)
+                .toList();
+        
+        return ApiResponse.success("Danh sách đơn hàng của khách hàng", responses);
     }
 }

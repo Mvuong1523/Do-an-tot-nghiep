@@ -17,6 +17,7 @@ public class ProductReviewResponse {
     private String orderCode;
     private Integer rating;
     private String comment;
+    private Boolean isVerifiedPurchase; // true nếu đã mua hàng
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

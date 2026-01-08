@@ -57,6 +57,13 @@ public class ProductReviewController {
         return reviewService.checkCanReview(orderId, productId, customerId);
     }
     
+    // Admin xóa review/comment
+    @DeleteMapping("/{reviewId}")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ApiResponse deleteReview(@PathVariable Long reviewId) {
+        return reviewService.deleteReview(reviewId);
+    }
+    
     private Long getCustomerIdFromAuth(Authentication authentication) {
         if (authentication == null || authentication.getName() == null) {
             throw new RuntimeException("Không tìm thấy thông tin xác thực");

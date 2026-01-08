@@ -7,6 +7,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -37,4 +39,7 @@ public class CreateOrderRequest {
     
     // Phương thức thanh toán
     private String paymentMethod; // COD hoặc SEPAY
+    
+    // Danh sách cart item IDs đã chọn (nếu null hoặc rỗng thì lấy tất cả)
+    private List<Long> selectedItemIds;
 }
