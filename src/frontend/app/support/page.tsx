@@ -22,7 +22,7 @@ const quickLinks = [
     title: 'Tạo yêu cầu hỗ trợ',
     description: 'Gửi ticket để được hỗ trợ nhanh chóng',
     icon: FiMessageCircle,
-    href: '/support/tickets',
+    href: '/supports',
     color: 'bg-blue-500'
   },
   {
@@ -156,7 +156,7 @@ export default function SupportPage() {
                   <p className="text-gray-500 text-sm">Quản lý yêu cầu hỗ trợ của bạn</p>
                 </div>
               </div>
-              <Link href="/support/tickets" className="btn-primary flex items-center gap-2">
+              <Link href="/supports" className="btn-primary flex items-center gap-2">
                 <FiMessageCircle className="w-5 h-5" />
                 Xem tất cả tickets
               </Link>
@@ -235,7 +235,7 @@ export default function SupportPage() {
         </div>
         <div className="text-center mt-8">
           <p className="text-gray-500 mb-4">Không tìm thấy câu trả lời bạn cần?</p>
-          <Link href="/support/tickets" className="btn-primary inline-flex items-center gap-2">
+          <Link href="/supports" className="btn-primary inline-flex items-center gap-2">
             <FiMessageCircle className="w-5 h-5" />
             Gửi yêu cầu hỗ trợ
           </Link>

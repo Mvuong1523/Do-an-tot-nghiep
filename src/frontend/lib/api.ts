@@ -603,7 +603,7 @@ export const supportApi = {
 
   getById: async (id: string | number): Promise<ApiResponse<any>> => {
     try {
-      const response = await apiClient.get(`/support/tickets/${id}`)
+      const response = await apiClient.get(`/customer/support-tickets/${id}`)
       return response.data
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Lỗi khi lấy ticket')
@@ -612,7 +612,7 @@ export const supportApi = {
 
   createTicket: async (data: any): Promise<ApiResponse<any>> => {
     try {
-      const response = await apiClient.post('/support/tickets', data)
+      const response = await apiClient.post('/customer/support-tickets', data)
       return response.data
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Lỗi khi tạo ticket')
@@ -1164,6 +1164,19 @@ export const payableApi = {
       throw new Error(error.response?.data?.message || 'Lỗi khi lấy thống kê')
     }
   },
+
+  // Lấy danh sách loại yêu cầu hỗ trợ (dùng cho form)
+  getSupportCategories: async (): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await apiClient.get('/public/support/categories')
+      return response.data
+    } catch (error: any) {
+      throw new Error(
+        error.response?.data?.message || 'Lỗi khi lấy danh sách loại hỗ trợ'
+      )
+    }
+  },
+
 
   // Báo cáo công nợ
   getReport: async (startDate: string, endDate: string): Promise<ApiResponse<any>> => {

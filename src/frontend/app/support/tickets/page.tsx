@@ -48,10 +48,11 @@ export default function TicketsPage() {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      router.push('/login?redirect=/support/tickets')
+      router.push('/login?redirect=/supports')
       return
     }
-    loadTickets()
+    loadTickets(),
+    const res = await supportService.getSupportCategories()
   }, [isAuthenticated])
 
   const loadTickets = async () => {
@@ -178,7 +179,7 @@ export default function TicketsPage() {
                 return (
                   <Link
                     key={ticket.id}
-                    href={`/support/tickets/${ticket.id}`}
+                    href={`/supports/${ticket.id}`}
                     className="block p-4 hover:bg-gray-50 transition-colors"
                   >
                     <div className="flex items-start justify-between">
@@ -315,10 +316,9 @@ function CreateTicketModal({ onClose, onCreated }: { onClose: () => void; onCrea
                 onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="low">Thấp</option>
-                <option value="medium">Trung bình</option>
-                <option value="high">Cao</option>
-                <option value="urgent">Khẩn cấp</option>
+                <option value="LOW">Thấp</option>
+                <option value="MEDIUM">Trung bình</option>
+                <option value="HIGH">Cao</option>
               </select>
             </div>
           </div>
