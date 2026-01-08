@@ -23,18 +23,18 @@ interface Ticket {
 }
 
 const statusConfig: Record<string, { label: string; color: string }> = {
-  open: { label: 'Đang mở', color: 'bg-blue-100 text-blue-800' },
-  pending: { label: 'Chờ xử lý', color: 'bg-yellow-100 text-yellow-800' },
-  in_progress: { label: 'Đang xử lý', color: 'bg-orange-100 text-orange-800' },
-  resolved: { label: 'Đã giải quyết', color: 'bg-green-100 text-green-800' },
-  closed: { label: 'Đã đóng', color: 'bg-gray-100 text-gray-800' }
+  OPEN: { label: 'Đang mở', color: 'bg-blue-100 text-blue-800' },
+  PENDING: { label: 'Chờ xử lý', color: 'bg-yellow-100 text-yellow-800' },
+  PROCESSING: { label: 'Đang xử lý', color: 'bg-orange-100 text-orange-800' },
+  RESOLVED: { label: 'Đã giải quyết', color: 'bg-green-100 text-green-800' },
+  CANCELLED: { label: 'Đã đóng', color: 'bg-gray-100 text-gray-800' }
 }
 
 const priorityConfig: Record<string, { label: string; color: string }> = {
-  low: { label: 'Thấp', color: 'text-gray-600' },
-  medium: { label: 'TB', color: 'text-blue-600' },
-  high: { label: 'Cao', color: 'text-orange-600' },
-  urgent: { label: 'Khẩn', color: 'text-red-600 font-bold' }
+  LOW: { label: 'Thấp', color: 'text-gray-600' },
+  MEDIUM: { label: 'TB', color: 'text-blue-600' },
+  HIGH: { label: 'Cao', color: 'text-orange-600' },
+  // urgent: { label: 'Khẩn', color: 'text-red-600 font-bold' }
 }
 
 export default function EmployeeSupportPage() {
@@ -61,20 +61,35 @@ export default function EmployeeSupportPage() {
   const loadTickets = async () => {
     setLoading(true)
     try {
-      const res = await supportApi.listTickets()
-      if (res.success) {
-        setTickets(res.data || [])
+      const res = await supportApi.empListTickets()
+
+      if (res?.success) {
+        // Handle both structures: res.data.content or res.data
+        let list: Ticket[] = []
+
+        if (res.data?.content && Array.isArray(res.data.content)) {
+          list = res.data.content
+        } else if (Array.isArray(res.data)) {
+          list = res.data
+        }
+
+        setTickets(list)
+      } else {
+        setTickets([])
       }
     } catch (error) {
       console.error('Error loading tickets:', error)
       toast.error('Không thể tải danh sách tickets')
+      setTickets([])
     } finally {
       setLoading(false)
     }
   }
 
-  const filteredTickets = tickets.filter(ticket => {
-    const matchesSearch = 
+
+  const safeTickets = Array.isArray(tickets) ? tickets : [];
+  const filteredTickets = safeTickets.filter(ticket => {
+    const matchesSearch =
       ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       ticket.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       ticket.customerEmail?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -298,7 +313,7 @@ function TicketDetailModal({ ticket, onClose, onUpdate }: { ticket: Ticket; onCl
     if (!replyContent.trim()) return
     setSending(true)
     try {
-      const res = await supportApi.replyTicket(ticket.id, { content: replyContent })
+      const res = await supportApi.empReplyTicket(ticket.id, { content: replyContent })
       if (res.success) {
         toast.success('Đã gửi phản hồi')
         setReplyContent('')

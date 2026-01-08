@@ -116,6 +116,25 @@ public class EmployeeSupportController {
     }
 
     /**
+     * REQ96: Cập nhật trạng thái phiếu
+     * PUT /api/employee/support-tickets/{id}/status
+     */
+    @PutMapping("/{id}/close")
+    public ResponseEntity<ApiResponse> closeTicket(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        UpdateTicketStatusRequest request = UpdateTicketStatusRequest.builder()
+                .note("CLOSED")
+                .newStatus("RESOLVED")
+                .build();
+        String email = userDetails.getUsername();
+        SupportTicketDetailResponse ticket = ticketService.updateTicketStatus(id, request, email);
+
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật trạng thái thành công", ticket));
+    }
+
+    /**
      * REQ92: Gửi phản hồi
      * POST /api/employee/support-tickets/{id}/replies
      */

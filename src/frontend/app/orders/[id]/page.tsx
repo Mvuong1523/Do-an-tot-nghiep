@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
-import { FiArrowLeft, FiPackage, FiMapPin, FiCreditCard, FiClock, FiFileText, FiStar, FiCheckCircle } from 'react-icons/fi'
+import { FiArrowLeft, FiPackage, FiMapPin, FiCreditCard, FiClock, FiFileText, FiStar, FiCheckCircle, FiMessageCircle } from 'react-icons/fi'
 import { orderApi, reviewApi } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
 import toast from 'react-hot-toast'
@@ -546,6 +546,14 @@ export default function OrderDetailPage() {
             </div>
           </div>
         )}
+        
+        {/* Nút tạo phiếu hỗ trợ */}
+        <div className="text-center mt-8">
+          <Link href={`/support/tickets?orderId=${order.orderId}&orderCode=${order.orderCode}`} className="btn-primary inline-flex items-center gap-2">
+            <FiMessageCircle className="w-5 h-5" />
+            Gửi yêu cầu hỗ trợ
+          </Link>
+        </div>
 
         {/* Order Timeline */}
         {(order.confirmedAt || order.shippedAt || order.deliveredAt || order.completedAt || order.cancelledAt) && (

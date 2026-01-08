@@ -235,7 +235,7 @@ export default function SupportPage() {
         </div>
         <div className="text-center mt-8">
           <p className="text-gray-500 mb-4">Không tìm thấy câu trả lời bạn cần?</p>
-          <Link href="/supports" className="btn-primary inline-flex items-center gap-2">
+          <Link href="/support/tickets" className="btn-primary inline-flex items-center gap-2">
             <FiMessageCircle className="w-5 h-5" />
             Gửi yêu cầu hỗ trợ
           </Link>

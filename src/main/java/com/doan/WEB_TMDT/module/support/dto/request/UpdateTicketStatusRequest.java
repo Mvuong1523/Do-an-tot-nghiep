@@ -13,6 +13,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class UpdateTicketStatusRequest {
 
     @NotBlank(message = "Trạng thái không được để trống")

@@ -83,7 +83,7 @@ export default function Header() {
   const navigationLinks = [
     { name: t('home'), href: '/' },
     { name: t('products'), href: '/products' },
-    { name: 'Hỗ trợ', href: '/support' },
+    // { name: 'Hỗ trợ', href: '/support' },
     { name: t('contact'), href: '/contact' },
   ]
 

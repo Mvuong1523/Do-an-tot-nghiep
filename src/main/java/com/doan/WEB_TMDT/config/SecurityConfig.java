@@ -70,7 +70,7 @@ public class SecurityConfig {
                         // Note: /api/inventory/stock cho phép PRODUCT_MANAGER xem (read-only)
                         .requestMatchers("/api/inventory/stock").hasAnyAuthority("WAREHOUSE", "PRODUCT_MANAGER", "ADMIN")
                         .requestMatchers("/api/inventory/**").hasAnyAuthority("WAREHOUSE", "ADMIN")
-                        
+
                         // Product Manager endpoints (Product & Category management)
                         .requestMatchers("/api/products/warehouse/**").hasAnyAuthority("PRODUCT_MANAGER", "ADMIN")
                         .requestMatchers("/api/products/publish").hasAnyAuthority("PRODUCT_MANAGER", "ADMIN")
@@ -93,6 +93,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/employee-registration/pending").hasAuthority("ADMIN")
                         .requestMatchers("/api/employee-registration/approve/**").hasAuthority("ADMIN")
                         .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
+
+                        .requestMatchers("/api/public/support/**").permitAll()
                         
                         .anyRequest().authenticated()
                 )

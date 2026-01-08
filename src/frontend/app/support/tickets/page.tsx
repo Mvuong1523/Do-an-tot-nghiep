@@ -4,12 +4,13 @@ import { useState, useEffect } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import { supportApi } from '@/lib/api'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
 import {
   FiPlus, FiSearch, FiFilter, FiClock, FiCheckCircle,
   FiAlertCircle, FiMessageCircle, FiArrowLeft, FiChevronRight
 } from 'react-icons/fi'
+import { log } from 'console'
 
 interface Ticket {
   id: string | number
@@ -20,6 +21,12 @@ interface Ticket {
   createdAt: string
   updatedAt: string
   lastReply?: string
+}
+
+interface CategorySupport {
+  id: number
+  name: string
+  description: string
 }
 
 const statusConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
@@ -38,21 +45,25 @@ const priorityConfig: Record<string, { label: string; color: string }> = {
 }
 
 export default function TicketsPage() {
+  const params = useSearchParams()
+  const orderId = params.get("orderId")
+  const orderCode = params.get("orderCode")
   const router = useRouter()
   const { isAuthenticated } = useAuthStore()
-  const [tickets, setTickets] = useState<Ticket[]>([])
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [supportCategory, setSupportCategory] = useState<CategorySupport[]>([]);
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [showCreateModal, setShowCreateModal] = useState(false)
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/login?redirect=/supports')
-      return
-    }
-    loadTickets(),
-    const res = await supportService.getSupportCategories()
+    // if (!isAuthenticated) {
+    //   router.push('/login?redirect=/supports')
+    //   return
+    // }
+    loadTickets()
+    getSupportCategories();
   }, [isAuthenticated])
 
   const loadTickets = async () => {
@@ -60,7 +71,27 @@ export default function TicketsPage() {
     try {
       const res = await supportApi.listTickets()
       if (res.success) {
-        setTickets(res.data || [])
+        const list = Array.isArray(res.data?.content) ? res.data.content : []
+        setTickets(list)
+      } else {
+        setTickets([])
+      }
+    } catch (error) {
+      console.error('Error loading tickets:', error)
+      toast.error('Không thể tải danh sách tickets')
+      setTickets([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+
+  const getSupportCategories = async () => {
+    setLoading(true)
+    try {
+      const res = await supportApi.getSupportCategories()
+      if (res.success) {
+        setSupportCategory(res.data || [])
       }
     } catch (error) {
       console.error('Error loading tickets:', error)
@@ -70,11 +101,14 @@ export default function TicketsPage() {
     }
   }
 
-  const filteredTickets = tickets.filter(ticket => {
-    const matchesSearch = ticket.title.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter
-    return matchesSearch && matchesStatus
-  })
+  const safeTickets = Array.isArray(tickets) ? tickets : [];
+
+  const filteredTickets = safeTickets.filter(ticket => {
+    const matchesSearch = ticket.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
 
   const formatDate = (dateString: string) => {
     if (!dateString) return ''
@@ -102,7 +136,7 @@ export default function TicketsPage() {
               <FiArrowLeft className="w-5 h-5" />
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Yêu cầu hỗ trợ</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Yêu cầu hỗ trợ {orderCode ?? ""}</h1>
               <p className="text-gray-500">Quản lý và theo dõi các yêu cầu hỗ trợ của bạn</p>
             </div>
           </div>
@@ -175,11 +209,11 @@ export default function TicketsPage() {
               {filteredTickets.map((ticket) => {
                 const status = statusConfig[ticket.status] || statusConfig.open
                 const priority = priorityConfig[ticket.priority] || priorityConfig.medium
-                
+
                 return (
                   <Link
                     key={ticket.id}
-                    href={`/supports/${ticket.id}`}
+                    href={`/support/tickets/${ticket.id}`}
                     className="block p-4 hover:bg-gray-50 transition-colors"
                   >
                     <div className="flex items-start justify-between">
@@ -218,6 +252,9 @@ export default function TicketsPage() {
         {/* Create Ticket Modal */}
         {showCreateModal && (
           <CreateTicketModal
+            orderId={orderId ?? null}
+            orderCode={orderCode ?? null}
+            supportCategory={supportCategory}
             onClose={() => setShowCreateModal(false)}
             onCreated={() => {
               setShowCreateModal(false)
@@ -231,35 +268,37 @@ export default function TicketsPage() {
 }
 
 // Create Ticket Modal Component
-function CreateTicketModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+function CreateTicketModal({ orderId, orderCode, supportCategory, onClose, onCreated }: { orderId: number | null, orderCode: string | null, supportCategory: CategorySupport[], onClose: () => void; onCreated: () => void }) {
   const [formData, setFormData] = useState({
     title: '',
-    category: 'general',
-    priority: 'medium',
+    supportCategoryId: supportCategory[0]?.id || '',
+    priority: 'LOW',
     content: ''
   })
+
+  
   const [submitting, setSubmitting] = useState(false)
 
-  const categories = [
-    { value: 'general', label: 'Hỗ trợ chung' },
-    { value: 'order', label: 'Đơn hàng' },
-    { value: 'warranty', label: 'Bảo hành' },
-    { value: 'repair', label: 'Sửa chữa' },
-    { value: 'payment', label: 'Thanh toán' },
-    { value: 'shipping', label: 'Vận chuyển' },
-    { value: 'other', label: 'Khác' }
-  ]
+  console.log("cate", supportCategory);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
     if (!formData.title.trim() || !formData.content.trim()) {
       toast.error('Vui lòng điền đầy đủ thông tin')
       return
     }
 
-    setSubmitting(true)
+    const payload = {
+      title: formData.title,
+      supportCategoryId: formData.supportCategoryId,
+      priority: formData.priority.toUpperCase(),
+      content: formData.content,
+      orderId: orderId
+    }
+
     try {
-      const res = await supportApi.createTicket(formData)
+      const res = await supportApi.createTicket(payload)
       if (res.success) {
         toast.success('Tạo ticket thành công!')
         onCreated()
@@ -268,20 +307,38 @@ function CreateTicketModal({ onClose, onCreated }: { onClose: () => void; onCrea
       }
     } catch (error: any) {
       toast.error(error.message || 'Có lỗi xảy ra')
-    } finally {
-      setSubmitting(false)
     }
   }
+
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-gray-100">
-          <h2 className="text-xl font-bold text-gray-900">Tạo yêu cầu hỗ trợ mới</h2>
+          {
+            orderId == null ? <h2 className="text-xl font-bold text-gray-900">Tạo yêu cầu hỗ trợ mới</h2>
+              : <h2 className="text-xl font-bold text-gray-900">Tạo yêu cầu hỗ trợ cho đơn hàng {orderCode}</h2>
+          }
           <p className="text-gray-500 text-sm mt-1">Mô tả vấn đề của bạn để chúng tôi hỗ trợ tốt nhất</p>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {
+            orderId != null ?
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Đơn hàng <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={orderCode}
+                  readOnly
+                  disabled
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div> : ""
+          }
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Tiêu đề <span className="text-red-500">*</span>
@@ -300,12 +357,12 @@ function CreateTicketModal({ onClose, onCreated }: { onClose: () => void; onCrea
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Danh mục</label>
               <select
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                value={formData.supportCategoryId}
+                onChange={(e) => setFormData({ ...formData, supportCategoryId: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                {categories.map((cat) => (
-                  <option key={cat.value} value={cat.value}>{cat.label}</option>
+                {supportCategory.map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
                 ))}
               </select>
             </div>
