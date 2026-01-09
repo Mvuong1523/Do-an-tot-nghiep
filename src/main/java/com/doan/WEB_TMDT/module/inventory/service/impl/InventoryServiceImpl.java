@@ -454,7 +454,30 @@ public class InventoryServiceImpl implements InventoryService {
         } else {
             orders = purchaseOrderRepository.findAll();
         }
-        return ApiResponse.success("Danh sách phiếu nhập", orders);
+        
+        // Map to DTO with totalAmount and supplierName
+        List<com.doan.WEB_TMDT.module.inventory.dto.PurchaseOrderListResponse> orderDTOs = orders.stream()
+                .map(po -> {
+                    // Calculate total amount
+                    double totalAmount = po.getItems() != null ? po.getItems().stream()
+                            .mapToDouble(item -> (item.getUnitCost() != null ? item.getUnitCost() : 0.0) * 
+                                                (item.getQuantity() != null ? item.getQuantity() : 0L))
+                            .sum() : 0.0;
+                    
+                    return com.doan.WEB_TMDT.module.inventory.dto.PurchaseOrderListResponse.builder()
+                            .id(po.getId())
+                            .poCode(po.getPoCode())
+                            .supplierName(po.getSupplier() != null ? po.getSupplier().getName() : "N/A")
+                            .orderDate(po.getOrderDate())
+                            .receivedDate(po.getReceivedDate())
+                            .status(po.getStatus().name())
+                            .totalAmount(totalAmount)
+                            .itemCount(po.getItems() != null ? po.getItems().size() : 0)
+                            .build();
+                })
+                .toList();
+        
+        return ApiResponse.success("Danh sách phiếu nhập", orderDTOs);
     }
 
     @Override
@@ -538,6 +561,12 @@ public class InventoryServiceImpl implements InventoryService {
                             .build();
                 }).toList();
 
+        // Tính tổng tiền
+        double totalAmount = po.getItems().stream()
+                .mapToDouble(item -> (item.getUnitCost() != null ? item.getUnitCost() : 0.0) * 
+                                    (item.getQuantity() != null ? item.getQuantity() : 0L))
+                .sum();
+
         return com.doan.WEB_TMDT.module.inventory.dto.PurchaseOrderDetailResponse.builder()
                 .id(po.getId())
                 .poCode(po.getPoCode())
@@ -546,6 +575,7 @@ public class InventoryServiceImpl implements InventoryService {
                 .receivedDate(po.getReceivedDate())
                 .createdBy(po.getCreatedBy())
                 .note(po.getNote())
+                .totalAmount(totalAmount)
                 .supplier(supplierInfo)
                 .items(itemInfos)
                 .build();

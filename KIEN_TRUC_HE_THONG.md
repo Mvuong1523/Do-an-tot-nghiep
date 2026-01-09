@@ -1,400 +1,605 @@
-# KIẾN TRÚC TỔNG QUAN HỆ THỐNG BÁN ĐỒ CÔNG NGHỆ
+# KIẾN TRÚC HỆ THỐNG BÁN ĐỒ CÔNG NGHỆ
 
-## 1. KIẾN TRÚC TỔNG QUAN
+## KIẾN TRÚC TỔNG QUAN
 
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                          CLIENT LAYER                                │
+│                                                                       │
+│                    ┌──────────────────────┐                          │
+│                    │   Web Browser        │                          │
+│                    │   (Next.js/React)    │                          │
+│                    └──────────────────────┘                          │
+│                                                                       │
+└─────────────────────────────────────────────────────────────────────┘
+                                  │
+                                  │ HTTPS/REST API
+                                  ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│                      APPLICATION LAYER                               │
+│                                                                       │
+│                    ┌──────────────────────┐                          │
+│                    │   Spring Boot API    │                          │
+│                    │   (Java 17)          │                          │
+│                    │                      │                          │
+│                    │  • Controllers       │                          │
+│                    │  • Services          │                          │
+│                    │  • Security (JWT)    │                          │
+│                    └──────────────────────┘                          │
+│                                                                       │
+└─────────────────────────────────────────────────────────────────────┘
+                                  │
+                                  │ JPA/Hibernate
+                                  ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│                         DATA LAYER                                   │
+│                                                                       │
+│                    ┌──────────────────────┐                          │
+│                    │   MySQL Database     │                          │
+│                    │   (Port 3306)        │                          │
+│                    └──────────────────────┘                          │
+│                                                                       │
+└─────────────────────────────────────────────────────────────────────┘
+                                  │
+                                  │ API Calls
+                                  ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│                      EXTERNAL SERVICES                               │
+│                                                                       │
+│     ┌──────────────┐    ┌──────────────┐    ┌──────────────┐       │
+│     │    SePay     │    │     GHN      │    │    Email     │       │
+│     │   Payment    │    │   Shipping   │    │   Service    │       │
+│     └──────────────┘    └──────────────┘    └──────────────┘       │
+│                                                                       │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+## CÁC MODULE CHÍNH (Tổng quan)
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                    SPRING BOOT APPLICATION                      │
+├────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐        │
+│  │    Auth      │  │   Product    │  │   Order      │        │
+│  │   Module     │  │   Module     │  │   Module     │        │
+│  └──────────────┘  └──────────────┘  └──────────────┘        │
+│                                                                 │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐        │
+│  │  Inventory   │  │   Payment    │  │   Review     │        │
+│  │   Module     │  │   Module     │  │   Module     │        │
+│  └──────────────┘  └──────────────┘  └──────────────┘        │
+│                                                                 │
+│  ┌──────────────┐  ┌──────────────┐                           │
+│  │    Cart      │  │   Shipping   │                           │
+│  │   Module     │  │   Module     │                           │
+│  └──────────────┘  └──────────────┘                           │
+│                                                                 │
+└────────────────────────────────────────────────────────────────┘
+```
+
+## KIẾN TRÚC CHI TIẾT CÁC MODULE
+
+### 1. AUTH MODULE (Xác thực & Phân quyền)
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         CLIENT LAYER                             │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │   Browser    │  │    Mobile    │  │   Tablet     │          │
-│  │  (Desktop)   │  │   (Phone)    │  │              │          │
-│  └──────────────┘  └──────────────┘  └──────────────┘          │
+│                         AUTH MODULE                              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Controllers:                                                    │
+│  ┌──────────────────┐  ┌──────────────────┐                    │
+│  │ AuthController   │  │CustomerController│                    │
+│  │ - login()        │  │ - register()     │                    │
+│  │ - logout()       │  │ - getProfile()   │                    │
+│  │ - refreshToken() │  │ - updateProfile()│                    │
+│  └────────┬─────────┘  └────────┬─────────┘                    │
+│           │                     │                               │
+│           ↓                     ↓                               │
+│  Services:                                                       │
+│  ┌──────────────────┐  ┌──────────────────┐                    │
+│  │ AuthService      │  │CustomerService   │                    │
+│  │ - authenticate() │  │ - createCustomer()│                   │
+│  │ - generateToken()│  │ - findByEmail()  │                    │
+│  └────────┬─────────┘  └────────┬─────────┘                    │
+│           │                     │                               │
+│           ↓                     ↓                               │
+│  Repositories:                                                   │
+│  ┌──────────────────┐  ┌──────────────────┐                    │
+│  │ UserRepository   │  │CustomerRepository│                    │
+│  │ - findByEmail()  │  │ - findByUserId() │                    │
+│  │ - save()         │  │ - save()         │                    │
+│  └────────┬─────────┘  └────────┬─────────┘                    │
+│           │                     │                               │
+│           ↓                     ↓                               │
+│  Entities:                                                       │
+│  ┌──────────────────┐  ┌──────────────────┐                    │
+│  │ User             │  │ Customer         │                    │
+│  │ - id             │  │ - id             │                    │
+│  │ - email          │  │ - fullName       │                    │
+│  │ - password       │  │ - phone          │                    │
+│  │ - role           │  │ - address        │                    │
+│  └──────────────────┘  └──────────────────┘                    │
+│                                                                  │
+│  Security:                                                       │
+│  ┌──────────────────┐  ┌──────────────────┐                    │
+│  │ SecurityConfig   │  │ JwtTokenProvider │                    │
+│  │ - filterChain()  │  │ - generateToken()│                    │
+│  │ - passwordEnc()  │  │ - validateToken()│                    │
+│  └──────────────────┘  └──────────────────┘                    │
+│                                                                  │
 └─────────────────────────────────────────────────────────────────┘
-                              ↓ HTTPS
+```
+
+### 2. PRODUCT MODULE (Quản lý sản phẩm)
+```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    PRESENTATION LAYER                            │
-│                     (Next.js 14 - React)                         │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │  Pages & Components                                       │  │
-│  │  • Customer UI (Trang chủ, Sản phẩm, Giỏ hàng, ...)     │  │
-│  │  • Admin Dashboard (Quản lý toàn bộ hệ thống)           │  │
-│  │  • Employee Portal (Kho, Bán hàng, Giao hàng, ...)      │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │  State Management: Zustand                                │  │
-│  │  Styling: TailwindCSS                                     │  │
-│  │  API Client: Axios                                        │  │
-│  └──────────────────────────────────────────────────────────┘  │
+│                       PRODUCT MODULE                             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Controllers:                                                    │
+│  ┌──────────────────┐  ┌──────────────────┐                    │
+│  │ProductController │  │CategoryController│                    │
+│  │ - getAll()       │  │ - getAll()       │                    │
+│  │ - getById()      │  │ - create()       │                    │
+│  │ - create()       │  │ - update()       │                    │
+│  │ - update()       │  └──────────────────┘                    │
+│  │ - delete()       │                                           │
+│  │ - publish()      │  ┌──────────────────┐                    │
+│  │ - addImage()     │  │ProductImageCtrl  │                    │
+│  └────────┬─────────┘  │ - upload()       │                    │
+│           │            │ - setPrimary()   │                    │
+│           ↓            │ - delete()       │                    │
+│  Services:             └──────────────────┘                    │
+│  ┌──────────────────┐                                           │
+│  │ProductService    │                                           │
+│  │ - getAll()       │                                           │
+│  │ - publishProduct()│                                          │
+│  │ - addImage()     │                                           │
+│  │ - syncStock()    │────────┐                                 │
+│  └────────┬─────────┘        │                                 │
+│           │                  │ Đồng bộ với Inventory            │
+│           ↓                  ↓                                  │
+│  Repositories:        ┌──────────────────┐                     │
+│  ┌──────────────────┐ │InventoryStock    │                     │
+│  │ProductRepository │ │Repository        │                     │
+│  │ - findAll()      │ │ - findByProduct()│                     │
+│  │ - findByIdLock() │ │ - save()         │                     │
+│  │ - save()         │ └──────────────────┘                     │
+│  └────────┬─────────┘                                           │
+│           │                                                     │
+│           ↓                                                     │
+│  Entities:                                                       │
+│  ┌──────────────────┐  ┌──────────────────┐                    │
+│  │ Product          │  │ ProductImage     │                    │
+│  │ - id             │  │ - id             │                    │
+│  │ - name           │  │ - imageUrl       │                    │
+│  │ - price          │  │ - isPrimary      │                    │
+│  │ - stockQuantity  │  │ - displayOrder   │                    │
+│  │ - reservedQty    │  └──────────────────┘                    │
+│  │ - category       │                                           │
+│  └──────────────────┘  ┌──────────────────┐                    │
+│                        │ Category         │                    │
+│                        │ - id             │                    │
+│                        │ - name           │                    │
+│                        └──────────────────┘                    │
+│                                                                  │
 └─────────────────────────────────────────────────────────────────┘
-                              ↓ REST API
+```
+
+### 3. ORDER MODULE (Quản lý đơn hàng)
+```
 ┌─────────────────────────────────────────────────────────────────┐
-│                      API GATEWAY LAYER                           │
-│                    (Spring Security + JWT)                       │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │  • Authentication & Authorization                         │  │
-│  │  • JWT Token Validation                                   │  │
-│  │  • CORS Configuration                                     │  │
-│  │  • Rate Limiting                                          │  │
-│  └──────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│                    APPLICATION LAYER                             │
-│                  (Spring Boot 3.x - Java 17)                     │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │                    CONTROLLERS                            │  │
-│  │  ┌────────────┐ ┌────────────┐ ┌────────────┐           │  │
-│  │  │   Auth     │ │  Product   │ │   Order    │           │  │
-│  │  │ Controller │ │ Controller │ │ Controller │  ...      │  │
-│  │  └────────────┘ └────────────┘ └────────────┘           │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                              ↓                                   │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │                     SERVICES                              │  │
-│  │  ┌────────────┐ ┌────────────┐ ┌────────────┐           │  │
-│  │  │   Auth     │ │  Product   │ │   Order    │           │  │
-│  │  │  Service   │ │  Service   │ │  Service   │  ...      │  │
-│  │  └────────────┘ └────────────┘ └────────────┘           │  │
-│  │  • Business Logic                                         │  │
-│  │  • Data Validation                                        │  │
-│  │  • Transaction Management                                 │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                              ↓                                   │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │                   REPOSITORIES                            │  │
-│  │  ┌────────────┐ ┌────────────┐ ┌────────────┐           │  │
-│  │  │   User     │ │  Product   │ │   Order    │           │  │
-│  │  │ Repository │ │ Repository │ │ Repository │  ...      │  │
-│  │  └────────────┘ └────────────┘ └────────────┘           │  │
-│  │  • Spring Data JPA                                        │  │
-│  │  • Custom Queries                                         │  │
-│  └──────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│                      DATA LAYER                                  │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │              MySQL Database (Primary)                     │  │
-│  │  • Users, Products, Orders, Inventory                     │  │
-│  │  • Payments, Reviews, Categories                          │  │
-│  │  • Shipping Assignments                                   │  │
-│  └──────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-                              ↕
-┌─────────────────────────────────────────────────────────────────┐
-│                   EXTERNAL SERVICES                              │
-│  ┌────────────┐  ┌────────────┐  ┌────────────┐               │
-│  │   SePay    │  │    GHN     │  │   Email    │               │
-│  │  Payment   │  │  Shipping  │  │  Service   │               │
-│  └────────────┘  └────────────┘  └────────────┘               │
+│                        ORDER MODULE                              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Controllers:                                                    │
+│  ┌──────────────────┐  ┌──────────────────┐                    │
+│  │ OrderController  │  │ShipperAssignment │                    │
+│  │ - create()       │  │Controller        │                    │
+│  │ - getById()      │  │ - claimOrder()   │                    │
+│  │ - getMyOrders()  │  │ - confirmDeliv() │                    │
+│  │ - cancel()       │  │ - reportFail()   │                    │
+│  │ - confirmRecv()  │  └────────┬─────────┘                    │
+│  └────────┬─────────┘           │                              │
+│           │                     │                              │
+│           ↓                     ↓                              │
+│  Services:                                                       │
+│  ┌──────────────────┐  ┌──────────────────┐                    │
+│  │ OrderService     │  │ShipperAssignment │                    │
+│  │ - createOrder()  │  │Service           │                    │
+│  │ - cancelOrder()  │  │ - claimOrder()   │                    │
+│  │ - updateStatus() │  │ - isHanoiInner() │                    │
+│  └────────┬─────────┘  └────────┬─────────┘                    │
+│           │                     │                              │
+│           ↓                     ↓                              │
+│  Repositories:                                                   │
+│  ┌──────────────────┐  ┌──────────────────┐                    │
+│  │ OrderRepository  │  │ShipperAssignment │                    │
+│  │ - findById()     │  │Repository        │                    │
+│  │ - findByCustomer()│ │ - existsByOrder()│                    │
+│  │ - save()         │  │ - save()         │                    │
+│  └────────┬─────────┘  └────────┬─────────┘                    │
+│           │                     │                              │
+│           ↓                     ↓                              │
+│  Entities:                                                       │
+│  ┌──────────────────┐  ┌──────────────────┐                    │
+│  │ Order            │  │ OrderItem        │                    │
+│  │ - id             │  │ - id             │                    │
+│  │ - orderCode      │  │ - product        │                    │
+│  │ - customer       │  │ - quantity       │                    │
+│  │ - status         │  │ - price          │                    │
+│  │ - total          │  │ - serialNumber   │                    │
+│  │ - paymentMethod  │  │ - reserved       │                    │
+│  │ - ghnOrderCode   │  │ - exported       │                    │
+│  └──────────────────┘  └──────────────────┘                    │
+│                                                                  │
+│  ┌──────────────────┐                                           │
+│  │ShipperAssignment │                                           │
+│  │ - id             │                                           │
+│  │ - order          │                                           │
+│  │ - shipper        │                                           │
+│  │ - status         │                                           │
+│  │ - claimedAt      │                                           │
+│  │ - deliveredAt    │                                           │
+│  └──────────────────┘                                           │
+│                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## 2. KIẾN TRÚC CHI TIẾT CÁC MODULE
-
-### 2.1. Module Authentication & Authorization
-```
-┌─────────────────────────────────────────┐
-│         Auth Module                      │
-├─────────────────────────────────────────┤
-│ Controllers:                             │
-│  • AuthController                        │
-│  • CustomerController                    │
-│  • EmployeeRegistrationController        │
-├─────────────────────────────────────────┤
-│ Services:                                │
-│  • AuthService                           │
-│  • JwtService                            │
-│  • EmployeeRegistrationService           │
-├─────────────────────────────────────────┤
-│ Entities:                                │
-│  • User (CUSTOMER, ADMIN, EMPLOYEE)      │
-│  • Customer                              │
-│  • Employee                              │
-│  • EmployeeRegistration                  │
-├─────────────────────────────────────────┤
-│ Security:                                │
-│  • JWT Token (Access + Refresh)         │
-│  • BCrypt Password Encoding              │
-│  • Role-based Access Control             │
-└─────────────────────────────────────────┘
-```
-
-### 2.2. Module Product Management
-```
-┌─────────────────────────────────────────┐
-│       Product Module                     │
-├─────────────────────────────────────────┤
-│ Controllers:                             │
-│  • ProductController                     │
-│  • CategoryController                    │
-│  • ProductImageController                │
-├─────────────────────────────────────────┤
-│ Services:                                │
-│  • ProductService                        │
-│  • CategoryService                       │
-│  • ProductImageService                   │
-├─────────────────────────────────────────┤
-│ Entities:                                │
-│  • Product                               │
-│  • Category (Tree Structure)            │
-│  • ProductImage                          │
-│  • TechSpecs (JSON)                      │
-├─────────────────────────────────────────┤
-│ Features:                                │
-│  • CRUD Operations                       │
-│  • Search & Filter by Specs             │
-│  • Multi-image Upload                    │
-│  • Category Hierarchy                    │
-│  • Publish/Unpublish                     │
-└─────────────────────────────────────────┘
-```
-
-### 2.3. Module Inventory Management
-```
-┌─────────────────────────────────────────┐
-│      Inventory Module                    │
-├─────────────────────────────────────────┤
-│ Controllers:                             │
-│  • InventoryController                   │
-│  • SupplierController                    │
-├─────────────────────────────────────────┤
-│ Services:                                │
-│  • InventoryService                      │
-│  • StockService                          │
-├─────────────────────────────────────────┤
-│ Entities:                                │
-│  • Stock (Tồn kho)                       │
-│  • PurchaseOrder (Phiếu nhập)            │
-│  • ExportOrder (Phiếu xuất)              │
-│  • Supplier (Nhà cung cấp)               │
-│  • WarrantyCard (Phiếu bảo hành)         │
-├─────────────────────────────────────────┤
-│ Features:                                │
-│  • Import/Export Management              │
-│  • Stock Tracking                        │
-│  • Serial Number Management              │
-│  • Warranty Card Generation              │
-│  • Supplier Management                   │
-└─────────────────────────────────────────┘
-```
-
-### 2.4. Module Order Management
-```
-┌─────────────────────────────────────────┐
-│        Order Module                      │
-├─────────────────────────────────────────┤
-│ Controllers:                             │
-│  • OrderController                       │
-│  • OrderManagementController             │
-│  • ShipperAssignmentController           │
-├─────────────────────────────────────────┤
-│ Services:                                │
-│  • OrderService                          │
-│  • ShipperAssignmentService              │
-│  • ShippingService (GHN API)             │
-├─────────────────────────────────────────┤
-│ Entities:                                │
-│  • Order                                 │
-│  • OrderItem                             │
-│  • ShipperAssignment                     │
-│  • OrderStatus (Enum)                    │
-├─────────────────────────────────────────┤
-│ Features:                                │
-│  • Order Creation & Tracking             │
-│  • Status Management                     │
-│  • Shipper Assignment                    │
-│  • GHN Integration                       │
-│  • Internal Delivery                     │
-└─────────────────────────────────────────┘
-```
-
-### 2.5. Module Payment
-```
-┌─────────────────────────────────────────┐
-│       Payment Module                     │
-├─────────────────────────────────────────┤
-│ Controllers:                             │
-│  • PaymentController                     │
-│  • WebhookController (SePay)             │
-├─────────────────────────────────────────┤
-│ Services:                                │
-│  • PaymentService                        │
-│  • SePayService                          │
-├─────────────────────────────────────────┤
-│ Entities:                                │
-│  • Payment                               │
-│  • PaymentMethod (Enum)                  │
-│  • PaymentStatus (Enum)                  │
-├─────────────────────────────────────────┤
-│ Features:                                │
-│  • COD (Cash on Delivery)                │
-│  • Bank Transfer (SePay)                 │
-│  • Payment Verification                  │
-│  • Auto-cancel Unpaid Orders             │
-│  • Webhook Handling                      │
-└─────────────────────────────────────────┘
-```
-
-### 2.6. Module Cart & Wishlist
-```
-┌─────────────────────────────────────────┐
-│      Cart & Wishlist Module              │
-├─────────────────────────────────────────┤
-│ Controllers:                             │
-│  • CartController                        │
-│  • WishlistController                    │
-├─────────────────────────────────────────┤
-│ Services:                                │
-│  • CartService                           │
-│  • WishlistService                       │
-├─────────────────────────────────────────┤
-│ Entities:                                │
-│  • Cart                                  │
-│  • CartItem                              │
-│  • Wishlist                              │
-├─────────────────────────────────────────┤
-│ Features:                                │
-│  • Add/Remove Items                      │
-│  • Update Quantity                       │
-│  • Stock Validation                      │
-│  • Selective Checkout                    │
-└─────────────────────────────────────────┘
-```
-
-### 2.7. Module Review & Rating
-```
-┌─────────────────────────────────────────┐
-│       Review Module                      │
-├─────────────────────────────────────────┤
-│ Controllers:                             │
-│  • ProductReviewController               │
-├─────────────────────────────────────────┤
-│ Services:                                │
-│  • ProductReviewService                  │
-├─────────────────────────────────────────┤
-│ Entities:                                │
-│  • ProductReview                         │
-│  • isVerifiedPurchase (Boolean)          │
-├─────────────────────────────────────────┤
-│ Features:                                │
-│  • Rating (1-5 stars)                    │
-│  • Comment (with/without purchase)       │
-│  • Verified Purchase Badge               │
-│  • Admin Delete                          │
-│  • Rating Statistics                     │
-└─────────────────────────────────────────┘
-```
-
-## 3. LUỒNG DỮ LIỆU CHÍNH
-
-### 3.1. Luồng Đặt Hàng
-```
-Customer → Browse Products → Add to Cart → Select Items → Checkout
-    ↓
-Enter Shipping Info → Choose Payment Method → Create Order
-    ↓
-[COD] → Order Created → Assign Shipper → Delivery
-[Bank Transfer] → Pending Payment → Verify Payment → Assign Shipper → Delivery
-    ↓
-Update Stock → Generate Warranty Card → Complete Order
-```
-
-### 3.2. Luồng Quản Lý Kho
-```
-Supplier → Create Purchase Order → Import Products → Generate Serial Numbers
-    ↓
-Update Stock → Assign to Warehouse → Ready for Sale
-    ↓
-Customer Order → Export Order → Reduce Stock → Delivery
-```
-
-### 3.3. Luồng Giao Hàng
-```
-Order Created → [Internal Delivery] → Shipper Claims → Pickup → Deliver
-                [GHN Shipping] → Create GHN Order → Track Status → Deliver
-```
-
-## 4. CÔNG NGHỆ SỬ DỤNG
+## CÔNG NGHỆ SỬ DỤNG
 
 ### Frontend
 - **Framework**: Next.js 14 (React 18)
 - **Language**: TypeScript
 - **Styling**: TailwindCSS
-- **State Management**: Zustand
-- **HTTP Client**: Axios
-- **Icons**: React Icons
-- **Notifications**: React Hot Toast
+- **State**: Zustand
+- **HTTP**: Axios
 
 ### Backend
 - **Framework**: Spring Boot 3.x
 - **Language**: Java 17
 - **Security**: Spring Security + JWT
 - **Database**: MySQL 8.0
-- **ORM**: Spring Data JPA (Hibernate)
-- **Build Tool**: Maven
-- **Scheduler**: Spring Scheduler
+- **ORM**: Spring Data JPA
 
 ### External Services
 - **Payment**: SePay API
-- **Shipping**: Giao Hàng Nhanh (GHN) API
-- **Email**: SMTP (Gmail)
+- **Shipping**: GHN API
+- **Email**: SMTP
 
-## 5. BẢO MẬT
+## LUỒNG HOẠT ĐỘNG
 
-### Authentication
-- JWT Token (Access Token + Refresh Token)
-- BCrypt Password Hashing
-- Token Expiration & Refresh
+### 1. Đặt Hàng
+```
+Customer → Chọn sản phẩm → Thêm giỏ hàng → Thanh toán
+    ↓
+Tạo đơn hàng → Xử lý thanh toán → Xuất kho → Giao hàng
+```
 
-### Authorization
-- Role-based Access Control (RBAC)
-- Roles: CUSTOMER, ADMIN, EMPLOYEE
-- Employee Positions: SALE, WAREHOUSE, SHIPPER, PRODUCT_MANAGER, ACCOUNTANT, CSKH
+### 2. Quản Lý Kho
+```
+Nhập hàng → Cập nhật tồn kho → Tạo serial → Sẵn sàng bán
+    ↓
+Đơn hàng → Xuất kho → Giảm tồn kho → Tạo phiếu bảo hành
+```
 
-### API Security
-- CORS Configuration
-- CSRF Protection
-- Rate Limiting
-- Input Validation
-- SQL Injection Prevention (JPA)
+### 3. Giao Hàng
+```
+Đơn hàng mới → [Nội bộ] → Shipper nhận → Giao hàng
+               [GHN] → Tạo đơn GHN → Theo dõi → Giao hàng
+```
 
-## 6. TÍNH NĂNG NỔI BẬT
 
-### Cho Khách Hàng
-✅ Tìm kiếm & lọc sản phẩm theo thông số kỹ thuật
-✅ Giỏ hàng với chọn sản phẩm trước khi thanh toán
-✅ Nhiều phương thức thanh toán (COD, Chuyển khoản)
-✅ Theo dõi đơn hàng real-time
-✅ Đánh giá & bình luận sản phẩm
-✅ Kiểm tra bảo hành bằng serial
+### 4. PAYMENT MODULE (Thanh toán)
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                       PAYMENT MODULE                             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Controllers:                                                    │
+│  ┌──────────────────┐                                           │
+│  │PaymentController │                                           │
+│  │ - createPayment()│                                           │
+│  │ - getByCode()    │                                           │
+│  │ - checkStatus()  │                                           │
+│  │ - sepayWebhook() │◄────── SePay Server                      │
+│  └────────┬─────────┘                                           │
+│           │                                                     │
+│           ↓                                                     │
+│  Services:                                                       │
+│  ┌──────────────────┐                                           │
+│  │ PaymentService   │                                           │
+│  │ - createPayment()│                                           │
+│  │ - handleWebhook()│                                           │
+│  │ - generateQR()   │                                           │
+│  │ - verifySign()   │                                           │
+│  │ - extractCode()  │                                           │
+│  └────────┬─────────┘                                           │
+│           │                                                     │
+│           ↓                                                     │
+│  Repositories:                                                   │
+│  ┌──────────────────┐  ┌──────────────────┐                    │
+│  │PaymentRepository │  │BankAccountRepo   │                    │
+│  │ - findByCode()   │  │ - findDefault()  │                    │
+│  │ - findByOrder()  │  │ - save()         │                    │
+│  │ - findExpired()  │  └──────────────────┘                    │
+│  └────────┬─────────┘                                           │
+│           │                                                     │
+│           ↓                                                     │
+│  Entities:                                                       │
+│  ┌──────────────────┐  ┌──────────────────┐                    │
+│  │ Payment          │  │ BankAccount      │                    │
+│  │ - id             │  │ - id             │                    │
+│  │ - paymentCode    │  │ - bankCode       │                    │
+│  │ - order          │  │ - accountNumber  │                    │
+│  │ - amount         │  │ - accountName    │                    │
+│  │ - status         │  │ - sepayApiToken  │                    │
+│  │ - method         │  │ - isDefault      │                    │
+│  │ - sepayQrCode    │  └──────────────────┘                    │
+│  │ - expiredAt      │                                           │
+│  │ - paidAt         │                                           │
+│  └──────────────────┘                                           │
+│                                                                  │
+│  Scheduler:                                                      │
+│  ┌──────────────────┐                                           │
+│  │PaymentScheduler  │                                           │
+│  │ @Scheduled       │                                           │
+│  │ - expireOld()    │ ◄─── Chạy mỗi 5 phút                     │
+│  └──────────────────┘                                           │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-### Cho Admin
-✅ Dashboard tổng quan
-✅ Quản lý toàn bộ hệ thống
-✅ Phê duyệt nhân viên
-✅ Báo cáo & thống kê
+### 5. INVENTORY MODULE (Quản lý kho)
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      INVENTORY MODULE                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Controllers:                                                    │
+│  ┌──────────────────┐  ┌──────────────────┐                    │
+│  │InventoryCtrl     │  │SerialNumberCtrl  │                    │
+│  │ - createPurchase()│ │ - generate()     │                    │
+│  │ - createSaleExp()│  │ - getByProduct() │                    │
+│  │ - getStock()     │  │ - updateStatus() │                    │
+│  └────────┬─────────┘  └────────┬─────────┘                    │
+│           │                     │                              │
+│           ↓                     ↓                              │
+│  Services:                                                       │
+│  ┌──────────────────┐  ┌──────────────────┐                    │
+│  │ InventoryService │  │SerialNumberSvc   │                    │
+│  │ - createPurchase()│ │ - generateSerial()│                   │
+│  │ - createSaleExp()│  │ - assignToOrder()│                    │
+│  │ - syncReserved() │  │ - markAsSold()   │                    │
+│  │ - updateStock()  │  └──────────────────┘                    │
+│  └────────┬─────────┘                                           │
+│           │                                                     │
+│           ↓                                                     │
+│  Repositories:                                                   │
+│  ┌──────────────────┐  ┌──────────────────┐                    │
+│  │InventoryStockRepo│  │SerialNumberRepo  │                    │
+│  │ - findByProduct()│  │ - findBySerial() │                    │
+│  │ - save()         │  │ - findAvailable()│                    │
+│  └────────┬─────────┘  └────────┬─────────┘                    │
+│           │                     │                              │
+│           ↓                     ↓                              │
+│  Entities:                                                       │
+│  ┌──────────────────┐  ┌──────────────────┐                    │
+│  │ InventoryStock   │  │ SerialNumber     │                    │
+│  │ - id             │  │ - id             │                    │
+│  │ - warehouseProduct│ │ - serialNumber   │                    │
+│  │ - onHand         │  │ - product        │                    │
+│  │ - reserved       │  │ - status         │                    │
+│  │ - damaged        │  │ - createdAt      │                    │
+│  │ - sellable       │  │ - soldAt         │                    │
+│  └──────────────────┘  └──────────────────┘                    │
+│                                                                  │
+│  ┌──────────────────┐  ┌──────────────────┐                    │
+│  │PurchaseOrder     │  │SaleExportOrder   │                    │
+│  │ - id             │  │ - id             │                    │
+│  │ - supplier       │  │ - order          │                    │
+│  │ - items          │  │ - items          │                    │
+│  │ - totalAmount    │  │ - exportDate     │                    │
+│  │ - orderDate      │  │ - exportedBy     │                    │
+│  └──────────────────┘  └──────────────────┘                    │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-### Cho Nhân Viên
-✅ Quản lý kho (nhập/xuất hàng)
-✅ Quản lý đơn hàng
-✅ Giao hàng nội bộ
-✅ Quản lý sản phẩm
-✅ Xem danh sách khách hàng
+### 6. SHIPPING MODULE (Vận chuyển)
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      SHIPPING MODULE                             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Controllers:                                                    │
+│  ┌──────────────────┐                                           │
+│  │ShippingController│                                           │
+│  │ - calculateFee() │                                           │
+│  │ - createGHNOrder()│                                          │
+│  │ - getGHNStatus() │                                           │
+│  │ - cancelGHN()    │                                           │
+│  └────────┬─────────┘                                           │
+│           │                                                     │
+│           ↓                                                     │
+│  Services:                                                       │
+│  ┌──────────────────┐                                           │
+│  │ ShippingService  │                                           │
+│  │ - calcShipFee()  │────────┐                                 │
+│  │ - createGHNOrder()│        │                                 │
+│  │ - getGHNDetail() │        │ HTTP Call                        │
+│  │ - buildGHNReq()  │        ↓                                 │
+│  │ - parseGHNResp() │  ┌──────────────────┐                    │
+│  └──────────────────┘  │  GHN API         │                    │
+│                        │  RestTemplate    │                    │
+│  DTOs:                 │  - POST /create  │                    │
+│  ┌──────────────────┐  │  - GET /detail   │                    │
+│  │CreateGHNOrderReq │  │  - POST /cancel  │                    │
+│  │ - orderId        │  └──────────────────┘                    │
+│  │ - toName         │                                           │
+│  │ - toPhone        │                                           │
+│  │ - toAddress      │                                           │
+│  │ - items          │                                           │
+│  │ - serviceType    │                                           │
+│  └──────────────────┘                                           │
+│                                                                  │
+│  ┌──────────────────┐                                           │
+│  │GHNOrderResponse  │                                           │
+│  │ - orderCode      │                                           │
+│  │ - expectedTime   │                                           │
+│  │ - totalFee       │                                           │
+│  │ - status         │                                           │
+│  └──────────────────┘                                           │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-## 7. TRIỂN KHAI
+### 7. CART & REVIEW MODULE
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    CART & REVIEW MODULE                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  CART:                                                           │
+│  ┌──────────────────┐                                           │
+│  │ CartController   │                                           │
+│  │ - getCart()      │                                           │
+│  │ - addItem()      │                                           │
+│  │ - updateQty()    │                                           │
+│  │ - removeItem()   │                                           │
+│  └────────┬─────────┘                                           │
+│           ↓                                                     │
+│  ┌──────────────────┐                                           │
+│  │ CartService      │                                           │
+│  │ - getOrCreate()  │                                           │
+│  │ - addItem()      │                                           │
+│  │ - validateStock()│                                           │
+│  └────────┬─────────┘                                           │
+│           ↓                                                     │
+│  ┌──────────────────┐  ┌──────────────────┐                    │
+│  │ Cart             │  │ CartItem         │                    │
+│  │ - id             │  │ - id             │                    │
+│  │ - customer       │  │ - cart           │                    │
+│  │ - items          │  │ - product        │                    │
+│  │ - createdAt      │  │ - quantity       │                    │
+│  └──────────────────┘  │ - price          │                    │
+│                        └──────────────────┘                    │
+│                                                                  │
+│  REVIEW:                                                         │
+│  ┌──────────────────┐                                           │
+│  │ ReviewController │                                           │
+│  │ - create()       │                                           │
+│  │ - getByProduct() │                                           │
+│  │ - update()       │                                           │
+│  │ - delete()       │                                           │
+│  └────────┬─────────┘                                           │
+│           ↓                                                     │
+│  ┌──────────────────┐                                           │
+│  │ ReviewService    │                                           │
+│  │ - createReview() │                                           │
+│  │ - validateOrder()│                                           │
+│  │ - calcAvgRating()│                                           │
+│  └────────┬─────────┘                                           │
+│           ↓                                                     │
+│  ┌──────────────────┐                                           │
+│  │ ProductReview    │                                           │
+│  │ - id             │                                           │
+│  │ - product        │                                           │
+│  │ - customer       │                                           │
+│  │ - order          │                                           │
+│  │ - rating         │                                           │
+│  │ - comment        │                                           │
+│  │ - createdAt      │                                           │
+│  └──────────────────┘                                           │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-### Development
-- Frontend: `npm run dev` (Port 3000)
-- Backend: `mvn spring-boot:run` (Port 8080)
-- Database: MySQL (Port 3306)
+## LUỒNG DỮ LIỆU CHI TIẾT
 
-### Production
-- Frontend: Vercel / Netlify
-- Backend: AWS / Heroku / VPS
-- Database: AWS RDS / Cloud SQL
-- CDN: Cloudflare
+### Luồng Đặt Hàng (với các component)
+```
+┌──────────────┐
+│   Frontend   │
+│  (Next.js)   │
+└──────┬───────┘
+       │ POST /api/orders/create
+       ↓
+┌──────────────────────────────────────────────────────────────┐
+│                    Backend (Spring Boot)                      │
+│                                                               │
+│  ┌────────────────┐                                          │
+│  │OrderController │                                          │
+│  │ @PostMapping   │                                          │
+│  └───────┬────────┘                                          │
+│          │                                                   │
+│          ↓                                                   │
+│  ┌────────────────┐                                          │
+│  │ OrderService   │                                          │
+│  │ @Transactional │                                          │
+│  └───────┬────────┘                                          │
+│          │                                                   │
+│          ├──────► ProductRepository.findByIdWithLock()       │
+│          │        (Pessimistic Lock)                         │
+│          │                                                   │
+│          ├──────► Check stock & reserve                      │
+│          │                                                   │
+│          ├──────► OrderRepository.save()                     │
+│          │                                                   │
+│          ├──────► InventoryService.syncReserved()            │
+│          │                                                   │
+│          └──────► CartRepository.delete()                    │
+│                                                               │
+└───────────────────────────────┬───────────────────────────────┘
+                                │
+                                ↓
+                        ┌───────────────┐
+                        │    MySQL      │
+                        │   Database    │
+                        └───────────────┘
+```
 
----
+### Luồng Webhook SePay (với các component)
+```
+┌──────────────┐
+│ SePay Server │
+└──────┬───────┘
+       │ POST /api/payments/sepay/webhook
+       ↓
+┌──────────────────────────────────────────────────────────────┐
+│                    Backend (Spring Boot)                      │
+│                                                               │
+│  ┌────────────────┐                                          │
+│  │PaymentController│                                         │
+│  │ (No Auth!)     │                                          │
+│  └───────┬────────┘                                          │
+│          │                                                   │
+│          ↓                                                   │
+│  ┌────────────────┐                                          │
+│  │PaymentService  │                                          │
+│  │ @Transactional │                                          │
+│  └───────┬────────┘                                          │
+│          │                                                   │
+│          ├──────► extractPaymentCode()                       │
+│          │                                                   │
+│          ├──────► PaymentRepository.findByCode()             │
+│          │                                                   │
+│          ├──────► verifySignature()                          │
+│          │                                                   │
+│          ├──────► Update Payment → SUCCESS                   │
+│          │                                                   │
+│          ├──────► Update Order → CONFIRMED                   │
+│          │                                                   │
+│          └──────► ApplicationEventPublisher.publish()        │
+│                   (OrderStatusChangedEvent)                  │
+│                                                               │
+└───────────────────────────────┬───────────────────────────────┘
+                                │
+                                ↓
+                        ┌───────────────┐
+                        │ Event Listener│
+                        │  (Accounting) │
+                        └───────────────┘
+```
 
-**Ghi chú**: Hệ thống được thiết kế theo kiến trúc Monolithic với module hóa rõ ràng, dễ bảo trì và mở rộng.

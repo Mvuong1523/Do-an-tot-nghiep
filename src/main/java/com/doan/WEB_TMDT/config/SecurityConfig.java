@@ -75,6 +75,8 @@ public class SecurityConfig {
                         // Note: /api/inventory/stock cho phép PRODUCT_MANAGER xem (read-only)
                         .requestMatchers("/api/inventory/stock").hasAnyAuthority("WAREHOUSE", "PRODUCT_MANAGER", "ADMIN", "EMPLOYEE", "SALE", "ACCOUNTANT", "CSKH", "SHIPPER")
                         .requestMatchers("/api/inventory/suppliers").hasAnyAuthority("WAREHOUSE", "PRODUCT_MANAGER", "ADMIN", "EMPLOYEE", "SALE", "ACCOUNTANT", "CSKH", "SHIPPER")
+                        .requestMatchers("/api/inventory/export-orders/**").hasAnyAuthority("WAREHOUSE", "ADMIN", "EMPLOYEE", "SALE", "SALES", "PRODUCT_MANAGER", "ACCOUNTANT", "CSKH", "SHIPPER")
+                        .requestMatchers("/api/inventory/purchase-orders/**").hasAnyAuthority("WAREHOUSE", "ADMIN", "EMPLOYEE", "SALE", "SALES", "PRODUCT_MANAGER", "ACCOUNTANT", "CSKH", "SHIPPER")
                         .requestMatchers("/api/inventory/**").hasAnyAuthority("WAREHOUSE", "ADMIN")
                         
                         // Product Manager endpoints (Product & Category management)
