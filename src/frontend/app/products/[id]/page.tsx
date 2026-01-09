@@ -5,9 +5,8 @@ import { useParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { FiShoppingCart, FiHeart, FiStar, FiCheck, FiTruck, FiShield, FiRefreshCw } from 'react-icons/fi'
-import { productApi, reviewApi } from '@/lib/api'
+import { productApi } from '@/lib/api'
 import toast from 'react-hot-toast'
-import ProductReviews from '@/components/product/ProductReviews'
 
 export default function ProductDetailPage() {
   const params = useParams()
@@ -19,7 +18,6 @@ export default function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1)
   const [selectedImage, setSelectedImage] = useState(0)
   const [activeTab, setActiveTab] = useState<'description' | 'specs' | 'reviews'>('description')
-  const [ratingSummary, setRatingSummary] = useState<any>(null)
 
   useEffect(() => {
     loadProduct()
@@ -27,20 +25,12 @@ export default function ProductDetailPage() {
 
   const loadProduct = async () => {
     try {
-      const [productRes, summaryRes] = await Promise.all([
-        productApi.getById(productId),
-        reviewApi.getProductSummary(Number(productId))
-      ])
-      
-      if (productRes.success) {
-        setProduct(productRes.data)
+      const response = await productApi.getById(productId)
+      if (response.success) {
+        setProduct(response.data)
       } else {
         toast.error('Không tìm thấy sản phẩm')
         router.push('/products')
-      }
-      
-      if (summaryRes.success) {
-        setRatingSummary(summaryRes.data)
       }
     } catch (error) {
       console.error('Error loading product:', error)
@@ -156,10 +146,10 @@ export default function ProductDetailPage() {
     console.error('Error parsing specifications:', e)
   }
 
-  // Lấy danh sách ảnh từ product.images hoặc product.imageUrl
+  // Lấy danh sách ảnh từ product.images, nếu không có thì dùng mảng rỗng
   const images = product.images && product.images.length > 0 
-    ? product.images.map((img: any) => img.imageUrl || img) 
-    : (product.imageUrl ? [product.imageUrl] : [])
+    ? product.images.map((img: any) => img.imageUrl) 
+    : []
 
   return (
     <div className="bg-gray-50 min-h-screen py-8">
@@ -215,27 +205,10 @@ export default function ProductDetailPage() {
             <div className="flex items-center space-x-4 mb-4">
               <div className="flex items-center">
                 {[1, 2, 3, 4, 5].map((star) => (
-                  <FiStar 
-                    key={star} 
-                    className={`${
-                      ratingSummary && star <= Math.round(ratingSummary.averageRating)
-                        ? 'text-yellow-400 fill-current'
-                        : 'text-gray-300'
-                    }`} 
-                    size={20} 
-                  />
+                  <FiStar key={star} className="text-yellow-400 fill-current" size={20} />
                 ))}
               </div>
-              <span className="text-gray-600">
-                {ratingSummary ? (
-                  <>
-                    <span className="font-medium text-yellow-600">{ratingSummary.averageRating?.toFixed(1) || '0'}</span>
-                    {' '}({ratingSummary.totalReviews || 0} đánh giá)
-                  </>
-                ) : (
-                  '(0 đánh giá)'
-                )}
-              </span>
+              <span className="text-gray-600">(0 đánh giá)</span>
             </div>
 
             {/* Price */}
@@ -244,20 +217,12 @@ export default function ProductDetailPage() {
                 {formatPrice(product.price)}
               </div>
               <div className="flex items-center space-x-2">
-                {(product.availableQuantity !== undefined ? product.availableQuantity : product.stockQuantity || 0) > 0 ? (
-                  <>
-                    <span className="px-3 py-1 bg-green-100 text-green-600 rounded-full text-sm font-medium">
-                      Còn hàng
-                    </span>
-                    <span className="text-gray-600">
-                      Còn {product.availableQuantity !== undefined ? product.availableQuantity : product.stockQuantity || 0} sản phẩm
-                    </span>
-                  </>
-                ) : (
-                  <span className="px-3 py-1 bg-red-100 text-red-600 rounded-full text-sm font-medium">
-                    Hết hàng
-                  </span>
-                )}
+                <span className="px-3 py-1 bg-red-100 text-red-600 rounded-full text-sm font-medium">
+                  Còn hàng
+                </span>
+                <span className="text-gray-600">
+                  Kho: {product.stockQuantity || 0} sản phẩm
+                </span>
               </div>
             </div>
 
@@ -376,7 +341,7 @@ export default function ProductDetailPage() {
                     : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
               >
-                Đánh giá ({ratingSummary?.reviewCount || 0})
+                Đánh giá (0)
               </button>
             </div>
           </div>
@@ -425,7 +390,14 @@ export default function ProductDetailPage() {
 
             {/* Reviews Tab */}
             {activeTab === 'reviews' && (
-              <ProductReviews productId={Number(productId)} />
+              <div>
+                <h2 className="text-2xl font-bold mb-4">Đánh giá sản phẩm</h2>
+                <div className="text-center py-12">
+                  <FiStar className="mx-auto text-gray-300 mb-4" size={48} />
+                  <p className="text-gray-600">Chưa có đánh giá nào</p>
+                  <p className="text-sm text-gray-500 mt-2">Hãy là người đầu tiên đánh giá sản phẩm này</p>
+                </div>
+              </div>
             )}
           </div>
         </div>

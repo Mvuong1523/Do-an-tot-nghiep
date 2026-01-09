@@ -8,8 +8,10 @@ export default function RootLayoutClient({ children }: { children: React.ReactNo
   const pathname = usePathname()
   
   // Check if current path is for employee/admin pages
-  const isEmployeePage = pathname?.startsWith('/admin') ||
-                         pathname?.startsWith('/employee')
+  const isEmployeePage = pathname?.startsWith('/warehouse') || 
+                         pathname?.startsWith('/product-manager') || 
+                         pathname?.startsWith('/admin') ||
+                         pathname?.startsWith('/sales')
   
   // Don't show customer header/footer for employee pages
   // Employee pages have their own layout with EmployeeHeader

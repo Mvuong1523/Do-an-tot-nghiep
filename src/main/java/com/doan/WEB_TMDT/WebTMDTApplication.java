@@ -33,7 +33,7 @@ public class WebTMDTApplication {
 						.role(Role.ADMIN)
 						.status(Status.ACTIVE)
 						.build();
-				userRepository.save(admin);
+				userRe  pository.save(admin);
 			} else {
 			}
 		};

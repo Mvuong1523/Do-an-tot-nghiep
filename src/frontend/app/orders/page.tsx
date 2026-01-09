@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { FiPackage, FiTruck, FiCheck, FiX, FiClock, FiEye } from 'react-icons/fi'
 import { useTranslation } from '@/hooks/useTranslation'
@@ -17,12 +17,6 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
   const [mounted, setMounted] = useState(false)
-  const pollingInterval = useRef<NodeJS.Timeout | null>(null)
-
-  // Check if there are pending payment orders
-  const hasPendingPayment = orders.some(
-    order => order.status?.toLowerCase() === 'pending_payment'
-  )
 
   // Wait for hydration
   useEffect(() => {
@@ -90,8 +84,6 @@ export default function OrdersPage() {
         return <FiClock className="text-yellow-500" size={20} />
       case 'confirmed':
         return <FiPackage className="text-blue-500" size={20} />
-      case 'ready_to_ship':
-        return <FiTruck className="text-purple-600" size={20} />
       case 'processing':
         return <FiPackage className="text-blue-500" size={20} />
       case 'shipping':
@@ -113,16 +105,14 @@ export default function OrdersPage() {
         return 'Chờ xác nhận'
       case 'confirmed':
         return 'Đã xác nhận'
-      case 'ready_to_ship':
-        return 'Đã chuẩn bị hàng - Đợi tài xế'
+      case 'processing':
+        return 'Đang xử lý'
       case 'shipping':
         return 'Đang giao hàng'
       case 'delivered':
         return 'Đã giao hàng'
       case 'cancelled':
         return 'Đã hủy'
-      case 'processing':
-        return 'Đang xử lý'
       default:
         return status
     }
@@ -136,8 +126,6 @@ export default function OrdersPage() {
         return 'bg-yellow-100 text-yellow-800'
       case 'confirmed':
         return 'bg-blue-100 text-blue-800'
-      case 'ready_to_ship':
-        return 'bg-purple-100 text-purple-800 border-2 border-purple-300'
       case 'processing':
         return 'bg-blue-100 text-blue-800'
       case 'shipping':
@@ -155,7 +143,6 @@ export default function OrdersPage() {
     ? (filter === 'all' 
         ? orders 
         : orders.filter(order => order.status?.toUpperCase() === filter.toUpperCase()))
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     : []
 
   if (loading) {
@@ -188,7 +175,6 @@ export default function OrdersPage() {
               { key: 'all', label: 'Tất cả' },
               { key: 'pending_payment', label: 'Chờ thanh toán' },
               { key: 'confirmed', label: 'Đã xác nhận' },
-              { key: 'ready_to_ship', label: 'Đợi tài xế lấy hàng', highlight: true },
               { key: 'shipping', label: 'Đang giao' },
               { key: 'delivered', label: 'Đã giao' },
               { key: 'cancelled', label: 'Đã hủy' },
@@ -198,8 +184,8 @@ export default function OrdersPage() {
                 onClick={() => setFilter(tab.key)}
                 className={`px-6 py-4 font-medium whitespace-nowrap border-b-2 transition-colors ${
                   filter === tab.key
-                    ? (tab.highlight ? 'border-purple-500 text-purple-600 bg-purple-50' : 'border-red-500 text-red-500')
-                    : (tab.highlight ? 'border-transparent text-purple-600 hover:text-purple-700 hover:bg-purple-50' : 'border-transparent text-gray-600 hover:text-gray-900')
+                    ? 'border-red-500 text-red-500'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
               >
                 {tab.label}
@@ -256,8 +242,8 @@ export default function OrdersPage() {
                     </p>
                   </div>
 
-                  {/* Right: Action Buttons */}
-                  <div className="flex flex-col gap-2">
+                  {/* Right: Action Button */}
+                  <div>
                     <Link
                       href={`/orders/${order.orderId}`}
                       className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
@@ -265,38 +251,6 @@ export default function OrdersPage() {
                       <FiEye className="mr-2" />
                       Xem chi tiết
                     </Link>
-                    
-                    {/* Nút hủy đơn - CHỈ hiện khi PENDING_PAYMENT, CONFIRMED, hoặc READY_TO_SHIP */}
-                    {['PENDING_PAYMENT', 'CONFIRMED', 'READY_TO_SHIP'].includes(order.status?.toUpperCase()) && (
-                      <button
-                        onClick={async () => {
-                          const reason = prompt('Lý do hủy đơn (không bắt buộc):')
-                          if (reason === null) return // User clicked Cancel
-                          
-                          if (confirm('⚠️ Xác nhận hủy đơn hàng này?\n\nĐơn hàng sẽ bị hủy và không thể khôi phục.')) {
-                            try {
-                              const response = await orderApi.cancelOrder(order.orderId, reason || undefined)
-                              if (response.success) {
-                                toast.success('✅ Đã hủy đơn hàng thành công')
-                                // Reload orders
-                                const ordersResponse = await orderApi.getAll()
-                                if (ordersResponse.success && ordersResponse.data) {
-                                  setOrders(Array.isArray(ordersResponse.data) ? ordersResponse.data : [])
-                                }
-                              } else {
-                                toast.error(response.message || 'Không thể hủy đơn hàng')
-                              }
-                            } catch (error: any) {
-                              toast.error(error.message || 'Lỗi khi hủy đơn hàng')
-                            }
-                          }
-                        }}
-                        className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
-                      >
-                        <FiX className="mr-2" />
-                        Hủy đơn
-                      </button>
-                    )}
                   </div>
                 </div>
               </div>

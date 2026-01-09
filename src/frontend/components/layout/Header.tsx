@@ -83,7 +83,10 @@ export default function Header() {
   const navigationLinks = [
     { name: t('home'), href: '/' },
     { name: t('products'), href: '/products' },
+<<<<<<< Updated upstream
     // { name: 'Hỗ trợ', href: '/support' },
+=======
+>>>>>>> Stashed changes
     { name: t('contact'), href: '/contact' },
   ]
 
@@ -211,13 +214,31 @@ export default function Header() {
                           </Link>
                         </>
                       )}
-                      {user.role === 'EMPLOYEE' && (
+                      {(user.role === 'EMPLOYEE' && user.position === 'WAREHOUSE') && (
                         <Link
-                          href="/employee"
+                          href="/warehouse"
                           className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                           onClick={() => setIsUserMenuOpen(false)}
                         >
-                          Trang nhân viên
+                          Quản lý kho
+                        </Link>
+                      )}
+                      {(user.role === 'EMPLOYEE' && user.position === 'ACCOUNTANT') && (
+                        <Link
+                          href="/admin/accounting"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          Kế toán & Đối soát
+                        </Link>
+                      )}
+                      {(user.role === 'EMPLOYEE' && user.position === 'SALES') && (
+                        <Link
+                          href="/sales"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          Quản lý bán hàng
                         </Link>
                       )}
                       <button

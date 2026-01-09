@@ -56,7 +56,7 @@ src/frontend/
 ### Cài đặt dependencies
 ```bash
 cd src/frontend
-    npm install
+npm install
 ```
 
 ### Chạy development server
