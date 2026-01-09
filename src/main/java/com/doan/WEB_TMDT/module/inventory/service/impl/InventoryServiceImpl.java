@@ -846,7 +846,7 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     private void createGHNOrderForExport(Long orderId, ExportOrder exportOrder) {
-        log.info("🚚 Creating GHN order for order ID: {}", orderId);
+        log.info("Creating GHN order for order ID: {}", orderId);
 
         // Get order details
         com.doan.WEB_TMDT.module.order.entity.Order order = orderRepository.findById(orderId)
@@ -854,15 +854,15 @@ public class InventoryServiceImpl implements InventoryService {
 
         // Check if already has GHN order
         if (order.getGhnOrderCode() != null && !order.getGhnOrderCode().isEmpty()) {
-            log.warn("⚠️ Order {} already has GHN order code: {}", order.getOrderCode(), order.getGhnOrderCode());
+            log.warn(" Order {} already has GHN order code: {}", order.getOrderCode(), order.getGhnOrderCode());
             return;
         }
 
         // Check if need GHN shipping (not free ship)
         if (order.getShippingFee() == 0 || shippingService.isHanoiInnerCity(order.getProvince(), order.getDistrict())) {
-            log.info("ℹ️ Order {} uses internal shipping (no GHN), updating status to READY_TO_SHIP", order.getOrderCode());
+            log.info("ℹ Order {} uses internal shipping (no GHN), updating status to READY_TO_SHIP", order.getOrderCode());
 
-            // ✅ Cập nhật status cho đơn nội thành / miễn phí ship
+            //  Cập nhật status cho đơn nội thành / miễn phí ship
             order.setStatus(com.doan.WEB_TMDT.module.order.entity.OrderStatus.READY_TO_SHIP);
             order.setShippedAt(LocalDateTime.now());
             orderRepository.save(order);

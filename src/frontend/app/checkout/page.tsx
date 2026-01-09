@@ -90,7 +90,16 @@ export default function CheckoutPage() {
       
       if (data.success && data.data && data.data.length > 0) {
         console.log('✅ Loaded', data.data.length, 'provinces from GHN')
-        setProvinces(data.data)
+        // Filter out test provinces
+        const filteredProvinces = data.data.filter((p: any) => {
+          const name = p.name.toLowerCase()
+          // Check for test keywords
+          if (name.includes('test') || name.includes('alert')) return false
+          // Check for numbered city variants (Hà Nội 02, Hồ Chí Minh 02, etc.)
+          if (/\s+\d+$/.test(name)) return false // Ends with space(s) and number(s)
+          return true
+        })
+        setProvinces(filteredProvinces)
       } else {
         // Fallback to local data
         console.warn('⚠️ GHN API failed, using local data')
