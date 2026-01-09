@@ -75,8 +75,12 @@ public class CartServiceImpl implements CartService {
         long availableQty = stockQty - reservedQty;
 
         // 4. Check available quantity
+        if (availableQty <= 0) {
+            return ApiResponse.error("Sản phẩm đang tạm hết hàng");
+        }
+        
         if (availableQty < request.getQuantity()) {
-            return ApiResponse.error("Sản phẩm không đủ số lượng. Còn lại: " + availableQty + " sản phẩm");
+            return ApiResponse.error("Số lượng sản phẩm không đủ. Chỉ còn " + availableQty + " sản phẩm");
         }   
 
         // 5. Check if product already in cart
@@ -89,7 +93,10 @@ public class CartServiceImpl implements CartService {
             int newQuantity = item.getQuantity() + request.getQuantity();
 
             if (newQuantity > availableQty) {
-                return ApiResponse.error("Số lượng vượt quá tồn kho khả dụng. Còn lại: " + availableQty + " sản phẩm");
+                if (availableQty <= 0) {
+                    return ApiResponse.error("Sản phẩm đang tạm hết hàng");
+                }
+                return ApiResponse.error("Số lượng sản phẩm không đủ. Chỉ còn " + availableQty + " sản phẩm");
             }
 
             item.setQuantity(newQuantity);
@@ -126,14 +133,18 @@ public class CartServiceImpl implements CartService {
             return ApiResponse.error("Bạn không có quyền sửa sản phẩm này");
         }
 
-        // 4. Calculate available quantity
+        // 4. Calculate available quantity (stock - reserved)
         Product product = item.getProduct();
         long stockQty = product.getStockQuantity() != null ? product.getStockQuantity() : 0L;
         long reservedQty = product.getReservedQuantity() != null ? product.getReservedQuantity() : 0L;
         long availableQty = stockQty - reservedQty;
 
+        if (availableQty <= 0) {
+            return ApiResponse.error("Sản phẩm đang tạm hết hàng");
+        }
+        
         if (availableQty < request.getQuantity()) {
-            return ApiResponse.error("Sản phẩm không đủ số lượng. Còn lại: " + availableQty + " sản phẩm");
+            return ApiResponse.error("Số lượng sản phẩm không đủ. Chỉ còn " + availableQty + " sản phẩm");
         }
 
         // 5. Update quantity

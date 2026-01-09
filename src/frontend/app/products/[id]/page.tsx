@@ -82,7 +82,10 @@ export default function ProductDetailPage() {
       
       if (data.success) {
         toast.success('Đã thêm vào giỏ hàng!')
+        // Dispatch event để cập nhật cart count
+        window.dispatchEvent(new Event('cartUpdated'))
       } else {
+        // Hiển thị message từ backend
         toast.error(data.message || 'Không thể thêm vào giỏ hàng')
       }
     } catch (error) {

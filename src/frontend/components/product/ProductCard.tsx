@@ -28,7 +28,8 @@ export default function ProductCard({ product }: ProductCardProps) {
         // Dispatch event để cập nhật cart count
         window.dispatchEvent(new Event('cartUpdated'))
       } else {
-        toast.error('Không thể thêm vào giỏ hàng')
+        // Hiển thị message từ backend
+        toast.error(response.message || 'Không thể thêm vào giỏ hàng')
       }
     } catch (error: any) {
       console.error('Error adding to cart:', error)

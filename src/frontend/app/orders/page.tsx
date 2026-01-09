@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore'
 import { orderApi } from '@/lib/api'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
+import ConfirmModal from '@/components/ConfirmModal'
 
 export default function OrdersPage() {
   const { t } = useTranslation()
@@ -18,6 +19,11 @@ export default function OrdersPage() {
   const [filter, setFilter] = useState('all')
   const [mounted, setMounted] = useState(false)
   const pollingInterval = useRef<NodeJS.Timeout | null>(null)
+  
+  // Modal state
+  const [showCancelModal, setShowCancelModal] = useState(false)
+  const [orderToCancel, setOrderToCancel] = useState<any>(null)
+  const [cancelReason, setCancelReason] = useState('')
 
   // Check if there are pending payment orders
   const hasPendingPayment = orders.some(
@@ -269,27 +275,9 @@ export default function OrdersPage() {
                     {/* Nút hủy đơn - CHỈ hiện khi PENDING_PAYMENT, CONFIRMED, hoặc READY_TO_SHIP */}
                     {['PENDING_PAYMENT', 'CONFIRMED', 'READY_TO_SHIP'].includes(order.status?.toUpperCase()) && (
                       <button
-                        onClick={async () => {
-                          const reason = prompt('Lý do hủy đơn (không bắt buộc):')
-                          if (reason === null) return // User clicked Cancel
-                          
-                          if (confirm('⚠️ Xác nhận hủy đơn hàng này?\n\nĐơn hàng sẽ bị hủy và không thể khôi phục.')) {
-                            try {
-                              const response = await orderApi.cancelOrder(order.orderId, reason || undefined)
-                              if (response.success) {
-                                toast.success('✅ Đã hủy đơn hàng thành công')
-                                // Reload orders
-                                const ordersResponse = await orderApi.getAll()
-                                if (ordersResponse.success && ordersResponse.data) {
-                                  setOrders(Array.isArray(ordersResponse.data) ? ordersResponse.data : [])
-                                }
-                              } else {
-                                toast.error(response.message || 'Không thể hủy đơn hàng')
-                              }
-                            } catch (error: any) {
-                              toast.error(error.message || 'Lỗi khi hủy đơn hàng')
-                            }
-                          }
+                        onClick={() => {
+                          setOrderToCancel(order)
+                          setShowCancelModal(true)
                         }}
                         className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
                       >
@@ -304,6 +292,70 @@ export default function OrdersPage() {
           </div>
         )}
       </div>
+
+      {/* Cancel Order Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setShowCancelModal(false)} />
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Xác nhận hủy đơn hàng</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Bạn có chắc chắn muốn hủy đơn hàng <strong>{orderToCancel?.orderCode}</strong>?
+              </p>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Lý do hủy (không bắt buộc)
+                </label>
+                <textarea
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Nhập lý do hủy đơn..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  rows={3}
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowCancelModal(false)
+                    setCancelReason('')
+                    setOrderToCancel(null)
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                >
+                  Đóng
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      const response = await orderApi.cancelOrder(orderToCancel.orderId, cancelReason || undefined)
+                      if (response.success) {
+                        toast.success('Đã hủy đơn hàng thành công')
+                        const ordersResponse = await orderApi.getAll()
+                        if (ordersResponse.success && ordersResponse.data) {
+                          setOrders(Array.isArray(ordersResponse.data) ? ordersResponse.data : [])
+                        }
+                      } else {
+                        toast.error(response.message || 'Không thể hủy đơn hàng')
+                      }
+                    } catch (error: any) {
+                      toast.error(error.message || 'Lỗi khi hủy đơn hàng')
+                    } finally {
+                      setShowCancelModal(false)
+                      setCancelReason('')
+                      setOrderToCancel(null)
+                    }
+                  }}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                >
+                  Xác nhận hủy
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

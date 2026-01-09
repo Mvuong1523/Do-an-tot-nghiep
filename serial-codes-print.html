@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>In Mã Serial Sản Phẩm</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -106,15 +107,19 @@
         }
         
         .qr-code {
-            margin: 10px auto;
+            margin: 8px auto;
             display: flex;
             justify-content: center;
             align-items: center;
         }
         
         .qr-code img {
-            max-width: 150px;
-            max-height: 150px;
+            max-width: 130px;
+            max-height: 130px;
+        }
+        
+        .barcode {
+            margin: 5px auto;
         }
         
         .warranty-info {
@@ -205,6 +210,12 @@
         <h1>🏷️ In Mã Serial Sản Phẩm - Demo</h1>
         
         <div class="controls">
+            <label>Chọn loại mã: </label>
+            <select id="codeType" onchange="updateCodes()">
+                <option value="both">QR Code + Barcode</option>
+                <option value="qr">Chỉ QR Code</option>
+                <option value="barcode">Chỉ Barcode</option>
+            </select>
             <button onclick="window.print()">🖨️ In Tất Cả</button>
             <button onclick="generateCodes()">🔄 Tạo Lại Mã</button>
         </div>
@@ -273,6 +284,7 @@
 
         function generateCodes() {
             const grid = document.getElementById('productGrid');
+            const codeType = document.getElementById('codeType').value;
             grid.innerHTML = '';
 
             products.forEach((product, index) => {
@@ -282,7 +294,17 @@
                 let content = `
                     <div class="product-name">${product.name}</div>
                     <div class="serial-number">S/N: ${product.serial}</div>
-                    <div class="qr-code" id="qr-${index}"></div>
+                `;
+                
+                if (codeType === 'both' || codeType === 'qr') {
+                    content += `<div class="qr-code" id="qr-${index}"></div>`;
+                }
+                
+                if (codeType === 'both' || codeType === 'barcode') {
+                    content += `<div class="barcode"><svg id="barcode-${index}"></svg></div>`;
+                }
+                
+                content += `
                     <div class="warranty-info">
                         📦 ${product.category} | 🛡️ Bảo hành 12 tháng<br>
                         📞 Hotline: 1900-xxxx | 🌐 website.com
@@ -293,19 +315,45 @@
                 grid.appendChild(card);
                 
                 // Generate QR Code
-                setTimeout(() => {
-                    const qrContainer = document.getElementById(`qr-${index}`);
-                    qrContainer.innerHTML = ''; // Clear previous
-                    new QRCode(qrContainer, {
-                        text: product.serial,
-                        width: 150,
-                        height: 150,
-                        colorDark: "#000000",
-                        colorLight: "#ffffff",
-                        correctLevel: QRCode.CorrectLevel.M
-                    });
-                }, 100);
+                if (codeType === 'both' || codeType === 'qr') {
+                    setTimeout(() => {
+                        const qrContainer = document.getElementById(`qr-${index}`);
+                        qrContainer.innerHTML = ''; // Clear previous
+                        new QRCode(qrContainer, {
+                            text: product.serial,
+                            width: 130,
+                            height: 130,
+                            colorDark: "#000000",
+                            colorLight: "#ffffff",
+                            correctLevel: QRCode.CorrectLevel.M
+                        });
+                    }, 100);
+                }
+                
+                // Generate Barcode
+                if (codeType === 'both' || codeType === 'barcode') {
+                    setTimeout(() => {
+                        try {
+                            JsBarcode(`#barcode-${index}`, product.serial, {
+                                format: "CODE128",
+                                width: 2,
+                                height: 60,
+                                displayValue: true,
+                                fontSize: 14,
+                                margin: 8,
+                                background: "#ffffff",
+                                lineColor: "#000000"
+                            });
+                        } catch (e) {
+                            console.error('Barcode error:', e);
+                        }
+                    }, 100);
+                }
             });
+        }
+
+        function updateCodes() {
+            generateCodes();
         }
 
         // Generate codes on page load
