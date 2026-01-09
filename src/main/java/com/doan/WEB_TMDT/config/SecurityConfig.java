@@ -78,7 +78,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/inventory/export-orders/**").hasAnyAuthority("WAREHOUSE", "ADMIN", "EMPLOYEE", "SALE", "SALES", "PRODUCT_MANAGER", "ACCOUNTANT", "CSKH", "SHIPPER")
                         .requestMatchers("/api/inventory/purchase-orders/**").hasAnyAuthority("WAREHOUSE", "ADMIN", "EMPLOYEE", "SALE", "SALES", "PRODUCT_MANAGER", "ACCOUNTANT", "CSKH", "SHIPPER")
                         .requestMatchers("/api/inventory/**").hasAnyAuthority("WAREHOUSE", "ADMIN")
-                        
+
                         // Product Manager endpoints (Product & Category management)
                         .requestMatchers("/api/products/warehouse/**").hasAnyAuthority("PRODUCT_MANAGER", "ADMIN")
                         .requestMatchers("/api/products/publish").hasAnyAuthority("PRODUCT_MANAGER", "ADMIN")
@@ -101,6 +101,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/employee-registration/pending").hasAuthority("ADMIN")
                         .requestMatchers("/api/employee-registration/approve/**").hasAuthority("ADMIN")
                         .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
+
+                        .requestMatchers("/api/public/support/**").permitAll()
+                        
+                        // Support ticket endpoints (CSKH + ADMIN)
+                        .requestMatchers("/api/employee/support-tickets/**").hasAnyAuthority("CSKH", "ADMIN", "EMPLOYEE")
                         
                         .anyRequest().authenticated()
                 )

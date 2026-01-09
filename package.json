@@ -1,0 +1,16 @@
+{
+  "name": "do-an-tot-nghiep",
+  "version": "1.0.0",
+  "description": "TechWorld E-commerce Platform",
+  "scripts": {
+    "dev": "cd src/frontend && npm run dev",
+    "build": "cd src/frontend && npm run build",
+    "start": "cd src/frontend && npm run start",
+    "lint": "cd src/frontend && npm run lint",
+    "backend": "mvnw spring-boot:run",
+    "install:frontend": "cd src/frontend && npm install"
+  },
+  "keywords": ["ecommerce", "techworld", "nextjs", "spring-boot"],
+  "author": "",
+  "license": "ISC"
+}

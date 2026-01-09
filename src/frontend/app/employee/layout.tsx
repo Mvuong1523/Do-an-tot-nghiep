@@ -16,7 +16,9 @@ import {
   FiList,
   FiFileText,
   FiBox,
-  FiArchive
+  FiArchive,
+  FiMessageCircle,
+  FiHeadphones
 } from 'react-icons/fi'
 import { useAuthStore } from '@/store/authStore'
 import toast from 'react-hot-toast'
@@ -182,6 +184,11 @@ export default function EmployeeLayout({
       title: 'Giao hàng',
       icon: <FiTruck size={20} />,
       path: '/employee/shipping',
+    },
+    {
+      title: 'Hỗ trợ khách hàng',
+      icon: <FiHeadphones size={20} />,
+      path: '/employee/support',
     },
   ]
 

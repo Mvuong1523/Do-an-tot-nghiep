@@ -135,7 +135,7 @@ export const categoryApi = {
     try {
       const response = await apiClient.get('/categories')
       console.log('Category API raw response:', response)
-      
+
       // Kiểm tra nếu response.data là ApiResponse
       if (response.data && response.data.data) {
         return {
@@ -143,7 +143,7 @@ export const categoryApi = {
           data: Array.isArray(response.data.data) ? response.data.data : [],
         }
       }
-      
+
       // Nếu response.data là array trực tiếp
       return {
         success: true,
@@ -172,14 +172,14 @@ export const categoryApi = {
     try {
       const response = await apiClient.get('/categories/active')
       console.log('Active categories response:', response)
-      
+
       if (response.data && response.data.data) {
         return {
           success: true,
           data: Array.isArray(response.data.data) ? response.data.data : [],
         }
       }
-      
+
       return {
         success: true,
         data: Array.isArray(response.data) ? response.data : [],
@@ -198,14 +198,14 @@ export const categoryApi = {
     try {
       const response = await apiClient.get('/categories/tree')
       console.log('Categories tree response:', response)
-      
+
       if (response.data && response.data.data) {
         return {
           success: true,
           data: Array.isArray(response.data.data) ? response.data.data : [],
         }
       }
-      
+
       return {
         success: true,
         data: Array.isArray(response.data) ? response.data : [],
@@ -583,6 +583,153 @@ export const contactApi = {
   },
 }
 
+// Support API
+export const supportApi = {
+
+  // Lấy danh sách loại yêu cầu hỗ trợ (dùng cho form)
+  getSupportCategories: async (): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await apiClient.get('/public/support/categories')
+      return response.data
+    } catch (error: any) {
+      throw new Error(
+        error.response?.data?.message || 'Lỗi khi lấy danh sách loại hỗ trợ'
+      )
+    }
+  },
+
+  listTickets: async (params?: any): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await apiClient.get('/customer/support-tickets', { params })
+      return {
+        success: true,
+        data: response.data?.data || response.data || [],
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: [],
+        error: error.message,
+      }
+    }
+  },
+
+  empListTickets: async (params?: any): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await apiClient.get('/employee/support-tickets', { params })
+      return {
+        success: true,
+        data: response.data?.data || response.data || [],
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: [],
+        error: error.message,
+      }
+    }
+  },
+
+  getById: async (id: string | number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get(`/customer/support-tickets/${id}`)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi lấy ticket')
+    }
+  },
+
+  empGetById: async (id: string | number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get(`/employee/support-tickets/${id}`)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi lấy ticket')
+    }
+  },
+
+  createTicket: async (data: any): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.post('/customer/support-tickets', data)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi tạo ticket')
+    }
+  },
+
+  replyTicket: async (ticketId: string | number, data: any): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.post(`/customer/support-tickets/${ticketId}/replies`, data)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi gửi trả lời')
+    }
+  },
+
+  empReplyTicket: async (ticketId: string | number, data: any): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.post(`/employee/support-tickets/${ticketId}/replies`, data)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi gửi trả lời')
+    }
+  },
+
+  closeTicket: async (ticketId: string | number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.put(`/employee/support-tickets/${ticketId}/close`)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi đóng ticket')
+    }
+  },
+
+  assignTicket: async (ticketId: string | number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.put(`/employee/support-tickets/${ticketId}/assign`)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi nhận phiếu')
+    }
+  },
+
+  updateTicket: async (ticketId: string | number, data: { supportCategoryId?: number; priority?: string; internalNote?: string }): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.put(`/employee/support-tickets/${ticketId}`, data)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi cập nhật phiếu')
+    }
+  },
+
+  rateTicket: async (ticketId: string | number, data: { rating: number; comment?: string }): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.post(`/customer/support-tickets/${ticketId}/rating`, data)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi đánh giá phiếu')
+    }
+  },
+
+  getTicketRating: async (ticketId: string | number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get(`/customer/support-tickets/${ticketId}/rating`)
+      return response.data
+    } catch (error: any) {
+      return { success: false, data: null }
+    }
+  },
+
+  empGetTicketRating: async (ticketId: string | number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get(`/employee/support-tickets/${ticketId}/rating`)
+      return response.data
+    } catch (error: any) {
+      return { success: false, data: null }
+    }
+  },
+}
+
 // Customer API
 export const customerApi = {
   getProfile: async (): Promise<ApiResponse<any>> => {
@@ -593,7 +740,7 @@ export const customerApi = {
       throw new Error(error.response?.data?.message || 'Lỗi khi tải thông tin khách hàng')
     }
   },
-  
+
   updateProfile: async (data: any): Promise<ApiResponse<any>> => {
     try {
       const response = await apiClient.put('/customer/profile', data)

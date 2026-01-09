@@ -107,7 +107,6 @@ public class EmployeeRegistrationServiceImpl implements EmployeeRegistrationServ
         // Tạo mật khẩu ngẫu nhiên
         String rawPassword = generateRandomPassword(10);
         String encodedPassword = passwordEncoder.encode(rawPassword);
-
         // Tạo tài khoản user
         User user = User.builder()
                 .email(reg.getEmail())
