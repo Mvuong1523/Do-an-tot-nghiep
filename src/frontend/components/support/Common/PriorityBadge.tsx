@@ -11,7 +11,6 @@ const priorityConfig: Record<string, { label: string; color: string }> = {
   low: { label: 'Thấp', color: 'bg-gray-100 text-gray-600' },
   medium: { label: 'Trung bình', color: 'bg-blue-100 text-blue-600' },
   high: { label: 'Cao', color: 'bg-orange-100 text-orange-600' },
-  urgent: { label: 'Khẩn cấp', color: 'bg-red-100 text-red-600' }
 }
 
 const sizeClasses = {

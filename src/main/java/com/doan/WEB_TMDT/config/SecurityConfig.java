@@ -96,6 +96,9 @@ public class SecurityConfig {
 
                         .requestMatchers("/api/public/support/**").permitAll()
                         
+                        // Support ticket endpoints (CSKH + ADMIN)
+                        .requestMatchers("/api/employee/support-tickets/**").hasAnyAuthority("CSKH", "ADMIN", "EMPLOYEE")
+                        
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
