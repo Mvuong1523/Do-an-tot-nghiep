@@ -639,6 +639,15 @@ export const supportApi = {
     }
   },
 
+  empGetById: async (id: string | number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get(`/employee/support-tickets/${id}`)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi lấy ticket')
+    }
+  },
+
   createTicket: async (data: any): Promise<ApiResponse<any>> => {
     try {
       const response = await apiClient.post('/customer/support-tickets', data)
@@ -672,6 +681,51 @@ export const supportApi = {
       return response.data
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Lỗi khi đóng ticket')
+    }
+  },
+
+  assignTicket: async (ticketId: string | number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.put(`/employee/support-tickets/${ticketId}/assign`)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi nhận phiếu')
+    }
+  },
+
+  updateTicket: async (ticketId: string | number, data: { supportCategoryId?: number; priority?: string; internalNote?: string }): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.put(`/employee/support-tickets/${ticketId}`, data)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi cập nhật phiếu')
+    }
+  },
+
+  rateTicket: async (ticketId: string | number, data: { rating: number; comment?: string }): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.post(`/customer/support-tickets/${ticketId}/rating`, data)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi đánh giá phiếu')
+    }
+  },
+
+  getTicketRating: async (ticketId: string | number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get(`/customer/support-tickets/${ticketId}/rating`)
+      return response.data
+    } catch (error: any) {
+      return { success: false, data: null }
+    }
+  },
+
+  empGetTicketRating: async (ticketId: string | number): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get(`/employee/support-tickets/${ticketId}/rating`)
+      return response.data
+    } catch (error: any) {
+      return { success: false, data: null }
     }
   },
 }

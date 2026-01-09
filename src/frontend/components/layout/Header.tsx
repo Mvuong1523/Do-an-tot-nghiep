@@ -192,13 +192,22 @@ export default function Header() {
                         Thông tin tài khoản
                       </Link>
                       {user.role === 'CUSTOMER' && (
-                        <Link
-                          href="/orders"
-                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                          onClick={() => setIsUserMenuOpen(false)}
-                        >
-                          Đơn hàng của tôi
-                        </Link>
+                        <>
+                          <Link
+                            href="/support/tickets"
+                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                            onClick={() => setIsUserMenuOpen(false)}
+                          >
+                            Phiếu hỗ trợ của tôi
+                          </Link>
+                          <Link
+                            href="/orders"
+                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                            onClick={() => setIsUserMenuOpen(false)}
+                          >
+                            Đơn hàng của tôi
+                          </Link>
+                        </>
                       )}
                       {user.role === 'ADMIN' && (
                         <>

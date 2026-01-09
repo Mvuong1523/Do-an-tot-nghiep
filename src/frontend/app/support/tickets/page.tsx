@@ -10,7 +10,6 @@ import {
   FiPlus, FiSearch, FiFilter, FiClock, FiCheckCircle,
   FiAlertCircle, FiMessageCircle, FiArrowLeft, FiChevronRight
 } from 'react-icons/fi'
-import { log } from 'console'
 
 interface Ticket {
   id: string | number
@@ -30,18 +29,18 @@ interface CategorySupport {
 }
 
 const statusConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  open: { label: 'Đang mở', color: 'bg-blue-100 text-blue-800', icon: <FiMessageCircle /> },
-  pending: { label: 'Chờ xử lý', color: 'bg-yellow-100 text-yellow-800', icon: <FiClock /> },
-  in_progress: { label: 'Đang xử lý', color: 'bg-orange-100 text-orange-800', icon: <FiAlertCircle /> },
-  resolved: { label: 'Đã giải quyết', color: 'bg-green-100 text-green-800', icon: <FiCheckCircle /> },
-  closed: { label: 'Đã đóng', color: 'bg-gray-100 text-gray-800', icon: <FiCheckCircle /> }
+  OPEN: { label: 'Đang mở', color: 'bg-blue-100 text-blue-800', icon: <FiMessageCircle /> },
+  PENDING: { label: 'Chờ xử lý', color: 'bg-yellow-100 text-yellow-800', icon: <FiClock /> },
+  PROCESSING: { label: 'Đang xử lý', color: 'bg-orange-100 text-orange-800', icon: <FiAlertCircle /> },
+  RESOLVED: { label: 'Đã giải quyết', color: 'bg-green-100 text-green-800', icon: <FiCheckCircle /> },
+  CANCELLED: { label: 'Đã đóng', color: 'bg-gray-100 text-gray-800', icon: <FiCheckCircle /> }
 }
 
 const priorityConfig: Record<string, { label: string; color: string }> = {
-  low: { label: 'Thấp', color: 'bg-gray-100 text-gray-600' },
-  medium: { label: 'Trung bình', color: 'bg-blue-100 text-blue-600' },
-  high: { label: 'Cao', color: 'bg-orange-100 text-orange-600' },
-  urgent: { label: 'Khẩn cấp', color: 'bg-red-100 text-red-600' }
+  LOW: { label: 'Thấp', color: 'bg-gray-100 text-gray-600' },
+  MEDIUM: { label: 'Trung bình', color: 'bg-blue-100 text-blue-600' },
+  HIGH: { label: 'Cao', color: 'bg-orange-100 text-orange-600' },
+  URGENT: { label: 'Khẩn cấp', color: 'bg-red-100 text-red-600' }
 }
 
 export default function TicketsPage() {
@@ -58,13 +57,28 @@ export default function TicketsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
 
   useEffect(() => {
-    // if (!isAuthenticated) {
-    //   router.push('/login?redirect=/supports')
-    //   return
-    // }
     loadTickets()
     getSupportCategories();
+
+    // Auto refresh mỗi 10 giây để cập nhật trạng thái
+    const interval = setInterval(() => {
+      refreshTickets()
+    }, 10000)
+
+    return () => clearInterval(interval)
   }, [isAuthenticated])
+
+  const refreshTickets = async () => {
+    try {
+      const res = await supportApi.listTickets()
+      if (res.success) {
+        const list = Array.isArray(res.data?.content) ? res.data.content : []
+        setTickets(list)
+      }
+    } catch (error) {
+      console.error('Error refreshing tickets:', error)
+    }
+  }
 
   const loadTickets = async () => {
     setLoading(true)
@@ -170,11 +184,10 @@ export default function TicketsPage() {
                 className="border border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">Tất cả trạng thái</option>
-                <option value="open">Đang mở</option>
-                <option value="pending">Chờ xử lý</option>
-                <option value="in_progress">Đang xử lý</option>
-                <option value="resolved">Đã giải quyết</option>
-                <option value="closed">Đã đóng</option>
+                <option value="PENDING">Chờ xử lý</option>
+                <option value="PROCESSING">Đang xử lý</option>
+                <option value="RESOLVED">Đã giải quyết</option>
+                <option value="CANCELLED">Đã đóng</option>
               </select>
             </div>
           </div>
@@ -207,8 +220,8 @@ export default function TicketsPage() {
           ) : (
             <div className="divide-y divide-gray-100">
               {filteredTickets.map((ticket) => {
-                const status = statusConfig[ticket.status] || statusConfig.open
-                const priority = priorityConfig[ticket.priority] || priorityConfig.medium
+                const status = statusConfig[ticket.status] || statusConfig.PENDING
+                const priority = priorityConfig[ticket.priority] || priorityConfig.MEDIUM
 
                 return (
                   <Link
@@ -268,7 +281,13 @@ export default function TicketsPage() {
 }
 
 // Create Ticket Modal Component
-function CreateTicketModal({ orderId, orderCode, supportCategory, onClose, onCreated }: { orderId: number | null, orderCode: string | null, supportCategory: CategorySupport[], onClose: () => void; onCreated: () => void }) {
+function CreateTicketModal({ orderId, orderCode, supportCategory, onClose, onCreated }: { 
+  orderId: string | null, 
+  orderCode: string | null, 
+  supportCategory: CategorySupport[], 
+  onClose: () => void; 
+  onCreated: () => void 
+}) {
   const [formData, setFormData] = useState({
     title: '',
     supportCategoryId: supportCategory[0]?.id || '',
@@ -276,10 +295,17 @@ function CreateTicketModal({ orderId, orderCode, supportCategory, onClose, onCre
     content: ''
   })
 
+  // Cập nhật categoryId khi supportCategory được load
+  useEffect(() => {
+    if (supportCategory.length > 0 && !formData.supportCategoryId) {
+      setFormData(prev => ({
+        ...prev,
+        supportCategoryId: supportCategory[0]?.id || ''
+      }))
+    }
+  }, [supportCategory])
   
   const [submitting, setSubmitting] = useState(false)
-
-  console.log("cate", supportCategory);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -331,7 +357,7 @@ function CreateTicketModal({ orderId, orderCode, supportCategory, onClose, onCre
                 </label>
                 <input
                   type="text"
-                  value={orderCode}
+                  value={orderCode || ''}
                   readOnly
                   disabled
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -355,7 +381,7 @@ function CreateTicketModal({ orderId, orderCode, supportCategory, onClose, onCre
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Danh mục</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Danh mục hỗ trợ</label>
               <select
                 value={formData.supportCategoryId}
                 onChange={(e) => setFormData({ ...formData, supportCategoryId: e.target.value })}

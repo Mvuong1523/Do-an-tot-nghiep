@@ -36,13 +36,19 @@ const TicketDetail: React.FC<Props> = ({ ticketId }) => {
   return (
     <div className="support-ticket-detail bg-white rounded shadow-sm p-4">
       <h2 className="text-xl font-semibold mb-2">{ticket.title}</h2>
-      <div className="text-sm text-gray-600 mb-4">Status: {ticket.status}</div>
+      <div className="text-sm text-gray-600 mb-4">Trạng thái: {ticket.status}</div>
 
       <div className="mb-4">
-        {ticket.messages?.map((m: any, idx: number) => (
-          <div key={idx} className="mb-3 p-3 bg-gray-50 rounded">
-            <div className="text-sm text-gray-700">{m.content}</div>
-            <div className="text-xs text-gray-400 mt-1">{m.createdAt}</div>
+        <p className="text-sm text-gray-600 font-medium mb-2">Trao đổi ({ticket.replies?.length || 0}):</p>
+        {ticket.replies?.map((m: any, idx: number) => (
+          <div key={idx} className={`mb-3 p-3 rounded border ${m.senderType === 'employee' ? 'bg-blue-50 border-blue-200 ml-4' : 'bg-white border-gray-200 mr-4'}`}>
+            <div className="flex items-center gap-2 mb-1">
+              <span className={`text-xs font-semibold ${m.senderType === 'employee' ? 'text-blue-700' : 'text-gray-700'}`}>
+                {m.senderType === 'employee' ? '👨‍💼 Hỗ trợ viên' : '👤 Khách hàng'}
+              </span>
+              <span className="text-xs text-gray-500">{new Date(m.createdAt).toLocaleString('vi-VN')}</span>
+            </div>
+            <div className="text-sm text-gray-800">{m.content}</div>
           </div>
         ))}
       </div>

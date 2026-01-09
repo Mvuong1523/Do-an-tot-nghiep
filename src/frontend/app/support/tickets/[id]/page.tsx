@@ -8,7 +8,7 @@ import { supportApi } from '@/lib/api'
 import toast from 'react-hot-toast'
 import {
   FiArrowLeft, FiClock, FiCheckCircle, FiAlertCircle,
-  FiMessageCircle, FiSend, FiUser, FiHeadphones, FiX
+  FiMessageCircle, FiSend, FiUser, FiHeadphones, FiX, FiStar
 } from 'react-icons/fi'
 
 interface Message {
@@ -25,25 +25,27 @@ interface Ticket {
   status: string
   priority: string
   category: string
+  categoryName?: string
   content: string
   createdAt: string
   updatedAt: string
-  messages?: Message[]
+  replies?: any[]
+  relatedOrders?: any[]
 }
 
 const statusConfig: Record<string, { label: string; color: string; bgColor: string }> = {
-  open: { label: 'Đang mở', color: 'text-blue-600', bgColor: 'bg-blue-100' },
-  pending: { label: 'Chờ xử lý', color: 'text-yellow-600', bgColor: 'bg-yellow-100' },
-  in_progress: { label: 'Đang xử lý', color: 'text-orange-600', bgColor: 'bg-orange-100' },
-  resolved: { label: 'Đã giải quyết', color: 'text-green-600', bgColor: 'bg-green-100' },
-  closed: { label: 'Đã đóng', color: 'text-gray-600', bgColor: 'bg-gray-100' }
+  OPEN: { label: 'Đang mở', color: 'text-blue-600', bgColor: 'bg-blue-100' },
+  PENDING: { label: 'Chờ xử lý', color: 'text-yellow-600', bgColor: 'bg-yellow-100' },
+  PROCESSING: { label: 'Đang xử lý', color: 'text-orange-600', bgColor: 'bg-orange-100' },
+  RESOLVED: { label: 'Đã giải quyết', color: 'text-green-600', bgColor: 'bg-green-100' },
+  CANCELLED: { label: 'Đã đóng', color: 'text-gray-600', bgColor: 'bg-gray-100' }
 }
 
 const priorityConfig: Record<string, { label: string; color: string }> = {
-  low: { label: 'Thấp', color: 'text-gray-600' },
-  medium: { label: 'Trung bình', color: 'text-blue-600' },
-  high: { label: 'Cao', color: 'text-orange-600' },
-  urgent: { label: 'Khẩn cấp', color: 'text-red-600' }
+  LOW: { label: 'Thấp', color: 'text-gray-600' },
+  MEDIUM: { label: 'Trung bình', color: 'text-blue-600' },
+  HIGH: { label: 'Cao', color: 'text-orange-600' },
+  URGENT: { label: 'Khẩn cấp', color: 'text-red-600' }
 }
 
 export default function TicketDetailPage({ params }: { params: { id: string } }) {
@@ -54,6 +56,11 @@ export default function TicketDetailPage({ params }: { params: { id: string } })
   const [replyContent, setReplyContent] = useState('')
   const [sending, setSending] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [showRatingModal, setShowRatingModal] = useState(false)
+  const [rating, setRating] = useState(5)
+  const [ratingComment, setRatingComment] = useState('')
+  const [existingRating, setExistingRating] = useState<any>(null)
+  const [submittingRating, setSubmittingRating] = useState(false)
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -61,14 +68,60 @@ export default function TicketDetailPage({ params }: { params: { id: string } })
       return
     }
     loadTicket()
+    loadRating()
+
+    // Auto refresh mỗi 10 giây để cập nhật trạng thái và phản hồi mới
+    const interval = setInterval(() => {
+      refreshTicket()
+    }, 10000)
+
+    return () => clearInterval(interval)
   }, [isAuthenticated, params.id])
 
   useEffect(() => {
     scrollToBottom()
-  }, [ticket?.messages])
+  }, [ticket?.replies])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const loadRating = async () => {
+    try {
+      const res = await supportApi.getTicketRating(params.id)
+      if (res.success && res.data) {
+        setExistingRating(res.data)
+      }
+    } catch (error) {
+      console.error('Error loading rating:', error)
+    }
+  }
+
+  const handleSubmitRating = async () => {
+    setSubmittingRating(true)
+    try {
+      const res = await supportApi.rateTicket(params.id, { rating, comment: ratingComment })
+      if (res.success) {
+        toast.success('Cảm ơn bạn đã đánh giá!')
+        setShowRatingModal(false)
+        setExistingRating(res.data)
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Không thể gửi đánh giá')
+    } finally {
+      setSubmittingRating(false)
+    }
+  }
+
+  const refreshTicket = async () => {
+    try {
+      const res = await supportApi.getById(params.id)
+      if (res.success) {
+        setTicket(res.data)
+      }
+    } catch (error) {
+      console.error('Error refreshing ticket:', error)
+    }
   }
 
   const loadTicket = async () => {
@@ -161,9 +214,9 @@ export default function TicketDetailPage({ params }: { params: { id: string } })
     )
   }
 
-  const status = statusConfig[ticket.status] || statusConfig.open
-  const priority = priorityConfig[ticket.priority] || priorityConfig.medium
-  const isOpen = ticket.status !== 'closed' && ticket.status !== 'resolved'
+  const status = statusConfig[ticket.status] || statusConfig.PENDING
+  const priority = priorityConfig[ticket.priority] || priorityConfig.MEDIUM
+  const isOpen = ticket.status !== 'CANCELLED' && ticket.status !== 'RESOLVED'
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -200,17 +253,30 @@ export default function TicketDetailPage({ params }: { params: { id: string } })
         {/* Ticket Info */}
         <div className="bg-white rounded-xl shadow-sm mb-6">
           <div className="p-4 border-b border-gray-100">
-            <div className="flex items-center gap-4 text-sm text-gray-500">
+            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
               <span className="flex items-center gap-1">
                 <FiClock className="w-4 h-4" />
                 Tạo lúc: {formatDate(ticket.createdAt)}
               </span>
-              {ticket.category && (
-                <span className="bg-gray-100 px-2 py-0.5 rounded text-xs">
-                  {ticket.category}
+              {(ticket.categoryName || ticket.category) && (
+                <span className="flex items-center gap-1">
+                  <span className="text-gray-600 font-medium">Danh mục:</span>
+                  <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs font-medium">
+                    {ticket.categoryName || ticket.category}
+                  </span>
                 </span>
               )}
             </div>
+            {ticket.relatedOrders && ticket.relatedOrders.length > 0 && (
+              <div className="mt-2 text-sm">
+                <span className="text-gray-600 font-medium">Đơn hàng liên quan:</span>{' '}
+                {ticket.relatedOrders.map((order: any, idx: number) => (
+                  <span key={idx} className="inline-block bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-medium mr-1">
+                    {order.orderCode || `#${order.id}`}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
           <div className="p-4">
             <p className="text-gray-700 whitespace-pre-wrap">{ticket.content}</p>
@@ -222,34 +288,34 @@ export default function TicketDetailPage({ params }: { params: { id: string } })
           <div className="p-4 border-b border-gray-100">
             <h2 className="font-semibold text-gray-900 flex items-center gap-2">
               <FiMessageCircle className="w-5 h-5" />
-              Trao đổi ({ticket.messages?.length || 0})
+              Trao đổi ({ticket.replies?.length || 0})
             </h2>
           </div>
           
           <div className="max-h-96 overflow-y-auto p-4 space-y-4">
-            {(!ticket.messages || ticket.messages.length === 0) ? (
+            {(!ticket.replies || ticket.replies.length === 0) ? (
               <p className="text-center text-gray-500 py-8">Chưa có phản hồi nào</p>
             ) : (
-              ticket.messages.map((msg, index) => (
+              ticket.replies.map((msg: any, index: number) => (
                 <div
                   key={msg.id || index}
-                  className={`flex ${msg.sender === 'customer' ? 'justify-end' : 'justify-start'}`}
+                  className={`flex ${msg.senderType === 'customer' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`max-w-[80%] ${msg.sender === 'customer' ? 'order-2' : 'order-1'}`}>
-                    <div className={`flex items-center gap-2 mb-1 ${msg.sender === 'customer' ? 'justify-end' : ''}`}>
-                      {msg.sender === 'support' ? (
+                  <div className={`max-w-[80%] ${msg.senderType === 'customer' ? 'order-2' : 'order-1'}`}>
+                    <div className={`flex items-center gap-2 mb-1 ${msg.senderType === 'customer' ? 'justify-end' : ''}`}>
+                      {msg.senderType === 'employee' ? (
                         <FiHeadphones className="w-4 h-4 text-blue-600" />
                       ) : (
                         <FiUser className="w-4 h-4 text-gray-400" />
                       )}
                       <span className="text-xs text-gray-500">
-                        {msg.senderName || (msg.sender === 'support' ? 'Hỗ trợ viên' : 'Bạn')}
+                        {msg.senderName || (msg.senderType === 'employee' ? 'Hỗ trợ viên' : 'Bạn')}
                       </span>
                       <span className="text-xs text-gray-400">{formatDate(msg.createdAt)}</span>
                     </div>
                     <div
                       className={`p-3 rounded-lg ${
-                        msg.sender === 'customer'
+                        msg.senderType === 'customer'
                           ? 'bg-blue-600 text-white'
                           : 'bg-gray-100 text-gray-700'
                       }`}
@@ -263,6 +329,40 @@ export default function TicketDetailPage({ params }: { params: { id: string } })
             <div ref={messagesEndRef} />
           </div>
         </div>
+
+        {/* Rating Section - Hiển thị khi đã đóng */}
+        {!isOpen && (
+          <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
+            {existingRating ? (
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-2">Đánh giá của bạn</h3>
+                <div className="flex items-center gap-1 mb-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <FiStar
+                      key={star}
+                      className={`w-5 h-5 ${star <= existingRating.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`}
+                    />
+                  ))}
+                  <span className="ml-2 text-sm text-gray-600">({existingRating.rating}/5)</span>
+                </div>
+                {existingRating.comment && (
+                  <p className="text-gray-600 text-sm">{existingRating.comment}</p>
+                )}
+              </div>
+            ) : (
+              <div className="text-center">
+                <p className="text-gray-600 mb-3">Bạn có hài lòng với dịch vụ hỗ trợ?</p>
+                <button
+                  onClick={() => setShowRatingModal(true)}
+                  className="btn-primary flex items-center gap-2 mx-auto"
+                >
+                  <FiStar className="w-4 h-4" />
+                  Đánh giá phiếu hỗ trợ
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Reply Form */}
         {isOpen ? (
@@ -299,6 +399,60 @@ export default function TicketDetailPage({ params }: { params: { id: string } })
             >
               Tạo ticket mới nếu bạn cần hỗ trợ thêm
             </Link>
+          </div>
+        )}
+
+        {/* Rating Modal */}
+        {showRatingModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Đánh giá dịch vụ hỗ trợ</h3>
+              
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-2">Mức độ hài lòng của bạn:</p>
+                <div className="flex items-center gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setRating(star)}
+                      className="focus:outline-none"
+                    >
+                      <FiStar
+                        className={`w-8 h-8 transition-colors ${star <= rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300 hover:text-yellow-200'}`}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm text-gray-600 mb-1">Nhận xét (tùy chọn):</label>
+                <textarea
+                  value={ratingComment}
+                  onChange={(e) => setRatingComment(e.target.value)}
+                  placeholder="Chia sẻ trải nghiệm của bạn..."
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowRatingModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleSubmitRating}
+                  disabled={submittingRating}
+                  className="flex-1 btn-primary disabled:opacity-50"
+                >
+                  {submittingRating ? 'Đang gửi...' : 'Gửi đánh giá'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

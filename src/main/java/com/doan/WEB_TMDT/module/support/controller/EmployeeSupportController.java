@@ -2,9 +2,11 @@ package com.doan.WEB_TMDT.module.support.controller;
 
 import com.doan.WEB_TMDT.common.dto.ApiResponse;
 import com.doan.WEB_TMDT.module.support.dto.request.*;
+import com.doan.WEB_TMDT.module.support.dto.response.SupportRatingResponse;
 import com.doan.WEB_TMDT.module.support.dto.response.SupportReplyResponse;
 import com.doan.WEB_TMDT.module.support.dto.response.SupportTicketDetailResponse;
 import com.doan.WEB_TMDT.module.support.dto.response.SupportTicketListResponse;
+import com.doan.WEB_TMDT.module.support.service.SupportRatingService;
 import com.doan.WEB_TMDT.module.support.service.SupportReplyService;
 import com.doan.WEB_TMDT.module.support.service.SupportTicketService;
 import jakarta.validation.Valid;
@@ -29,6 +31,7 @@ public class EmployeeSupportController {
 
     private final SupportTicketService ticketService;
     private final SupportReplyService replyService;
+    private final SupportRatingService ratingService;
 
     /**
      * REQ94-95: Xem và lọc danh sách phiếu hỗ trợ
@@ -150,5 +153,15 @@ public class EmployeeSupportController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Đã gửi phản hồi thành công", reply));
+    }
+
+    /**
+     * Lấy đánh giá của phiếu hỗ trợ
+     * GET /api/employee/support-tickets/{id}/rating
+     */
+    @GetMapping("/{id}/rating")
+    public ResponseEntity<ApiResponse> getTicketRating(@PathVariable Long id) {
+        SupportRatingResponse rating = ratingService.getRatingByTicketId(id);
+        return ResponseEntity.ok(ApiResponse.success("Lấy đánh giá thành công", rating));
     }
 }

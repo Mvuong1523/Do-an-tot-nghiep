@@ -1,11 +1,14 @@
 package com.doan.WEB_TMDT.module.support.controller;
 
 import com.doan.WEB_TMDT.common.dto.ApiResponse;
+import com.doan.WEB_TMDT.module.support.dto.request.CreateRatingRequest;
 import com.doan.WEB_TMDT.module.support.dto.request.CreateReplyRequest;
 import com.doan.WEB_TMDT.module.support.dto.request.CreateSupportTicketRequest;
+import com.doan.WEB_TMDT.module.support.dto.response.SupportRatingResponse;
 import com.doan.WEB_TMDT.module.support.dto.response.SupportReplyResponse;
 import com.doan.WEB_TMDT.module.support.dto.response.SupportTicketDetailResponse;
 import com.doan.WEB_TMDT.module.support.dto.response.SupportTicketListResponse;
+import com.doan.WEB_TMDT.module.support.service.SupportRatingService;
 import com.doan.WEB_TMDT.module.support.service.SupportReplyService;
 import com.doan.WEB_TMDT.module.support.service.SupportTicketService;
 import jakarta.validation.Valid;
@@ -33,6 +36,7 @@ public class CustomerSupportController {
 
     private final SupportTicketService ticketService;
     private final SupportReplyService replyService;
+    private final SupportRatingService ratingService;
 
     /**
      * REQ84-88: Tạo phiếu hỗ trợ
@@ -111,5 +115,33 @@ public class CustomerSupportController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Đã gửi phản hồi thành công", reply));
+    }
+
+    /**
+     * Đánh giá phiếu hỗ trợ (sau khi đã đóng)
+     * POST /api/customer/support-tickets/{id}/rating
+     */
+    @PostMapping("/{id}/rating")
+    public ResponseEntity<ApiResponse> rateTicket(
+            @PathVariable Long id,
+            @Valid @RequestBody CreateRatingRequest request,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        String email = userDetails.getUsername();
+        SupportRatingResponse rating = ratingService.createRating(id, request, email);
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Đánh giá thành công", rating));
+    }
+
+    /**
+     * Lấy đánh giá của phiếu hỗ trợ
+     * GET /api/customer/support-tickets/{id}/rating
+     */
+    @GetMapping("/{id}/rating")
+    public ResponseEntity<ApiResponse> getTicketRating(@PathVariable Long id) {
+        SupportRatingResponse rating = ratingService.getRatingByTicketId(id);
+        return ResponseEntity.ok(ApiResponse.success("Lấy đánh giá thành công", rating));
     }
 }
