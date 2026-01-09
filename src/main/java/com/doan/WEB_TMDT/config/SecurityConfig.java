@@ -109,7 +109,6 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // ✅ Swagger bypass hoàn toàn
     @Bean
     public org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer webSecurityCustomizer() {
         return (web) -> web.ignoring().requestMatchers(

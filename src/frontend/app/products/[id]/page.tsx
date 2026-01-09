@@ -270,19 +270,29 @@ export default function ProductDetailPage() {
                 <div className="flex items-center border border-gray-300 rounded-lg">
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="px-4 py-2 hover:bg-gray-100"
+                    disabled={quantity <= 1}
+                    className="px-4 py-2 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     -
                   </button>
                   <input
                     type="number"
                     value={quantity}
-                    onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                    max={product.availableQuantity !== undefined ? product.availableQuantity : product.stockQuantity || 0}
+                    onChange={(e) => {
+                      const val = Math.max(1, parseInt(e.target.value) || 1);
+                      const maxStock = product.availableQuantity !== undefined ? product.availableQuantity : product.stockQuantity || 0;
+                      setQuantity(Math.min(val, maxStock));
+                    }}
                     className="w-16 text-center border-x border-gray-300 py-2"
                   />
                   <button
-                    onClick={() => setQuantity(quantity + 1)}
-                    className="px-4 py-2 hover:bg-gray-100"
+                    onClick={() => {
+                      const maxStock = product.availableQuantity !== undefined ? product.availableQuantity : product.stockQuantity || 0;
+                      setQuantity(Math.min(quantity + 1, maxStock));
+                    }}
+                    disabled={quantity >= (product.availableQuantity !== undefined ? product.availableQuantity : product.stockQuantity || 0)}
+                    className="px-4 py-2 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     +
                   </button>
@@ -294,16 +304,18 @@ export default function ProductDetailPage() {
             <div className="flex space-x-4 mb-6">
               <button
                 onClick={handleAddToCart}
-                className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2 font-semibold"
+                disabled={(product.availableQuantity !== undefined ? product.availableQuantity : product.stockQuantity || 0) <= 0}
+                className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2 font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 <FiShoppingCart size={20} />
-                <span>Thêm vào giỏ</span>
+                <span>{(product.availableQuantity !== undefined ? product.availableQuantity : product.stockQuantity || 0) <= 0 ? 'Hết hàng' : 'Thêm vào giỏ'}</span>
               </button>
               <button
                 onClick={handleBuyNow}
-                className="flex-1 bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold"
+                disabled={(product.availableQuantity !== undefined ? product.availableQuantity : product.stockQuantity || 0) <= 0}
+                className="flex-1 bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
-                Mua ngay
+                {(product.availableQuantity !== undefined ? product.availableQuantity : product.stockQuantity || 0) <= 0 ? 'Hết hàng' : 'Mua ngay'}
               </button>
               <button className="p-3 border border-gray-300 rounded-lg hover:bg-gray-50">
                 <FiHeart size={24} />

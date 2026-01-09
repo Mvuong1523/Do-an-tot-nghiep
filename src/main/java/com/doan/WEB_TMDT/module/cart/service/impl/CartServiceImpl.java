@@ -69,12 +69,17 @@ public class CartServiceImpl implements CartService {
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
 
-        // 3. Check stock
-        if (product.getStockQuantity() == null || product.getStockQuantity() < request.getQuantity()) {
-            return ApiResponse.error("Sản phẩm không đủ số lượng trong kho");
+        // 3. Calculate available quantity (stock - reserved)
+        long stockQty = product.getStockQuantity() != null ? product.getStockQuantity() : 0L;
+        long reservedQty = product.getReservedQuantity() != null ? product.getReservedQuantity() : 0L;
+        long availableQty = stockQty - reservedQty;
+
+        // 4. Check available quantity
+        if (availableQty < request.getQuantity()) {
+            return ApiResponse.error("Sản phẩm không đủ số lượng. Còn lại: " + availableQty + " sản phẩm");
         }   
 
-        // 4. Check if product already in cart
+        // 5. Check if product already in cart
         Optional<CartItem> existingItem = cartItemRepository
                 .findByCartIdAndProductId(cart.getId(), product.getId());
 
@@ -83,8 +88,8 @@ public class CartServiceImpl implements CartService {
             CartItem item = existingItem.get();
             int newQuantity = item.getQuantity() + request.getQuantity();
 
-            if (newQuantity > product.getStockQuantity()) {
-                return ApiResponse.error("Số lượng vượt quá tồn kho");
+            if (newQuantity > availableQty) {
+                return ApiResponse.error("Số lượng vượt quá tồn kho khả dụng. Còn lại: " + availableQty + " sản phẩm");
             }
 
             item.setQuantity(newQuantity);
@@ -100,7 +105,7 @@ public class CartServiceImpl implements CartService {
             cartItemRepository.save(newItem);
         }
 
-        // 5. Return updated cart
+        // 6. Return updated cart
         Cart updatedCart = cartRepository.findById(cart.getId()).orElseThrow();
         CartResponse response = toCartResponse(updatedCart);
         return ApiResponse.success("Đã thêm vào giỏ hàng", response);
@@ -121,10 +126,14 @@ public class CartServiceImpl implements CartService {
             return ApiResponse.error("Bạn không có quyền sửa sản phẩm này");
         }
 
-        // 4. Check stock
+        // 4. Calculate available quantity
         Product product = item.getProduct();
-        if (product.getStockQuantity() == null || product.getStockQuantity() < request.getQuantity()) {
-            return ApiResponse.error("Sản phẩm không đủ số lượng trong kho");
+        long stockQty = product.getStockQuantity() != null ? product.getStockQuantity() : 0L;
+        long reservedQty = product.getReservedQuantity() != null ? product.getReservedQuantity() : 0L;
+        long availableQty = stockQty - reservedQty;
+
+        if (availableQty < request.getQuantity()) {
+            return ApiResponse.error("Sản phẩm không đủ số lượng. Còn lại: " + availableQty + " sản phẩm");
         }
 
         // 5. Update quantity
@@ -208,8 +217,13 @@ public class CartServiceImpl implements CartService {
 
     private CartItemResponse toCartItemResponse(CartItem item) {
         Product product = item.getProduct();
-        boolean available = product.getStockQuantity() != null && 
-                           product.getStockQuantity() >= item.getQuantity();
+        
+        // Calculate available quantity (stock - reserved)
+        long stockQty = product.getStockQuantity() != null ? product.getStockQuantity() : 0L;
+        long reservedQty = product.getReservedQuantity() != null ? product.getReservedQuantity() : 0L;
+        long availableQty = stockQty - reservedQty;
+        
+        boolean available = availableQty >= item.getQuantity();
 
         // Lấy ảnh đầu tiên (primary hoặc ảnh có displayOrder nhỏ nhất)
         String productImage = productImageRepository.findByProductIdOrderByDisplayOrderAsc(product.getId())
@@ -226,8 +240,7 @@ public class CartServiceImpl implements CartService {
                 .productSku(product.getSku())
                 .price(item.getPrice())
                 .quantity(item.getQuantity())
-                .stockQuantity(product.getStockQuantity() != null ? 
-                              product.getStockQuantity().intValue() : 0)
+                .stockQuantity((int) availableQty) // Trả về số lượng khả dụng thực tế
                 .subtotal(item.getSubtotal())
                 .available(available)
                 .build();
