@@ -2,6 +2,7 @@ package com.doan.WEB_TMDT.module.product.controller;
 
 import com.doan.WEB_TMDT.common.dto.ApiResponse;
 import com.doan.WEB_TMDT.module.inventory.service.ProductSpecificationService;
+import com.doan.WEB_TMDT.module.product.dto.CreateProductFromWarehouseRequest;
 import com.doan.WEB_TMDT.module.product.dto.ProductWithSpecsDTO;
 import com.doan.WEB_TMDT.module.product.dto.PublishProductRequest;
 import com.doan.WEB_TMDT.module.product.entity.Product;
@@ -23,11 +24,24 @@ public class ProductController {
     @GetMapping
     public ApiResponse getAll() {
         List<Product> products = productService.getAll();
+        System.out.println("========= DEBUG GET ALL PRODUCTS =========");
+        System.out.println("Total products from DB: " + products.size());
+        products.forEach(p -> System.out
+                .println("Product ID: " + p.getId() + ", Name: " + p.getName() + ",Active: " + p.getActive()));
+
         // Chỉ trả về sản phẩm đang bán (active = true) cho khách hàng
         List<ProductWithSpecsDTO> productsWithSpecs = products.stream()
-                .filter(product -> product.getActive() == null || product.getActive()) // null coi như true (sản phẩm cũ)
+                .filter(product -> {
+                    boolean shouldShow = product.getActive() == null || product.getActive();
+                    System.out.println("Product " + product.getId() + " - Active: " + product.getActive() + " - Show: "
+                            + shouldShow);
+                    return shouldShow;
+                })
                 .map(productService::toProductWithSpecs)
                 .collect(java.util.stream.Collectors.toList());
+
+        System.out.println("Products after filter: " + productsWithSpecs.size());
+        System.out.println("==========================================");
         return ApiResponse.success("Danh sách sản phẩm", productsWithSpecs);
     }
 
@@ -48,20 +62,20 @@ public class ProductController {
     }
 
     // ===== Quản lý đăng bán sản phẩm từ kho (PRODUCT_MANAGER & ADMIN) =====
-    
+
     @GetMapping("/warehouse/list")
     @PreAuthorize("hasAnyAuthority('PRODUCT_MANAGER', 'ADMIN')")
     public ApiResponse getWarehouseProductsForPublish() {
         return productService.getWarehouseProductsForPublish();
     }
-    
+
     @PostMapping("/warehouse/publish")
     @PreAuthorize("hasAnyAuthority('PRODUCT_MANAGER', 'ADMIN')")
     public ApiResponse createProductFromWarehouse(
-            @RequestBody com.doan.WEB_TMDT.module.product.dto.CreateProductFromWarehouseRequest request) {
+            @RequestBody CreateProductFromWarehouseRequest request) {
         return productService.createProductFromWarehouse(request);
     }
-    
+
     @PutMapping("/warehouse/publish/{productId}")
     @PreAuthorize("hasAnyAuthority('PRODUCT_MANAGER', 'ADMIN')")
     public ApiResponse updatePublishedProduct(
@@ -69,13 +83,13 @@ public class ProductController {
             @RequestBody com.doan.WEB_TMDT.module.product.dto.CreateProductFromWarehouseRequest request) {
         return productService.updatePublishedProduct(productId, request);
     }
-    
+
     @DeleteMapping("/warehouse/unpublish/{productId}")
     @PreAuthorize("hasAnyAuthority('PRODUCT_MANAGER', 'ADMIN')")
     public ApiResponse unpublishProduct(@PathVariable Long productId) {
         return productService.unpublishProduct(productId);
     }
-    
+
     @PostMapping("/publish")
     @PreAuthorize("hasAnyAuthority('PRODUCT_MANAGER', 'ADMIN')")
     public ApiResponse publishProduct(@RequestBody PublishProductRequest request) {
@@ -88,7 +102,7 @@ public class ProductController {
     }
 
     // ===== CRUD sản phẩm (PRODUCT_MANAGER & ADMIN) =====
-    
+
     @PostMapping
     @PreAuthorize("hasAnyAuthority('PRODUCT_MANAGER', 'ADMIN')")
     public ApiResponse create(@RequestBody Product product) {
@@ -99,9 +113,8 @@ public class ProductController {
     @PreAuthorize("hasAnyAuthority('PRODUCT_MANAGER', 'ADMIN')")
     public ApiResponse update(@PathVariable Long id, @RequestBody Product product) {
         Product updated = productService.update(id, product);
-        return updated != null ? 
-                ApiResponse.success("Cập nhật sản phẩm thành công", updated) : 
-                ApiResponse.error("Không tìm thấy sản phẩm");
+        return updated != null ? ApiResponse.success("Cập nhật sản phẩm thành công", updated)
+                : ApiResponse.error("Không tìm thấy sản phẩm");
     }
 
     @DeleteMapping("/{id}")
@@ -112,36 +125,35 @@ public class ProductController {
     }
 
     // ===== Search by Specifications (Cho khách hàng) =====
-    
+
     @GetMapping("/search-by-specs")
     public ApiResponse searchBySpecs(@RequestParam String keyword) {
         var warehouseProducts = productSpecificationService.searchBySpecValue(keyword);
-        
+
         List<Product> products = warehouseProducts.stream()
                 .map(wp -> wp.getProduct())
                 .filter(p -> p != null)
                 .toList();
-        
+
         return ApiResponse.success("Tìm thấy " + products.size() + " sản phẩm", products);
     }
 
     @GetMapping("/filter-by-specs")
     public ApiResponse filterBySpecs(
             @RequestParam String key,
-            @RequestParam String value
-    ) {
+            @RequestParam String value) {
         var warehouseProducts = productSpecificationService.searchBySpecKeyAndValue(key, value);
-        
+
         List<Product> products = warehouseProducts.stream()
                 .map(wp -> wp.getProduct())
                 .filter(p -> p != null)
                 .toList();
-        
+
         return ApiResponse.success("Tìm thấy " + products.size() + " sản phẩm", products);
     }
 
     // ===== Product Images Management =====
-    
+
     @GetMapping("/{productId}/images")
     public ApiResponse getProductImages(@PathVariable Long productId) {
         return productService.getProductImages(productId);
@@ -151,8 +163,7 @@ public class ProductController {
     @PreAuthorize("hasAnyAuthority('ADMIN', 'PRODUCT_MANAGER')")
     public ApiResponse addProductImage(
             @PathVariable Long productId,
-            @RequestBody java.util.Map<String, Object> request
-    ) {
+            @RequestBody java.util.Map<String, Object> request) {
         String imageUrl = (String) request.get("imageUrl");
         Boolean isPrimary = (Boolean) request.getOrDefault("isPrimary", false);
         return productService.addProductImage(productId, imageUrl, isPrimary);
@@ -162,8 +173,7 @@ public class ProductController {
     @PreAuthorize("hasAnyAuthority('ADMIN', 'PRODUCT_MANAGER')")
     public ApiResponse setPrimaryImage(
             @PathVariable Long productId,
-            @PathVariable Long imageId
-    ) {
+            @PathVariable Long imageId) {
         return productService.setPrimaryImage(productId, imageId);
     }
 
@@ -177,8 +187,7 @@ public class ProductController {
     @PreAuthorize("hasAnyAuthority('ADMIN', 'PRODUCT_MANAGER')")
     public ApiResponse reorderProductImages(
             @PathVariable Long productId,
-            @RequestBody java.util.Map<String, java.util.List<Long>> request
-    ) {
+            @RequestBody java.util.Map<String, java.util.List<Long>> request) {
         java.util.List<Long> imageIds = request.get("imageIds");
         return productService.reorderProductImages(productId, imageIds);
     }
@@ -189,13 +198,14 @@ public class ProductController {
         try {
             Product product = productService.getById(id)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
-            
+
             Boolean currentActive = product.getActive();
-            if (currentActive == null) currentActive = true;
-            
+            if (currentActive == null)
+                currentActive = true;
+
             product.setActive(!currentActive);
             productService.update(id, product);
-            
+
             String status = product.getActive() ? "đang bán" : "ngừng bán";
             return ApiResponse.success("Đã chuyển sản phẩm sang trạng thái " + status, null);
         } catch (Exception e) {
